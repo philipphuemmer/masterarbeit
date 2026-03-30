@@ -1,0 +1,38 @@
+# Core scientific stack
+numpy>=1.24
+pandas>=2.0
+scipy>=1.11
+scikit-learn>=1.3
+
+# Reinforcement Learning
+gymnasium>=0.29
+stable-baselines3>=2.2
+# ray[rllib]>=2.9       # Uncomment for distributed RL (optional)
+
+# Operations Research
+ortools>=9.8            # Google OR-Tools für VRP-Solver (Initialplan + Replanning)
+
+# Google Maps API
+googlemaps>=4.10
+
+# Visualization
+matplotlib>=3.7
+seaborn>=0.13
+folium>=0.15           # Interactive maps
+plotly>=5.18
+
+# Jupyter
+jupyter>=1.0
+ipykernel>=6.27
+ipywidgets>=8.1
+
+# Config & utilities
+python-dotenv>=1.0
+pyyaml>=6.0
+tqdm>=4.66
+
+# Data validation
+pydantic>=2.5
+
+# HTTP requests (für OSRM API)
+requests>=2.31

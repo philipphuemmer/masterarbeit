@@ -1,0 +1,80 @@
+project:
+  name: "Wartungsoptimierung E-Ladesäulen Würzburg"
+  seed: 42
+
+data:
+  raw_path: "data/raw/charging_stations_wue.csv"
+  processed_path: "data/processed/stations_clean.csv"
+  distance_matrix_path: "data/distance_matrices/travel_times.npy"
+  separator: ";"
+  # Coordinate columns in the CSV
+  lat_col: "Breitengrad"
+  lon_col: "Längengrad"
+  id_col: "Ladeeinrichtungs-ID"
+
+google_maps:
+  # Überschrieben durch .env / GOOGLE_MAPS_API_KEY
+  # travel_mode: driving | walking | bicycling | transit
+  travel_mode: "driving"
+  # units: metric | imperial
+  units: "metric"
+  # Max. Elemente pro API-Call (rows * cols <= 100 im Free Tier)
+  max_elements_per_request: 100
+
+osrm:
+  # URL der lokalen OSRM Docker-Instanz
+  base_url: "http://localhost:5000"
+  # HTTP-Timeout in Sekunden (397×397 braucht ~5–15s)
+  timeout: 120
+  # OSM-Daten für OSRM Preprocessing (relativ zum Projektordner)
+  osm_pbf: "data/osrm/bayern.osm.pbf"
+  osrm_processed: "data/osrm/bayern.osrm"
+
+depot:
+  # WVV Betriebshof Sanderau, Friedrich-Spee-Straße 58-64, 97072 Würzburg
+  name: "WVV Betriebshof Sanderau"
+  lat: 49.7817
+  lon: 9.9351
+
+planning:
+  # K-Means Clustering (reines K-Means, kein Balance-Zwang)
+  n_zones: 60
+  # Tägliche Zonenauswahl
+  n_top_candidates: 20       # Aus allen offenen Zonen: Top-N nach Prioritätsscore für Startzone
+  min_team_separation_km: 1.0  # Mindestabstand zwischen Team-Zonen
+  max_stations_per_team: 16  # Max. Routine-Kandidaten pro Team; OR-Tools löst innerhalb Zeitfenster
+  travel_reserve_min: 60     # Zeitpuffer für An-/Abfahrt zum Depot [min]
+  priority_weights:
+    depot_distance: 0.5      # Gewicht für mittlere Depot-Entfernung
+    convex_hull_area: 0.5    # Gewicht für Zonengröße (Konvexe-Hülle-Fläche)
+
+environment:
+  # Wie viele Ladesäulen maximal in einer Episode besucht werden
+  max_stations_per_episode: 30
+  # Maximale Schritte pro Episode
+  max_steps: 50
+  # Reward-Shaping-Parameter (werden später kalibriert)
+  reward:
+    visit_bonus: 10.0          # Belohnung für eine besuchte Station
+    travel_time_penalty: 0.1   # Strafe pro Minute Fahrzeit
+    revisit_penalty: -5.0      # Strafe für doppelten Besuch
+    completion_bonus: 50.0     # Bonus für Abschluss aller Aufgaben
+
+maintenance:
+  # Failure-Wahrscheinlichkeit pro Zeitschritt (wird später durch Daten kalibriert)
+  failure_rate: 0.02
+  # Mittlere Wartungszeit in Minuten
+  mean_service_time: 30
+  # Anzahl Wartungsteams
+  n_teams: 2
+  # Arbeitstag: 8:00–17:00 Uhr
+  workday_start_hour: 8
+  workday_end_hour: 17
+  # Gewichtungsfaktor für Makespan-Term in der Zielfunktion.
+  # 0 = nur Gesamtfahrzeit minimieren, >0 = Lastverteilung erzwingen.
+  # Kalibrieren nach ersten Tests mit echten Daten.
+  global_span_cost_coefficient: 0
+  # OR-Tools Solver-Zeitlimits in Sekunden.
+  # Für 32 Stops / 2 Teams: 5s reichen für gute Lösung (30s = Qualitätsmaximum).
+  solver_time_limit_initial: 5
+  solver_time_limit_replan: 3
