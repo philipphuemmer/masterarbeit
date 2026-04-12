@@ -25,9 +25,15 @@ bash scripts/start_osrm.sh   # start container on localhost:5000
 ## Common Commands
 
 ```bash
-# Run myopic simulation (100 days)
+# Run myopic simulation (outputs logs/myopic_simulation.json by default)
 python scripts/run_myopic.py
 python scripts/run_myopic.py --max-days 10 --log-day 1 --verbose
+
+# Monte Carlo: pass --run-id to embed run number in the JSON
+python scripts/run_myopic.py --output logs/mc_run_1.json --run-id 1 --seed 1
+
+# Legacy text log (pass a .log extension explicitly)
+python scripts/run_myopic.py --output logs/myopic_simulation.log
 
 # Build travel/traffic matrices (requires OSRM / Google Maps API)
 python scripts/build_travel_matrix.py
@@ -57,8 +63,18 @@ No formal test suite exists yet (tests/ is empty).
 
 ### Models
 - `src/models/myopic.py` — greedy cheapest-insertion; handles hourly disruptions; computes operational cost (40 €/h + 0.30 €/km) and downtime cost (0.50 €/kWh × power_kW)
-- `src/models/cfa.py`, `src/models/vfa.py` — skeleton only, not yet implemented
+- `src/models/myopic_plus.py`, `src/models/vfa.py` — myopic_plus implemented; vfa skeleton only
 - `src/models/cost_params.py` — shared economic constants
+- `src/models/simulator.py` — shared simulation loop (`MaintenanceSimulator`) used by all policies; contains `SimulationResult`, `DayResult`, `HourLog` dataclasses and logging methods
+
+### Simulation Output (JSON)
+`MaintenanceSimulator.write_json()` writes structured JSON with four sections:
+- `meta` — label, run_id, UTC timestamp
+- `summary` — scalar KPIs for the full simulation run
+- `days` — one record per day (routine tasks, disruptions, costs)
+- `hourly` — one record per (day, hour) with `disruptions` and `actions` string arrays; actions include full route detail at 08:00, per-hour team status (current activity, next stop, or depot return time), and explicit depot-return entries in the hour they occur
+
+`write_log()` (text format) is still available; pass a `.log` extension to use it.
 
 ### RL Environment (`src/environment/maintenance_env.py`)
 Custom `gymnasium.Env`. State: team positions (indices), team times (normalized), binary visited/needs-maintenance vectors. Action: `MultiDiscrete([n, n])` — both teams choose next station simultaneously. Rewards configured in `configs/config.yaml` under `environment`.
@@ -67,7 +83,7 @@ Custom `gymnasium.Env`. State: team positions (indices), team times (normalized)
 All parameters live in `configs/config.yaml`. Key sections: `depot`, `planning` (zone count, weights, caps), `environment` (reward shaping), `maintenance` (teams, workday, service times, OR-Tools time limits), `google_maps`, `osrm`.
 
 ### Failure Simulation
-`data/malfunction.csv` — 100 simulated days; Poisson arrivals (λ₁=3/9, λ₂=1/9 per hour for Typ 1/2); Typ 1 = 60 min on-site, Typ 2 = 30 min dismount + depot round-trip + 30 min remount.
+`data/malfunction.csv` — 100 simulated days; Poisson arrivals (λ₁=3/9, λ₂=1/9 per hour for Typ 1/2); Typ 1 = 60 min on-site, Typ 2 = 30 min dismount + depot round-trip + 30 min remount. Alternatively `failure_simulation.mode: stochastic` in config generates disruptions probabilistically per run.
 
 ## Important Notes
 
@@ -75,3 +91,4 @@ All parameters live in `configs/config.yaml`. Key sections: `depot`, `planning` 
 - Depot is always **index 0** in all matrices and coordinate lists
 - Distance matrices and processed data are git-ignored; regenerate with the build scripts
 - `stable-baselines3` (PPO, DQN, A2C) is available for RL training against the Gymnasium env
+- NumPy scalar types (`float32`, `int64`) are not JSON-serialisable — `write_json()` handles this via a custom encoder; keep this in mind when adding new logged fields

@@ -1,0 +1,158 @@
+"""
+Monte-Carlo-Simulation für die CFA Light Policy (V̂-Drop + Cheapest-Insertion).
+
+Führt N Läufe durch (Seed 1 … N), speichert jeden Lauf als
+logs/cfa_light/run_<N>.json und gibt am Ende eine aggregierte Analyse aus.
+
+Ausführen:
+    .venv/bin/python3 scripts/run_mc_cfa_light.py --runs 30
+    .venv/bin/python3 scripts/run_mc_cfa_light.py --runs 10 --max-days 50 --verbose
+"""
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from src.data.loader import load_stations, get_coordinates, load_traffic_matrices
+from src.models.cfa_light import CFALightModel
+from src.models.simulator import MaintenanceSimulator, SimulationResult
+from src.planning.clustering import ZoneClusterer
+from src.planning.selector import DailyZoneSelector
+
+
+def analyse(results: list[SimulationResult], seeds: list[int]) -> None:
+    """Gibt aggregierte Statistiken über alle Läufe aus."""
+    total_costs   = np.array([r.total_cost_eur for r in results])
+    op_costs      = np.array([sum(d.operational_cost_eur for d in r.day_results) for r in results])
+    dt_costs      = np.array([sum(d.downtime_cost_eur    for d in r.day_results) for r in results])
+    days_done     = np.array([r.days_to_complete if r.days_to_complete is not None else np.nan
+                              for r in results])
+    same_day_rate = np.array([r.same_day_rate for r in results])
+    total_disrupt = np.array([r.total_disruptions for r in results])
+    carryovers    = np.array([r.total_carryover   for r in results])
+
+    sep = "=" * 66
+    print(f"\n{sep}")
+    print(f"  MONTE-CARLO-ANALYSE  –  {len(results)} Läufe (Seeds {seeds[0]}–{seeds[-1]})")
+    print(sep)
+
+    def row(label: str, arr: np.ndarray, unit: str = "") -> None:
+        finite = arr[np.isfinite(arr)]
+        if len(finite) == 0:
+            print(f"  {label:<28}  (keine Daten)")
+            return
+        print(
+            f"  {label:<28}  "
+            f"MW {np.mean(finite):>10,.2f}  "
+            f"SD {np.std(finite):>9,.2f}  "
+            f"Min {np.min(finite):>10,.2f}  "
+            f"Max {np.max(finite):>10,.2f}"
+            + (f"  {unit}" if unit else "")
+        )
+
+    row("Gesamtkosten (€)",        total_costs,   "€")
+    row("  Betriebskosten (€)",    op_costs,      "€")
+    row("  Ausfallkosten (€)",     dt_costs,      "€")
+    row("Simulationstage",         days_done)
+    row("Same-Day-Rate",           same_day_rate * 100, "%")
+    row("Gesamtstörungen",         total_disrupt)
+    row("Gesamtcarryover",         carryovers)
+
+    print(sep)
+
+    print(f"\n  {'Seed':>5}  {'Tage':>5}  {'Gesamt (€)':>12}  "
+          f"{'Betrieb (€)':>12}  {'Ausfall (€)':>11}  "
+          f"{'Same-Day %':>10}  {'Störungen':>9}  {'Carryover':>9}")
+    print(f"  {'-'*5}  {'-'*5}  {'-'*12}  {'-'*12}  {'-'*11}  {'-'*10}  {'-'*9}  {'-'*9}")
+    for i, r in enumerate(results):
+        op = sum(d.operational_cost_eur for d in r.day_results)
+        dt = sum(d.downtime_cost_eur    for d in r.day_results)
+        d  = r.days_to_complete if r.days_to_complete is not None else "-"
+        print(
+            f"  {seeds[i]:>5}  {str(d):>5}  {r.total_cost_eur:>12,.2f}  "
+            f"{op:>12,.2f}  {dt:>11,.2f}  "
+            f"{r.same_day_rate * 100:>9.1f}%  "
+            f"{r.total_disruptions:>9}  {r.total_carryover:>9}"
+        )
+    print()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Monte-Carlo-Simulation (CFA Light)")
+    parser.add_argument("--runs", type=int, default=30,
+                        help="Anzahl der Simulationsläufe N (Seeds 1…N, Standard: 30)")
+    parser.add_argument("--max-days", type=int, default=365,
+                        help="Maximale Tage pro Lauf (Standard: 365)")
+    parser.add_argument("--verbose", action="store_true",
+                        help="OR-Tools Logging aktivieren")
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO if args.verbose else logging.WARNING,
+        format="%(message)s",
+    )
+
+    with open("configs/config.yaml") as f:
+        cfg = yaml.safe_load(f)
+
+    cfa_cfg = cfg.get("cfa", {})
+    print(f"  α = {cfa_cfg.get('alpha', 10.0)} (Skalierungsfaktor Ausfallkosten)")
+
+    print("Lade Stationsdaten...")
+    df_base = load_stations(cfg)
+    coords  = np.array(get_coordinates(df_base, cfg))
+    mats    = load_traffic_matrices(cfg)
+    print(f"  {len(df_base)} Stationen, {len(mats)} Stundenmatrizen geladen.")
+
+    failure_mode = cfg.get("failure_simulation", {}).get("mode", "csv")
+    if failure_mode == "csv":
+        mal_df = pd.read_csv("data/malfunction.csv")
+        print(f"  {len(mal_df)} Störereignisse aus malfunction.csv geladen.")
+    else:
+        mal_df = None
+        print(f"  Störungsmodus: stochastisch")
+
+    out_dir = Path("logs/cfa_light")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    seeds = list(range(1, args.runs + 1))
+    results: list[SimulationResult] = []
+
+    print(f"\nStarte {args.runs} Monte-Carlo-Läufe...\n")
+    for seed in seeds:
+        print(f"  Lauf {seed}/{args.runs} (Seed {seed})...", end=" ", flush=True)
+
+        run_cfg = {**cfg, "project": {**cfg.get("project", {}), "seed": seed}}
+
+        clusterer = ZoneClusterer(
+            n_zones=run_cfg["planning"]["n_zones"],
+            random_state=seed,
+        )
+        clusterer.fit(coords[1:], (run_cfg["depot"]["lat"], run_cfg["depot"]["lon"]))
+
+        selector = DailyZoneSelector(clusterer, run_cfg, coords)
+        policy   = CFALightModel(mats, run_cfg, all_coords=coords, stations_df=df_base)
+        sim      = MaintenanceSimulator(policy, selector, coords, df_base, mats, run_cfg)
+
+        result = sim.run(mal_df, max_days=args.max_days)
+
+        out_path = out_dir / f"run_{seed}.json"
+        sim.write_json(result, str(out_path), label="CFA LIGHT SIMULATION", run_id=seed)
+
+        results.append(result)
+        days = result.days_to_complete or "?"
+        print(f"fertig ({days} Tage, {result.total_cost_eur:,.0f} €)")
+
+    analyse(results, seeds)
+
+
+if __name__ == "__main__":
+    main()

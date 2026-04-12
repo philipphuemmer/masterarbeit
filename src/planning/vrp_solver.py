@@ -42,6 +42,21 @@ class MaintenanceTask:
     service_time: int = 30
     """Servicezeit an der Station in Minuten."""
 
+    soft_deadline_min: Optional[int] = None
+    """Soft-Deadline in Minuten ab 8:00. OR-Tools zahlt deadline_penalty pro
+    Minute Überschreitung (SetCumulVarSoftUpperBound). None → kein Limit."""
+
+    deadline_penalty: int = 0
+    """Strafkosten in Minuten pro Minute Überschreitung der soft_deadline_min."""
+
+    skip_penalty: Optional[int] = None
+    """Falls gesetzt, ist die Aufgabe optional (AddDisjunction). Kosten in
+    Minuten für das Überspringen der Station."""
+
+    days_since_maintenance: float = 0.0
+    """Tage seit letzter Wartung dieser Station. Wird vom Simulator im
+    stochastischen Modus befüllt und von der CFA-Policy genutzt."""
+
 
 @dataclass
 class TeamState:
@@ -86,6 +101,7 @@ class DailyPlan:
 
     objective_value: int = 0
     """Zielfunktionswert des Solvers."""
+
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +153,10 @@ class VRPSolver:
         maint = config["maintenance"]
         self.default_service_time: int = maint["mean_service_time"]
         self._workday_start: int = maint["workday_start_hour"]
-        self.WORKDAY_MINUTES: int = (maint["workday_end_hour"] - maint["workday_start_hour"]) * 60
+        self.WORKDAY_MINUTES: int = (
+            (maint["workday_end_hour"] - maint["workday_start_hour"]) * 60
+            - maint.get("lunch_duration_min", 0)
+        )
         self._time_limit_initial: int = maint["solver_time_limit_initial"]
         self._time_limit_replan: int = maint["solver_time_limit_replan"]
 
@@ -193,7 +212,7 @@ class VRPSolver:
             TeamState(team_id=i, current_node=0, current_time=0)
             for i in range(self.n_teams)
         ]
-        plan = self._solve(tasks, team_states, extra_costs, limit)
+        plan = self._solve(tasks, team_states, extra_costs, limit, team_assignment)
         if plan.solver_status not in ("OPTIMAL", "FEASIBLE") and self.all_coords is not None:
             # Retry: Routine-Stops iterativ vom Depot entferntesten entfernen
             depot_coord = self.all_coords[0]
@@ -208,7 +227,15 @@ class VRPSolver:
                 retry_tasks = mandatory + routine_sorted[drop_n:]
                 if not retry_tasks:
                     break
-                plan = self._solve(retry_tasks, team_states, extra_costs, limit)
+                # team_assignment anpassen: gedropte Nodes entfernen
+                retry_assignment = None
+                if team_assignment:
+                    retry_nodes = {t.node_idx for t in retry_tasks}
+                    retry_assignment = {
+                        tid: [n for n in nodes if n in retry_nodes]
+                        for tid, nodes in team_assignment.items()
+                    }
+                plan = self._solve(retry_tasks, team_states, extra_costs, limit, retry_assignment)
                 if plan.solver_status in ("OPTIMAL", "FEASIBLE"):
                     logger.info(
                         f"Retry erfolgreich nach {drop_n} Drop(s): "
@@ -355,12 +382,32 @@ class VRPSolver:
             start_idx = routing.Start(v)
             time_dim.CumulVar(start_idx).SetRange(state.current_time, state.current_time)
 
-        # Zeitfenster für Aufgabenknoten: Ankunft so früh, dass Service vor 17:00 endet
+
+        # Soft-Deadlines: SetCumulVarSoftUpperBound für zeitkritische Knoten
         for task in tasks:
-            r_node = global_to_routing[task.node_idx]
-            routing_idx = manager.NodeToIndex(r_node)
-            latest_arrival = max(0, self.WORKDAY_MINUTES - task.service_time)
-            time_dim.CumulVar(routing_idx).SetRange(0, latest_arrival)
+            if task.soft_deadline_min is not None and task.deadline_penalty > 0:
+                r_node = global_to_routing[task.node_idx]
+                routing_idx = manager.NodeToIndex(r_node)
+                deadline = max(0, min(task.soft_deadline_min, self.WORKDAY_MINUTES))
+                time_dim.SetCumulVarSoftUpperBound(routing_idx, deadline, task.deadline_penalty)
+
+        # Optionale Aufgaben: AddDisjunction erlaubt OR-Tools das Überspringen
+        for task in tasks:
+            if task.skip_penalty is not None:
+                r_node = global_to_routing[task.node_idx]
+                routing_idx = manager.NodeToIndex(r_node)
+                routing.AddDisjunction([routing_idx], task.skip_penalty)
+
+        # Team-Zuweisung: Knoten dürfen nur vom zugewiesenen Fahrzeug besucht werden
+        if team_assignment:
+            for vehicle_id, node_list in team_assignment.items():
+                for node_idx in node_list:
+                    if node_idx not in global_to_routing:
+                        continue
+                    r_node = global_to_routing[node_idx]
+                    routing_idx = manager.NodeToIndex(r_node)
+                    # AllowedVehicles beschränkt den Knoten auf genau ein Fahrzeug
+                    routing.VehicleVar(routing_idx).SetValues([vehicle_id])
 
         # Rückkehr zum Depot vor Tagesende
         for v in range(self.n_teams):

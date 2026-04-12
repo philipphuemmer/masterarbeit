@@ -1,21 +1,23 @@
 """
-Myopic-Policy für die Wartungsoptimierung von E-Ladesäulen.
+CFA Light Modell – V̂-basierte Drop-Entscheidung + Cheapest-Insertion Routing.
 
-Strategie: Bei jeder stündlichen Störungsmeldung wird jede Störung in die
-Route des Teams mit den geringsten Gesamtzusatzkosten eingefügt (greedy
-cheapest insertion). Ist eine Einplanung am selben Tag nicht mehr vor
-17:00 Uhr möglich, wird die Störung als Carryover auf den nächsten Tag
-verschoben.
+Hierarchie:
+    Initialplan  : OR-Tools mit Soft-Deadlines (wie MyopicPlus)
+    Drop-Entscheid: nach V̂ (gelernt) – niedrigster Skip-Penalty zuerst droppen
+    Routing      : Greedy Cheapest-Insertion (wie Myopic)
 
-Kosten:
-  Operational  = (Fahrzeit + Servicezeit) × 40 €/h + km × 0,30 €/km
-  Ausfall      = Wartezeit bis Service [h] × Nennleistung [kW] × 0,50 €/kWh
+Initialplan (identisch zu MyopicPlus):
+    deadline(k) = rank(k) / n_tasks × WORKDAY_MINUTES
+    deadline_penalty(k) = α × power_kW(k) × p_h × downtime_eur_per_kwh / wage_eur_per_min
 
-Typ-1-Störung : Servicezeit = 60 min
-Typ-2-Störung : Servicezeit = 30 min (Demontage)
-                             + Rundfahrt Station→Depot→Station [min]
-                             + 5 min (Lagerhandling)
-                             + 30 min (Montage)
+Drop-Entscheidung (V̂-basiert):
+    V̂(stop) = skip_penalty ∝ power_kW × remaining_hours
+    → Stop mit geringstem V̂ wird zuerst aus der Route entfernt
+    → Hochwertige Stationen bleiben länger in der Route
+
+Routing nach Drop:
+    Cheapest-Insertion: Störungsknoten wird an günstigster Position eingefügt
+    → Kein OR-Tools Replan → schneller, deterministischer
 """
 from __future__ import annotations
 
@@ -23,6 +25,7 @@ import logging
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 
 from src.models.cost_params import CostParams
 from src.models.simulator import (
@@ -38,37 +41,94 @@ from src.planning.vrp_solver import DailyPlan, MaintenanceTask, VRPSolver
 logger = logging.getLogger(__name__)
 
 
-class MyopicPolicy:
+class CFALightModel:
     """
-    Myopic-Policy: Greedy cheapest-insertion Replanning bei Störungen.
+    CFA Light: V̂-basierte Drop-Entscheidung mit Cheapest-Insertion Routing.
 
     Parameters
     ----------
-    solver : VRPSolver
-        OR-Tools Solver für den Tages-Initialplan.
-    all_coords : np.ndarray, shape (n_stations + 1, 2)
-        Koordinaten aller Knoten inkl. Depot (Index 0).
     traffic_matrices : dict[int, np.ndarray]
         Stündliche Reisezeitmatrizen in Sekunden.
     config : dict
         Konfigurationsdict aus config.yaml.
+    all_coords : np.ndarray, shape (n_stations + 1, 2)
+        Koordinaten aller Knoten inkl. Depot (Index 0).
+    stations_df : pd.DataFrame | None
+        Stationsdaten mit Spalte „Nennleistung Ladeeinrichtung [kW]".
+        None → Fallback-Nennleistung 22 kW für alle Stationen.
     cost_params : CostParams | None
         Kostenparameter (None → Standardwerte).
     """
 
     def __init__(
         self,
-        solver: VRPSolver,
-        all_coords: np.ndarray,
         traffic_matrices: dict[int, np.ndarray],
         config: dict,
+        all_coords: np.ndarray,
+        stations_df: Optional[pd.DataFrame] = None,
         cost_params: Optional[CostParams] = None,
     ) -> None:
-        self.solver = solver
+        self.solver = VRPSolver(traffic_matrices, config, all_coords=all_coords)
+        self.config = config
         self.all_coords = all_coords
         self.traffic_matrices = traffic_matrices
-        self.config = config
         self.cost_params = cost_params or CostParams()
+        self.n_teams: int = config["maintenance"]["n_teams"]
+
+        maint = config["maintenance"]
+        self.WORKDAY_MINUTES: int = (
+            maint["workday_end_hour"] - maint["workday_start_hour"]
+        ) * 60
+
+        # Nennleistung pro node_idx (node_idx = DataFrame-Zeile + 1, Depot = 0)
+        pwr_col = "Nennleistung Ladeeinrichtung [kW]"
+        if stations_df is not None and pwr_col in stations_df.columns:
+            self.node_to_power: dict[int, float] = {
+                i + 1: (float(row[pwr_col]) if pd.notna(row.get(pwr_col)) else 22.0)
+                for i, (_, row) in enumerate(stations_df.iterrows())
+            }
+        else:
+            self.node_to_power = {}
+
+        # Ausfallwahrscheinlichkeit pro Stunde (Typ 1 + Typ 2)
+        fail_cfg = config.get("failure_simulation", {})
+        self.p_failure_per_hour: float = (
+            fail_cfg.get("p1_per_hour", 0.00084)
+            + fail_cfg.get("p2_per_hour", 0.00028)
+        )
+
+        # Skalierungsfaktor α
+        cfa_cfg = config.get("cfa", {})
+        self.alpha: float = float(cfa_cfg.get("alpha", 10.0))
+
+    # ------------------------------------------------------------------
+    # Hilfsmethoden
+    # ------------------------------------------------------------------
+
+    def _deadline_penalty(self, power_kw: float) -> int:
+        """Strafkosten in Minuten/Minute Deadline-Überschreitung."""
+        cp = self.cost_params
+        wage_per_min = cp.wage_eur_per_hour / 60.0
+        penalty = self.alpha * power_kw * self.p_failure_per_hour * cp.downtime_eur_per_kwh / wage_per_min
+        return max(1, int(round(penalty)))
+
+    def _skip_penalty(self, power_kw: float, remaining_hours: float, service_time: int = 45) -> float:
+        """
+        V̂(stop): Erwartete Kosten des Überspringens einer Routine-Station.
+
+        Höherer Wert → Station ist wertvoller → nicht droppen.
+        """
+        cp = self.cost_params
+        wage_per_min = cp.wage_eur_per_hour / 60.0
+        downtime_eur = self.alpha * power_kw * self.p_failure_per_hour * remaining_hours * cp.downtime_eur_per_kwh
+        return service_time + max(0.0, downtime_eur / wage_per_min)
+
+    def _get_matrix(self, time_min: float) -> np.ndarray:
+        """Gibt die passende Stundenmatrix für einen Zeitstempel zurück."""
+        hour = 8 + int(max(0.0, time_min)) // 60
+        available = sorted(self.traffic_matrices.keys())
+        hour = max(available[0], min(hour, available[-1]))
+        return self.traffic_matrices[hour]
 
     # ------------------------------------------------------------------
     # Policy-Schnittstelle
@@ -79,7 +139,31 @@ class MyopicPolicy:
         tasks: list[MaintenanceTask],
         team_assignment: Optional[dict[int, list[int]]] = None,
     ) -> DailyPlan:
-        """Delegiert an den OR-Tools Solver."""
+        """
+        Setzt Soft-Deadlines für Routine-Tasks basierend auf Nennleistung.
+
+        Hochleistungs-Stationen erhalten frühe Deadlines mit hohem Penalty
+        pro Minute Überschreitung → OR-Tools plant sie bevorzugt früh ein.
+        """
+        routine_tasks = [t for t in tasks if t.task_type == "routine"]
+        n = len(routine_tasks)
+
+        if n > 0:
+            depot = self.all_coords[0]
+            sorted_routine = sorted(
+                routine_tasks,
+                key=lambda t: _approx_km(self.all_coords[t.node_idx], depot),
+            )
+            for rank, task in enumerate(sorted_routine):
+                task.soft_deadline_min = int((rank + 1) / n * self.WORKDAY_MINUTES)
+                task.deadline_penalty = self._deadline_penalty(
+                    self.node_to_power.get(task.node_idx, 22.0)
+                )
+
+        logger.info(
+            f"CFA Light Initialplan: {len(tasks)} Tasks, "
+            f"{n} Routine mit Soft-Deadlines."
+        )
         return self.solver.create_initial_plan(tasks, team_assignment=team_assignment)
 
     def handle_disruptions(
@@ -91,15 +175,9 @@ class MyopicPolicy:
         log: HourLog,
     ) -> tuple[int, list[DisruptionEvent], float]:
         """
-        Fügt Störungen greedy cheapest in die Teamrouten ein.
+        Fügt Störungen per Cheapest-Insertion ein; Drop-Reihenfolge nach V̂.
 
         Reihenfolge: aufsteigend nach Insertionskosten (günstigste zuerst).
-        Nach jeder Einfügung wird die Route neu bewertet, bevor die nächste
-        Störung verplant wird.
-
-        Returns
-        -------
-        (n_handled, carryover_liste, ausfallkosten_eur)
         """
         matrix = self._get_matrix(time_min)
         carryover: list[DisruptionEvent] = []
@@ -122,7 +200,7 @@ class MyopicPolicy:
             if best is not None:
                 cost, team_idx, pos, arrival_at_d = best
                 self._insert_disruption(d, sim_routes[team_idx], pos, time_min)
-                log.notes.append(
+                log.actions.append(
                     f"Eingefuegt (direkt): {d.disruption_type} @ Node {d.node_idx} -> "
                     f"Team {sim_routes[team_idx].team_id}, "
                     f"Ankunft {_fmt(arrival_at_d)}, "
@@ -141,8 +219,8 @@ class MyopicPolicy:
                         self._remove_stop_and_recompute(sim_routes[team_idx], dg)
                     self._insert_disruption(d, sim_routes[team_idx], insert_pos, time_min)
                     n_d = len(dropped_nodes)
-                    log.notes.append(
-                        f"Eingefuegt ({n_d} Routine-Stop(s) ausgebaut: {dropped_nodes}): "
+                    log.actions.append(
+                        f"Eingefuegt ({n_d} Routine-Stop(s) ausgebaut via V̂: {dropped_nodes}): "
                         f"{d.disruption_type} @ Node {d.node_idx} -> "
                         f"Team {sim_routes[team_idx].team_id}, "
                         f"Ankunft {_fmt(arrival_at_d)}, "
@@ -150,7 +228,7 @@ class MyopicPolicy:
                     )
                 else:
                     carryover.append(d)
-                    log.notes.append(
+                    log.actions.append(
                         f"Carryover (kein Routine-Stop ausreichend): "
                         f"{d.disruption_type} @ Node {d.node_idx}"
                     )
@@ -161,7 +239,7 @@ class MyopicPolicy:
             d_cost = wait_h * d.power_kw * self.cost_params.downtime_eur_per_kwh
             downtime_cost += d_cost
             if d_cost > 0:
-                log.notes.append(f"Ausfall {d_cost:.2f} EUR ({wait_h:.2f} h Wartezeit)")
+                log.actions.append(f"  Ausfall {d_cost:.2f} EUR ({wait_h:.2f} h Wartezeit)")
             handled += 1
 
         return handled, carryover, downtime_cost
@@ -178,14 +256,7 @@ class MyopicPolicy:
         hour: int,
         matrix: np.ndarray,
     ) -> Optional[tuple[float, int, int, float]]:
-        """
-        Findet die kostengünstigste Einfügeposition über alle Teams.
-
-        Returns
-        -------
-        (min_cost, team_idx_in_sim_routes, pos_in_remaining, arrival_at_d)
-        oder None, wenn keine Einfügung vor 17:00 möglich ist.
-        """
+        """Findet die kostengünstigste Einfügeposition über alle Teams."""
         best_cost = np.inf
         best_team_idx: Optional[int] = None
         best_pos: Optional[int] = None
@@ -222,17 +293,7 @@ class MyopicPolicy:
         hour: int,
         matrix: np.ndarray,
     ) -> tuple[float, bool, float]:
-        """
-        Berechnet Kosten und Machbarkeit einer Einfügeposition.
-
-        pos = 0: direkt nach aktuellem Teamknoten (vor remaining[0])
-        pos = k: zwischen remaining[k-1] und remaining[k]
-        pos = len(remaining): nach dem letzten verbleibenden Stop
-
-        Returns
-        -------
-        (kosten_eur, machbar, ankunft_an_stoerung_min)
-        """
+        """Berechnet Kosten und Machbarkeit einer Einfügeposition."""
         cp = self.cost_params
         d_node = d.node_idx
 
@@ -283,6 +344,97 @@ class MyopicPolicy:
         )
         return cost, feasible, arrival_at_d
 
+    def _find_best_drop_and_insert(
+        self,
+        d: DisruptionEvent,
+        sim_routes: list[SimRoute],
+        time_min: float,
+        hour: int,
+    ) -> Optional[tuple[float, int, list[int], int, float]]:
+        """
+        V̂-basierte Drop-Entscheidung + Cheapest-Insertion.
+
+        Routine-Stops werden nach aufsteigendem V̂-Wert (Skip-Penalty) sortiert.
+        Der Stop mit dem niedrigsten V̂ wird zuerst entfernt – d.h. Stationen,
+        deren Wartungsausfall am wenigsten kostet, werden geopfert.
+
+        Returns
+        -------
+        (kosten, team_idx, [drop_global_indices], insert_pos, arrival_at_d)
+        oder None falls kein Drop eine Lösung ermöglicht.
+        """
+        best_cost = np.inf
+        best: Optional[tuple[float, int, list[int], int, float]] = None
+        matrix = self._get_matrix(time_min)
+        remaining_hours = max(0.0, (self.WORKDAY_MINUTES - time_min) / 60.0)
+
+        for ti, route in enumerate(sim_routes):
+            remaining = route.remaining_stops_at(time_min)
+            routine_in_remaining = [
+                (i, s) for i, s in enumerate(remaining) if s.task_type == "routine"
+            ]
+
+            if not routine_in_remaining:
+                continue
+
+            # V̂-Sortierung: niedrigster Skip-Penalty zuerst droppen
+            routine_sorted_by_value = sorted(
+                routine_in_remaining,
+                key=lambda x: self._skip_penalty(
+                    self.node_to_power.get(x[1].node_idx, 22.0),
+                    remaining_hours,
+                    int(x[1].service_min),
+                ),
+            )
+
+            current_node = route.current_node_at(time_min)
+            current_dep = route.current_departure_at(time_min)
+            if route.lunch_end_min is not None and current_dep < route.lunch_end_min:
+                current_dep = route.lunch_end_min
+
+            dropped_in_remaining: list[int] = []
+
+            for n_drop in range(1, len(routine_sorted_by_value) + 1):
+                # Nächsten billigsten Stop laut V̂ droppen
+                dropped_in_remaining.append(routine_sorted_by_value[n_drop - 1][0])
+                drop_set = set(dropped_in_remaining)
+
+                # Bereinigte Route mit neu berechneten Zeiten
+                trimmed: list[SimStop] = []
+                prev_n = current_node
+                prev_d = current_dep
+                for i, s in enumerate(remaining):
+                    if i in drop_set:
+                        continue
+                    mat_h = self._get_matrix(prev_d)
+                    new_arr = prev_d + mat_h[prev_n, s.node_idx] / 60.0
+                    trimmed.append(SimStop(
+                        node_idx=s.node_idx,
+                        task_type=s.task_type,
+                        arrival_min=new_arr,
+                        service_min=s.service_min,
+                    ))
+                    prev_n = s.node_idx
+                    prev_d = new_arr + s.service_min
+
+                found = False
+                for pos in range(len(trimmed) + 1):
+                    cost, feasible, arrival = self._insertion_cost(
+                        d, trimmed, current_node, current_dep, pos, hour, matrix
+                    )
+                    if feasible and cost < best_cost:
+                        drop_globals = [
+                            route.stops.index(remaining[i]) for i in dropped_in_remaining
+                        ]
+                        best_cost = cost
+                        best = (cost, ti, drop_globals, pos, arrival)
+                        found = True
+
+                if found:
+                    break
+
+        return best
+
     def _insert_disruption(
         self,
         d: DisruptionEvent,
@@ -290,10 +442,7 @@ class MyopicPolicy:
         pos: int,
         time_min: float,
     ) -> None:
-        """
-        Fügt Störungs-Stop an Position pos (in remaining) in die Route ein
-        und aktualisiert alle Folge-Ankunftszeiten.
-        """
+        """Fügt Störungs-Stop an Position pos (in remaining) ein."""
         remaining = route.remaining_stops_at(time_min)
 
         if remaining:
@@ -329,86 +478,8 @@ class MyopicPolicy:
             mat = self._get_matrix(prev_s.departure_min)
             curr_s.arrival_min = prev_s.departure_min + mat[prev_s.node_idx, curr_s.node_idx] / 60.0
 
-    def _find_best_drop_and_insert(
-        self,
-        d: DisruptionEvent,
-        sim_routes: list[SimRoute],
-        time_min: float,
-        hour: int,
-    ) -> Optional[tuple[float, int, list[int], int, float]]:
-        """
-        Sucht die kostengünstigste Kombination aus 1..N Routine-Drops,
-        um Platz für Störung d zu schaffen.
-
-        Strategie: Greedy von hinten – letzte Routine-Stops werden zuerst
-        entfernt. Für jede Drop-Anzahl werden alle Einfügepositionen geprüft.
-
-        Returns
-        -------
-        (kosten, team_idx, [drop_global_indices], insert_pos, arrival_at_d)
-        oder None falls kein Drop eine Lösung ermöglicht.
-        """
-        best_cost = np.inf
-        best: Optional[tuple[float, int, list[int], int, float]] = None
-        matrix = self._get_matrix(time_min)
-
-        for ti, route in enumerate(sim_routes):
-            remaining = route.remaining_stops_at(time_min)
-            routine_idx = [i for i, s in enumerate(remaining) if s.task_type == "routine"]
-
-            if not routine_idx:
-                continue
-
-            current_node = route.current_node_at(time_min)
-            current_dep = route.current_departure_at(time_min)
-            if route.lunch_end_min is not None and current_dep < route.lunch_end_min:
-                current_dep = route.lunch_end_min
-
-            dropped_in_remaining: list[int] = []
-
-            for n_drop in range(1, len(routine_idx) + 1):
-                dropped_in_remaining.append(routine_idx[-n_drop])
-                drop_set = set(dropped_in_remaining)
-
-                # Bereinigte Route mit neu berechneten Zeiten
-                trimmed: list[SimStop] = []
-                prev_n = current_node
-                prev_d = current_dep
-                for i, s in enumerate(remaining):
-                    if i in drop_set:
-                        continue
-                    mat_h = self._get_matrix(prev_d)
-                    new_arr = prev_d + mat_h[prev_n, s.node_idx] / 60.0
-                    trimmed.append(SimStop(
-                        node_idx=s.node_idx,
-                        task_type=s.task_type,
-                        arrival_min=new_arr,
-                        service_min=s.service_min,
-                    ))
-                    prev_n = s.node_idx
-                    prev_d = new_arr + s.service_min
-
-                found = False
-                for pos in range(len(trimmed) + 1):
-                    cost, feasible, arrival = self._insertion_cost(
-                        d, trimmed, current_node, current_dep, pos, hour, matrix
-                    )
-                    if feasible and cost < best_cost:
-                        drop_globals = [route.stops.index(remaining[i]) for i in dropped_in_remaining]
-                        best_cost = cost
-                        best = (cost, ti, drop_globals, pos, arrival)
-                        found = True
-
-                if found:
-                    break
-
-        return best
-
     def _remove_stop_and_recompute(self, route: SimRoute, global_idx: int) -> None:
-        """
-        Entfernt den Stop an global_idx aus der Route und berechnet
-        alle nachfolgenden Ankunftszeiten neu.
-        """
+        """Entfernt Stop und berechnet alle Folge-Ankunftszeiten neu."""
         route.stops.pop(global_idx)
         if global_idx >= len(route.stops):
             return
@@ -427,14 +498,3 @@ class MyopicPolicy:
             curr.arrival_min = prev_dep + mat[prev_node, curr.node_idx] / 60.0
             prev_node = curr.node_idx
             prev_dep = curr.departure_min
-
-    def _get_matrix(self, time_min: float) -> np.ndarray:
-        """Gibt die passende Stundenmatrix für einen Zeitstempel zurück."""
-        hour = 8 + int(max(0.0, time_min)) // 60
-        available = sorted(self.traffic_matrices.keys())
-        hour = max(available[0], min(hour, available[-1]))
-        return self.traffic_matrices[hour]
-
-
-# Alias für Rückwärtskompatibilität
-MyopicModel = MyopicPolicy

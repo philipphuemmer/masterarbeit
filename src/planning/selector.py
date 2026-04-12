@@ -67,8 +67,9 @@ class DailyZoneSelector:
         maint_cfg = config.get("maintenance", {})
         self.default_service_time: int = maint_cfg.get("mean_service_time", 30)
         self._workday_minutes: int = (
-            maint_cfg.get("workday_end_hour", 17) - maint_cfg.get("workday_start_hour", 8)
-        ) * 60
+            (maint_cfg.get("workday_end_hour", 17) - maint_cfg.get("workday_start_hour", 8)) * 60
+            - maint_cfg.get("lunch_duration_min", 0)
+        )
         self._travel_reserve_min: int = planning_cfg.get("travel_reserve_min", 60)
 
         w = planning_cfg.get("priority_weights", {})
@@ -281,7 +282,10 @@ class DailyZoneSelector:
             selected.append(next_s)
 
         # node_idx = station_idx + 1 (Depot belegt Index 0)
-        return [MaintenanceTask(node_idx=s + 1, task_type="routine") for s in selected]
+        return [
+            MaintenanceTask(node_idx=s + 1, task_type="routine", service_time=self.default_service_time)
+            for s in selected
+        ]
 
     def _distribute_carryover(
         self,

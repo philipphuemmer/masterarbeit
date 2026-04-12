@@ -37,13 +37,13 @@ depot:
   lon: 9.9351
 
 planning:
-  # K-Means Clustering (reines K-Means, kein Balance-Zwang)
-  n_zones: 60
+  # K-Means Clustering (reines K-Means, kein Balance-Zwang) Normal: 60
+  n_zones: 40
   # Tägliche Zonenauswahl
   n_top_candidates: 20       # Aus allen offenen Zonen: Top-N nach Prioritätsscore für Startzone
   min_team_separation_km: 1.0  # Mindestabstand zwischen Team-Zonen
-  max_stations_per_team: 16  # Max. Routine-Kandidaten pro Team; OR-Tools löst innerhalb Zeitfenster
-  travel_reserve_min: 60     # Zeitpuffer für An-/Abfahrt zum Depot [min]
+  max_stations_per_team: 20  # Max. Routine-Kandidaten pro Team; OR-Tools löst innerhalb Zeitfenster
+  travel_reserve_min: 20     # Zeitpuffer für An-/Abfahrt zum Depot [min]
   priority_weights:
     depot_distance: 0.5      # Gewicht für mittlere Depot-Entfernung
     convex_hull_area: 0.5    # Gewicht für Zonengröße (Konvexe-Hülle-Fläche)
@@ -60,20 +60,48 @@ environment:
     revisit_penalty: -5.0      # Strafe für doppelten Besuch
     completion_bonus: 50.0     # Bonus für Abschluss aller Aufgaben
 
+failure_simulation:
+  # "csv"       → Störungen aus data/malfunction.csv laden (bisheriges Verhalten)
+  # "stochastic" → Störungen stündlich probabilistisch generieren
+  mode: "stochastic"
+
+  # Basiswahrscheinlichkeit pro Säule und Stunde (kalibriert auf 3 Typ-1 / 1 Typ-2 pro Tag
+  # bei 397 Säulen und 9 Arbeitsstunden):
+  #   Typ 1: 3 / (397 * 9) ≈ 0.00084
+  #   Typ 2: 1 / (397 * 9) ≈ 0.00028
+  #   Typ 1: 5 / (397 * 9) ≈ 0.00130
+  #   Typ 2: 2 / (397 * 9) ≈ 0.00056
+  p1_per_hour: 0.00130
+  p2_per_hour: 0.00056
+
+  # Erholungskurve nach Wartung: p(t) = p_base * (initial_factor + (1 - initial_factor) * t / recovery_days)
+  recovery_days: 365      # Tage bis zur vollständigen Erholung auf 100 %
+  initial_factor: 0.1     # Wahrscheinlichkeitsfaktor direkt nach Wartung (10 %)
+
+cfa:
+  # Erwartete Ausfallkosten als Zusatzterm in der VRP-Zielfunktion:
+  # penalty(k) = alpha × p_h × t_exp_h × power_kW × downtime_eur_per_kwh / wage_eur_per_min
+  # Nur Routine-Tasks, nur im Initialplan (Replan läuft ohne Penalty).
+  alpha: 10.0                # Skalierungsfaktor (10 → ~23 min für 300 kW am Tagesende)
+
 maintenance:
   # Failure-Wahrscheinlichkeit pro Zeitschritt (wird später durch Daten kalibriert)
   failure_rate: 0.02
   # Mittlere Wartungszeit in Minuten
-  mean_service_time: 30
+  mean_service_time: 45
   # Anzahl Wartungsteams
   n_teams: 2
   # Arbeitstag: 8:00–17:00 Uhr
   workday_start_hour: 8
-  workday_end_hour: 17
+  workday_end_hour: 16
   # Gewichtungsfaktor für Makespan-Term in der Zielfunktion.
   # 0 = nur Gesamtfahrzeit minimieren, >0 = Lastverteilung erzwingen.
   # Kalibrieren nach ersten Tests mit echten Daten.
   global_span_cost_coefficient: 0
+  # Mittagspause: Dauer und frühester Startzeitpunkt (Minuten ab 08:00).
+  # 0 = keine Pause. VRP-Horizont wird automatisch um lunch_duration_min verkürzt.
+  lunch_duration_min: 0
+  lunch_earliest_min: 240   # = 12:00 Uhr
   # OR-Tools Solver-Zeitlimits in Sekunden.
   # Für 32 Stops / 2 Teams: 5s reichen für gute Lösung (30s = Qualitätsmaximum).
   solver_time_limit_initial: 5
