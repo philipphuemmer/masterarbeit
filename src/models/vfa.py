@@ -169,6 +169,20 @@ class VFAModel:
         """V̂(s) = θᵀ φ + intercept."""
         return float(self.theta @ phi) + self.intercept
 
+    def _station_value(self, node_idx: int, dsm: float) -> float:
+        """
+        Stationsindividuelle Näherung von ΔV̂ für die V̂-basierte Zonenauswahl.
+
+        Berechnet den marginalen Wertbeitrag einer einzelnen Station, ohne den
+        globalen Zustand zu kennen. Verwendet nur die stationsindividuellen
+        Features f0 (power × dsm) und f1 (failure_risk × power), da f2 (mean dsm)
+        und f3 (max urgency) globalen Kontext erfordern.
+        """
+        power = self.node_to_power.get(node_idx, 22.0)
+        urgency = power * dsm
+        failure_risk = 1.0 - np.exp(-self.lambda_per_day * dsm)
+        return float(self.theta[0] * urgency + self.theta[1] * failure_risk * power)
+
     def _disruption_deadline_penalty(self, power_kw: float) -> int:
         """Deadline-Penalty für Störungen in Minuten/Minute Überschreitung (analog CFA)."""
         penalty_eur = (

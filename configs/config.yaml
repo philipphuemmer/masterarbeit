@@ -44,9 +44,13 @@ planning:
   min_team_separation_km: 1.0  # Mindestabstand zwischen Team-Zonen
   max_stations_per_team: 20  # Max. Routine-Kandidaten pro Team; OR-Tools löst innerhalb Zeitfenster
   travel_reserve_min: 20     # Zeitpuffer für An-/Abfahrt zum Depot [min]
+  # V̂-basierte Zonenauswahl (nur CFA/VFA): true → Zonenwert aus gelernter Wertfunktion
+  # statt Konvexhüllenfläche; false → klassisches depot_distance + convex_hull_area (Myopic-Verhalten)
+  value_based_zone_selection: true
   priority_weights:
     depot_distance: 0.5      # Gewicht für mittlere Depot-Entfernung
-    convex_hull_area: 0.5    # Gewicht für Zonengröße (Konvexe-Hülle-Fläche)
+    convex_hull_area: 0.5    # Gewicht für Zonengröße (nur aktiv wenn value_based_zone_selection: false)
+    zone_value: 0.5          # Gewicht für V̂-Zonenwert (nur aktiv wenn value_based_zone_selection: true)
 
 environment:
   # Wie viele Ladesäulen maximal in einer Episode besucht werden

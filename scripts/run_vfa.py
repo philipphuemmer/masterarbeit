@@ -97,6 +97,9 @@ def main() -> None:
         n_stations=len(df),
         theta_path=args.theta_path,
     )
+    if cfg["planning"].get("value_based_zone_selection", False):
+        selector.value_fn = policy._station_value
+        print("  V̂-basierte Zonenauswahl aktiv (VFA).")
     sim = MaintenanceSimulator(policy, selector, coords, df, mats, cfg)
 
     print(f"  θ = {policy.theta.tolist()}")

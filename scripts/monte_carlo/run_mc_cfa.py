@@ -171,6 +171,8 @@ def main() -> None:
             stations_df=df_base,
             theta_path=args.theta_path,
         )
+        if run_cfg["planning"].get("value_based_zone_selection", False):
+            selector.value_fn = policy._value
         sim = MaintenanceSimulator(policy, selector, coords, df_base, mats, run_cfg)
 
         result = sim.run(mal_df, max_days=args.max_days)

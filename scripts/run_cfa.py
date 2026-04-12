@@ -90,6 +90,9 @@ def main() -> None:
         stations_df=df,
         theta_path=args.theta_path,
     )
+    if cfg["planning"].get("value_based_zone_selection", False):
+        selector.value_fn = policy._value
+        print("  V̂-basierte Zonenauswahl aktiv (CFA).")
     sim = MaintenanceSimulator(policy, selector, coords, df, mats, cfg)
 
     print(f"  θ = {policy.theta:.4e} EUR/(kW·Tag)")

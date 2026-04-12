@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Callable, Optional
 
 import numpy as np
 
@@ -75,6 +76,15 @@ class DailyZoneSelector:
         w = planning_cfg.get("priority_weights", {})
         self.w_depot: float = float(w.get("depot_distance", 0.5))
         self.w_area: float = float(w.get("convex_hull_area", 0.5))
+        self.w_value: float = float(w.get("zone_value", 0.5))
+        self.use_value_based: bool = bool(
+            planning_cfg.get("value_based_zone_selection", False)
+        )
+
+        # Wird nach Konstruktion gesetzt (run_cfa.py / run_vfa.py):
+        #   selector.value_fn = lambda node_idx, dsm: model._value(node_idx, dsm)
+        # None → klassisches depot_distance + convex_hull_area Scoring
+        self.value_fn: Optional[Callable[[int, float], float]] = None
 
     # ------------------------------------------------------------------
     # Öffentliche API
@@ -85,6 +95,7 @@ class DailyZoneSelector:
         remaining_station_indices: list[int],
         team_states: list[TeamState],
         carryover_tasks: list[MaintenanceTask] | None = None,
+        dsm_array: Optional[np.ndarray] = None,
     ) -> ZoneAssignment:
         """
         Bestimmt die Wartungsaufgaben für beide Teams am Tagesbeginn.
@@ -98,6 +109,9 @@ class DailyZoneSelector:
         carryover_tasks : list[MaintenanceTask] | None
             Unerledigte Störungen vom Vortag – werden priorisiert
             zum jeweiligen Team hinzugefügt.
+        dsm_array : np.ndarray | None
+            days_since_maintenance pro node_idx (1-basiert). Wird für
+            V̂-basierte Zonenauswahl benötigt; None → klassisches Scoring.
         """
         remaining_set = set(remaining_station_indices)
         carryover = carryover_tasks or []
@@ -111,7 +125,7 @@ class DailyZoneSelector:
             return ZoneAssignment(team_tasks=tasks_per_team, selected_zones={})
 
         # Schritt 1: Startzonen zuweisen (1 pro Team, mit Mindestabstand)
-        scored_zones = self._score_zones(open_zones)
+        scored_zones = self._score_zones(open_zones, remaining_set, dsm_array)
         top_zones = scored_zones[: self.n_top_candidates]
         starting_zones = self._assign_starting_zones(top_zones, team_states)
 
@@ -161,19 +175,41 @@ class DailyZoneSelector:
             if any(i in remaining_set for i in idxs)
         ]
 
-    def _score_zones(self, open_zones: list[int]) -> list[int]:
+    def _score_zones(
+        self,
+        open_zones: list[int],
+        remaining_set: set[int],
+        dsm_array: Optional[np.ndarray],
+    ) -> list[int]:
         """Gibt Zonen absteigend nach Prioritätsscore sortiert zurück."""
         assert self.clusterer.mean_depot_distances_ is not None
         assert self.clusterer.convex_hull_areas_ is not None
 
         dists = self.clusterer.mean_depot_distances_[open_zones]
-        areas = self.clusterer.convex_hull_areas_[open_zones]
 
         def _norm(arr: np.ndarray) -> np.ndarray:
             span = arr.max() - arr.min()
             return (arr - arr.min()) / span if span > 0 else np.zeros_like(arr)
 
-        scores = self.w_depot * _norm(dists) + self.w_area * _norm(areas)
+        if (
+            self.use_value_based
+            and self.value_fn is not None
+            and dsm_array is not None
+        ):
+            # V̂-basierte Zonenauswahl: Summe der stationsindividuellen Werte pro Zone
+            zone_values = np.array([
+                sum(
+                    self.value_fn(s + 1, float(dsm_array[s + 1]))
+                    for s in self.clusterer.station_indices_per_zone_[z]
+                    if s in remaining_set
+                )
+                for z in open_zones
+            ])
+            scores = self.w_value * _norm(zone_values) + self.w_depot * _norm(dists)
+        else:
+            areas = self.clusterer.convex_hull_areas_[open_zones]
+            scores = self.w_depot * _norm(dists) + self.w_area * _norm(areas)
+
         return [open_zones[i] for i in np.argsort(scores)[::-1]]
 
     def _assign_starting_zones(

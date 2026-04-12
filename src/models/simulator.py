@@ -755,9 +755,14 @@ class MaintenanceSimulator:
         hourly_logs: list[HourLog] = []
         downtime_cost = 0.0
 
-        # Stationsauswahl
+        # Stationsauswahl (dsm_array für V̂-basierte Zonenauswahl bei CFA/VFA)
+        dsm_array = (
+            self._days_since_maintenance
+            if self._failure_mode == "stochastic"
+            else None
+        )
         assignment = self.selector.select_for_day(
-            list(remaining), team_states, carryover_tasks
+            list(remaining), team_states, carryover_tasks, dsm_array=dsm_array
         )
         all_tasks = [t for tasks in assignment.team_tasks.values() for t in tasks]
         n_routine = sum(1 for t in all_tasks if t.task_type == "routine")
