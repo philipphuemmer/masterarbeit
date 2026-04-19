@@ -93,6 +93,8 @@ def main() -> None:
                         help="Maximale Tage pro Lauf (Standard: 365)")
     parser.add_argument("--verbose", action="store_true",
                         help="OR-Tools Logging aktivieren")
+    parser.add_argument("--log-dir", type=str, default="logs/cfa_light",
+                        help="Basisordner für JSON-Ausgaben (Standard: logs/cfa_light)")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -120,7 +122,7 @@ def main() -> None:
         mal_df = None
         print(f"  Störungsmodus: stochastisch")
 
-    out_dir = Path("logs/cfa_light")
+    out_dir = Path(args.log_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     seeds = list(range(1, args.runs + 1))
@@ -144,8 +146,34 @@ def main() -> None:
 
         result = sim.run(mal_df, max_days=args.max_days)
 
+        cp = policy.cost_params
+        fail_cfg = run_cfg.get("failure_simulation", {})
+        model_params = {
+            "seed": seed,
+            "failure_mode": fail_cfg.get("mode", "csv"),
+            "n_zones": run_cfg["planning"]["n_zones"],
+            "n_teams": run_cfg["maintenance"]["n_teams"],
+            "max_stations_per_team": run_cfg["planning"].get("max_stations_per_team"),
+            "value_based_zone_selection": run_cfg["planning"].get("value_based_zone_selection", False),
+            "alpha": policy.alpha,
+            "p_failure_per_hour": policy.p_failure_per_hour,
+            "cost_params": {
+                "wage_eur_per_hour": cp.wage_eur_per_hour,
+                "fuel_eur_per_km": cp.fuel_eur_per_km,
+                "downtime_eur_per_kwh": cp.downtime_eur_per_kwh,
+            },
+        }
+        if fail_cfg.get("mode") == "stochastic":
+            model_params["failure_simulation"] = {
+                "p1_per_hour": fail_cfg.get("p1_per_hour"),
+                "p2_per_hour": fail_cfg.get("p2_per_hour"),
+                "recovery_days": fail_cfg.get("recovery_days"),
+                "initial_factor": fail_cfg.get("initial_factor"),
+            }
+
         out_path = out_dir / f"run_{seed}.json"
-        sim.write_json(result, str(out_path), label="CFA LIGHT SIMULATION", run_id=seed)
+        sim.write_json(result, str(out_path), label="CFA LIGHT SIMULATION", run_id=seed,
+                       model_params=model_params)
 
         results.append(result)
         days = result.days_to_complete or "?"

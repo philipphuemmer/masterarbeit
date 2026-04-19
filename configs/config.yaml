@@ -47,6 +47,10 @@ planning:
   # V̂-basierte Zonenauswahl (nur CFA/VFA): true → Zonenwert aus gelernter Wertfunktion
   # statt Konvexhüllenfläche; false → klassisches depot_distance + convex_hull_area (Myopic-Verhalten)
   value_based_zone_selection: true
+  # Team-Zuweisung im Initialplan: true → OR-Tools darf nur dem zugewiesenen Team fahren
+  # (verhindert geografisch unpassende Zuordnungen, kann aber Infeasibility erzwingen).
+  # false → OR-Tools verteilt Tasks frei über beide Teams.
+  use_team_assignment: true
   priority_weights:
     depot_distance: 0.5      # Gewicht für mittlere Depot-Entfernung
     convex_hull_area: 0.5    # Gewicht für Zonengröße (nur aktiv wenn value_based_zone_selection: false)

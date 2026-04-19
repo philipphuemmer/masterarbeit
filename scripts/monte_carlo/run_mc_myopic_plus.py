@@ -108,6 +108,8 @@ def main() -> None:
                         help="Maximale Tage pro Lauf (Standard: 365)")
     parser.add_argument("--verbose", action="store_true",
                         help="OR-Tools Logging aktivieren")
+    parser.add_argument("--log-dir", type=str, default="logs/myopic_plus",
+                        help="Basisordner für JSON- und Log-Ausgaben (Standard: logs/myopic_plus)")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -135,8 +137,8 @@ def main() -> None:
         mal_df = None
         print(f"  Störungsmodus: stochastisch")
 
-    json_dir = Path("logs/myopic_plus/json")
-    log_dir  = Path("logs/myopic_plus/log")
+    json_dir = Path(args.log_dir) / "json"
+    log_dir  = Path(args.log_dir) / "log"
     json_dir.mkdir(parents=True, exist_ok=True)
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -161,8 +163,34 @@ def main() -> None:
 
         result = sim.run(mal_df, max_days=args.max_days)
 
+        cp = policy.cost_params
+        fail_cfg = run_cfg.get("failure_simulation", {})
+        model_params = {
+            "seed": seed,
+            "failure_mode": fail_cfg.get("mode", "csv"),
+            "n_zones": run_cfg["planning"]["n_zones"],
+            "n_teams": run_cfg["maintenance"]["n_teams"],
+            "max_stations_per_team": run_cfg["planning"].get("max_stations_per_team"),
+            "value_based_zone_selection": run_cfg["planning"].get("value_based_zone_selection", False),
+            "alpha": policy.alpha,
+            "p_failure_per_hour": policy.p_failure_per_hour,
+            "cost_params": {
+                "wage_eur_per_hour": cp.wage_eur_per_hour,
+                "fuel_eur_per_km": cp.fuel_eur_per_km,
+                "downtime_eur_per_kwh": cp.downtime_eur_per_kwh,
+            },
+        }
+        if fail_cfg.get("mode") == "stochastic":
+            model_params["failure_simulation"] = {
+                "p1_per_hour": fail_cfg.get("p1_per_hour"),
+                "p2_per_hour": fail_cfg.get("p2_per_hour"),
+                "recovery_days": fail_cfg.get("recovery_days"),
+                "initial_factor": fail_cfg.get("initial_factor"),
+            }
+
         out_path = json_dir / f"run_{seed}.json"
-        sim.write_json(result, str(out_path), label="MYOPIC PLUS SIMULATION", run_id=seed)
+        sim.write_json(result, str(out_path), label="MYOPIC PLUS SIMULATION", run_id=seed,
+                       model_params=model_params)
 
         log_path = log_dir / f"run_{seed}.log"
         sim.write_log(result, str(log_path), label="MYOPIC PLUS SIMULATION")
@@ -173,7 +201,7 @@ def main() -> None:
 
     overview_text = analyse(results, seeds)
 
-    overview_path = log_dir / "myopic_plus_overview.log"
+    overview_path = log_dir / f"{Path(args.log_dir).name}_overview.log"
     overview_path.write_text(overview_text, encoding="utf-8")
     print(f"Overview gespeichert: {overview_path.resolve()}")
 

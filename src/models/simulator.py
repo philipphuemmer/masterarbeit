@@ -105,9 +105,45 @@ class HourLog:
     team_status: list[dict] = field(default_factory=list)    # jede Stunde, pro Team
     executed_plan: list[dict] = field(default_factory=list)  # nur Stunde 16
     notes: list[str] = field(default_factory=list)           # Randfall-Meldungen
+    solver_debug: dict = field(default_factory=dict)         # nur Stunde 8: Solver-Input/Output
 
     def __str__(self) -> str:
         lines = [f"[Tag {self.day:>3d}, {self.hour:02d}:00]"]
+
+        if self.solver_debug:
+            inp = self.solver_debug.get("input", {})
+            out = self.solver_debug.get("output", {})
+            lines.append("  SOLVER-DEBUG:")
+            use_ta = inp.get("use_team_assignment", True)
+            for tid, tasks in inp.get("tasks_per_team", {}).items():
+                task_info = ", ".join(
+                    f"{t['node_idx']}(dsm={t['dsm']:.0f}d,{t['service_time']}min"
+                    + (f",dl={t['soft_deadline_min']}min" if t.get("soft_deadline_min") is not None else "")
+                    + ")"
+                    for t in tasks
+                )
+                lines.append(
+                    f"    Input  Team {tid} ({len(tasks)} Kandidaten, "
+                    f"team_assignment={'an' if use_ta else 'aus'}): {task_info if task_info else '–'}"
+                )
+            status = out.get("solver_status", "?")
+            before = out.get("status_before_retry", "")
+            n_drop = out.get("n_dropped", 0)
+            status_str = f"{before} → {status} ({n_drop} Drops)" if before else status
+            lines.append(f"    Output Status: {status_str}")
+            if out.get("dropped_nodes"):
+                drops_by_team = out.get("dropped_nodes_by_team", {})
+                per_team = ", ".join(
+                    f"Team {tid}: {nodes}"
+                    for tid, nodes in drops_by_team.items()
+                    if nodes
+                ) if drops_by_team else ""
+                drop_line = f"    Drops  {out['dropped_nodes']}"
+                if per_team:
+                    drop_line += f"  ({per_team})"
+                lines.append(drop_line)
+            for tid, route in out.get("routes", {}).items():
+                lines.append(f"    Output Team {tid} ({len(route)} Stops): {route}")
 
         if self.initial_plan:
             lines.append("  INITIALPLAN:")
@@ -487,6 +523,15 @@ class MaintenanceSimulator:
             if not remaining and days_to_complete is None:
                 days_to_complete = day
                 logger.info(f"Alle {self.n_stations} Stationen nach Tag {day} gewartet.")
+                # Lohnkosten für den letzten Tag auf tatsächliche Arbeitszeit umrechnen
+                op_cost, wage_cost, fuel_cost = self._compute_operational_cost(
+                    sim_routes, is_last_day=True
+                )
+                result.operational_cost_eur = op_cost
+                result.wage_cost_eur = wage_cost
+                result.fuel_cost_eur = fuel_cost
+                if not carryover_tasks:
+                    new_carryover = []
 
             # Stochastik: days_since_maintenance aktualisieren
             if self._failure_mode == "stochastic":
@@ -650,12 +695,13 @@ class MaintenanceSimulator:
         path: str,
         label: str = "SIMULATION",
         run_id: Optional[int] = None,
+        model_params: Optional[dict] = None,
     ) -> None:
         """
         Speichert das vollständige Simulationsergebnis als strukturierte JSON-Datei.
 
         Aufbau:
-          meta    – Label, Run-ID, Zeitstempel
+          meta    – Label, Run-ID, Zeitstempel, Modellparameter
           summary – Skalare Kennzahlen der gesamten Simulation
           days    – Eine Zeile pro Tag (Tagesübersicht)
           hourly  – Eine Zeile pro (Tag, Stunde) mit Störungs- und Aktionslisten
@@ -663,6 +709,12 @@ class MaintenanceSimulator:
 
         Für Monte-Carlo-Analysen run_id setzen; dann lassen sich N Dateien per
         pd.concat(pd.DataFrame(d["days"]) for d in runs) einfach stapeln.
+
+        Parameters
+        ----------
+        model_params : dict | None
+            Modellspezifische Parameter, die unter meta.model_params gespeichert werden.
+            Typischerweise: seed, failure_mode, alpha, theta, cost_params, etc.
         """
         out = Path(path)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -672,12 +724,16 @@ class MaintenanceSimulator:
         fuel_total = sum(r.fuel_cost_eur for r in result.day_results)
         dt_total = sum(r.downtime_cost_eur for r in result.day_results)
 
+        meta: dict = {
+            "label": label,
+            "run_id": run_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if model_params:
+            meta["model_params"] = model_params
+
         payload: dict = {
-            "meta": {
-                "label": label,
-                "run_id": run_id,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            },
+            "meta": meta,
             "summary": {
                 "days_simulated": len(result.day_results),
                 "days_to_complete": result.days_to_complete,
@@ -711,6 +767,7 @@ class MaintenanceSimulator:
                 {
                     "day": log.day,
                     "hour": log.hour,
+                    **({"solver_debug": log.solver_debug} if log.solver_debug else {}),
                     **({"initial_plan": log.initial_plan} if log.initial_plan else {}),
                     "disruptions": log.disruptions,
                     **({"replan": log.replan} if log.replan else {}),
@@ -775,9 +832,11 @@ class MaintenanceSimulator:
                         self._days_since_maintenance[task.node_idx]
                     )
 
-        # team_assignment: {team_id: [node_idx, ...]} nur für Routine-Tasks
+        # team_assignment: {team_id: [node_idx, ...]} für alle Tasks (Routine + Carryover)
+        # Carryover-Störungen werden vom Selector bereits einem Team zugewiesen;
+        # diese Zuordnung muss beim Per-Team-Solve respektiert werden.
         team_assignment: dict[int, list[int]] = {
-            tid: [t.node_idx for t in tasks if t.task_type == "routine"]
+            tid: [t.node_idx for t in tasks]
             for tid, tasks in assignment.team_tasks.items()
         }
 
@@ -794,6 +853,64 @@ class MaintenanceSimulator:
             logger.info(f"Tag {day:>3d}: Keine Aufgaben.")
 
         sim_routes = plan_to_sim_routes(daily_plan, all_tasks, self.n_teams)
+
+        # Solver-Debug: Input und Output für den 8:00-HourLog aufzeichnen
+        _input_nodes_by_team: dict[int, set[int]] = {
+            tid: {t.node_idx for t in tasks if t.task_type == "routine"}
+            for tid, tasks in assignment.team_tasks.items()
+        }
+        _output_nodes: set[int] = {
+            stop.node_idx for route in sim_routes for stop in route.stops
+        }
+        _dropped_nodes: list[int] = sorted(
+            node for nodes in _input_nodes_by_team.values()
+            for node in nodes
+            if node not in _output_nodes
+        )
+        _dropped_by_team: dict[int, list[int]] = {
+            tid: sorted(n for n in nodes if n not in _output_nodes)
+            for tid, nodes in _input_nodes_by_team.items()
+        }
+        _solver_debug = {
+            "input": {
+                "use_team_assignment": self.config.get("planning", {}).get("use_team_assignment", True),
+                "n_routine": n_routine,
+                "n_carryover": len(all_tasks) - n_routine,
+                "tasks_per_team": {
+                    tid: [
+                        {
+                            "node_idx": t.node_idx,
+                            "task_type": t.task_type,
+                            "service_time": t.service_time,
+                            "soft_deadline_min": t.soft_deadline_min,
+                            "deadline_penalty": t.deadline_penalty,
+                            "dsm": round(float(t.days_since_maintenance), 1),
+                        }
+                        for t in tasks
+                    ]
+                    for tid, tasks in assignment.team_tasks.items()
+                },
+            },
+            "output": {
+                "solver_status": daily_plan.solver_status if daily_plan else "NO_PLAN",
+                "status_before_retry": daily_plan.status_before_retry if daily_plan else "",
+                "n_dropped": daily_plan.n_dropped if daily_plan else 0,
+                "dropped_nodes": _dropped_nodes,
+                "dropped_nodes_by_team": _dropped_by_team,
+                "routes": {
+                    route.team_id: [s.node_idx for s in route.stops]
+                    for route in sim_routes
+                },
+            },
+        }
+
+        _initial_plan_notes: list[str] = []
+        if daily_plan and daily_plan.n_dropped > 0:
+            _initial_plan_notes.append(
+                f"Initialplan-Retry: {daily_plan.n_dropped} Routine-Stop(s) nach Depot-Distanz "
+                f"ausgebaut (erster Status: {daily_plan.status_before_retry}, "
+                f"Ergebnis: {daily_plan.solver_status})"
+            )
         maint_cfg = self.config["maintenance"]
         _lunch_dur = maint_cfg.get("lunch_duration_min", 0)
         _lunch_early = maint_cfg.get("lunch_earliest_min", 240)
@@ -815,6 +932,8 @@ class MaintenanceSimulator:
 
             # 8:00: Strukturierter Initialplan
             if hour == 8:
+                hour_log.solver_debug = _solver_debug
+                hour_log.notes.extend(_initial_plan_notes)
                 mat8 = self._get_matrix(0.0)
                 for r in sim_routes:
                     prev_node = 0
@@ -1160,10 +1279,13 @@ class MaintenanceSimulator:
         return events
 
     def _compute_operational_cost(
-        self, sim_routes: list[SimRoute]
+        self, sim_routes: list[SimRoute], is_last_day: bool = False
     ) -> tuple[float, float, float]:
         """
         Berechnet operative Tageskosten (Lohn + Kraftstoff) aller Teams.
+
+        Normaltage: volle WORKDAY_MINUTES je aktivem Team als Lohnbasis.
+        Letzter Tag (is_last_day=True): tatsächliche Arbeitszeit (Fahrt + Service + Depotfahrt).
 
         Returns
         -------
@@ -1194,10 +1316,15 @@ class MaintenanceSimulator:
                 travel_min += mat[from_n, to_n] / 60.0
                 km += _approx_km(self.all_coords[from_n], self.all_coords[to_n])
 
-            service_min = sum(s.service_min for s in route.stops)
-            work_h = (travel_min + service_min) / 60.0
-            wage_total += work_h * cp.wage_eur_per_hour
             fuel_total += km * cp.fuel_eur_per_km
+
+            if is_last_day:
+                service_min = sum(s.service_min for s in route.stops)
+                work_h = (travel_min + service_min) / 60.0
+            else:
+                work_h = self.WORKDAY_MINUTES / 60.0
+
+            wage_total += work_h * cp.wage_eur_per_hour
 
         return wage_total + fuel_total, wage_total, fuel_total
 

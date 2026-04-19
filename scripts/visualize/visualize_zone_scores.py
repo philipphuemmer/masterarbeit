@@ -20,7 +20,7 @@ import folium
 from folium.plugins import FloatImage
 import branca.colormap as cm
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.data.loader import load_stations, get_coordinates
 from src.planning.clustering import ZoneClusterer, _approx_km

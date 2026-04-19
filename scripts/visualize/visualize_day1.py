@@ -4,11 +4,12 @@ Team 0 = Blau, Team 1 = Rot.
 Störungen = Orange (eingebaut) / Schwarz (Carryover).
 """
 import sys
+from pathlib import Path
 import yaml
 import pandas as pd
 import folium
 
-sys.path.insert(0, ".")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 with open("configs/config.yaml") as f:
     cfg = yaml.safe_load(f)

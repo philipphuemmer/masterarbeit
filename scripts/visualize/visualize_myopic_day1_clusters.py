@@ -7,12 +7,13 @@ Visualisiert die Cluster (Zonen) für Tag 1 von Myopic:
 - Depot
 """
 import sys
+from pathlib import Path
 import yaml
 import numpy as np
 import folium
 from scipy.spatial import ConvexHull
 
-sys.path.insert(0, ".")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 with open("configs/config.yaml") as f:
     cfg = yaml.safe_load(f)

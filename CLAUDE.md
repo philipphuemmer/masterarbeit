@@ -25,23 +25,23 @@ cp .env.example .env  # Add GOOGLE_MAPS_API_KEY
 
 OSRM (local Docker, required for travel matrices):
 ```bash
-bash scripts/setup_osrm.sh   # one-time: downloads OSM data
-bash scripts/start_osrm.sh   # start container on localhost:5000
+bash scripts/setup/setup_osrm.sh   # one-time: downloads OSM data
+bash scripts/setup/start_osrm.sh   # start container on localhost:5000
 ```
 
 ## Common Commands
 
 ```bash
 # Single runs
-python scripts/run_myopic.py [--max-days 10] [--log-day 1] [--verbose]
-python scripts/run_myopic_plus.py
-python scripts/run_cfa_light.py
-python scripts/run_cfa.py    # requires: python scripts/train_cfa.py first
-python scripts/run_vfa.py    # requires: python scripts/train_vfa.py first
+python scripts/run/run_myopic.py [--max-days 10] [--log-day 1] [--verbose]
+python scripts/run/run_myopic_plus.py
+python scripts/run/run_cfa_light.py
+python scripts/run/run_cfa.py    # requires: python scripts/train/train_cfa.py first
+python scripts/run/run_vfa.py    # requires: python scripts/train/train_vfa.py first
 
 # Training (CFA/VFA learn θ from Monte Carlo rollouts of the Myopic policy)
-python scripts/train_cfa.py
-python scripts/train_vfa.py
+python scripts/train/train_cfa.py
+python scripts/train/train_vfa.py
 
 # Monte Carlo (N runs, aggregate analysis written to logs/<model>/log/<model>_overview.log)
 python scripts/monte_carlo/run_mc_myopic.py --runs 30
@@ -51,17 +51,17 @@ python scripts/monte_carlo/run_mc_cfa.py --runs 30
 python scripts/monte_carlo/run_mc_vfa.py --runs 30
 
 # Build travel/traffic matrices (requires OSRM or Google Maps API)
-python scripts/build_travel_matrix.py
-python scripts/build_traffic_matrix.py
+python scripts/setup/build_travel_matrix.py
+python scripts/setup/build_traffic_matrix.py
 
 # Generate synthetic failure data
-python scripts/malfunction_poisson.py
+python scripts/setup/malfunction_poisson.py
 
 # Visualizations
-python scripts/visualize_myopic_day1.py
-python scripts/visualize_cfa_day1.py
-python scripts/visualize_myopic_day1_clusters.py
-python scripts/visualize_zone_scores.py
+python scripts/visualize/visualize_myopic_day1.py
+python scripts/visualize/visualize_cfa_day1.py
+python scripts/visualize/visualize_myopic_day1_clusters.py
+python scripts/visualize/visualize_zone_scores.py
 ```
 
 No formal test suite exists (tests/ is empty).

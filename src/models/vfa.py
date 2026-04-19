@@ -63,6 +63,12 @@ class VFAModel:
         Gesamtzahl der Stationen (ohne Depot).
     cost_params : Kostenparameter (None → Standardwerte).
     theta_path : Pfad zu data/vfa/theta.json. None → Standardpfad.
+    theta_override : np.ndarray | list | None
+        Direkt übergebener θ-Vektor (überschreibt theta_path). Wird für
+        iteratives Policy-Training verwendet, um θ ohne Datei-I/O zu setzen.
+    intercept_override : float | None
+        Direkt übergebener Intercept-Wert. Wird zusammen mit theta_override
+        verwendet; None → 0.0.
     """
 
     def __init__(
@@ -74,6 +80,8 @@ class VFAModel:
         n_stations: int = 397,
         cost_params: Optional[CostParams] = None,
         theta_path: Optional[Path | str] = None,
+        theta_override: Optional[np.ndarray] = None,
+        intercept_override: Optional[float] = None,
     ) -> None:
         self.solver = VRPSolver(traffic_matrices, config, all_coords=all_coords)
         self.config = config
@@ -98,16 +106,25 @@ class VFAModel:
         )
         self._wage_per_min: float = self.cost_params.wage_eur_per_hour / 60.0
 
-        path = Path(theta_path) if theta_path else _DEFAULT_THETA_PATH
-        if not path.exists():
-            raise FileNotFoundError(
-                f"VFA-Gewichte nicht gefunden: {path}\n"
-                f"Bitte zuerst 'python scripts/train_vfa.py' ausführen."
+        if theta_override is not None:
+            self.theta     = np.array(theta_override, dtype=np.float64)
+            self.intercept = float(intercept_override) if intercept_override is not None else 0.0
+            logger.info(f"VFA: θ direkt übergeben (iteratives Training)")
+        else:
+            path = Path(theta_path) if theta_path else _DEFAULT_THETA_PATH
+            if not path.exists():
+                raise FileNotFoundError(
+                    f"VFA-Gewichte nicht gefunden: {path}\n"
+                    f"Bitte zuerst 'python scripts/train_vfa.py' ausführen."
+                )
+            with open(path) as f:
+                data = json.load(f)
+            self.theta     = np.array(data["theta"], dtype=np.float64)
+            self.intercept = float(data["intercept"])
+            logger.info(
+                f"VFA: θ geladen aus {path} "
+                f"(R²={data.get('r2', '?'):.4f}, {data.get('n_runs', '?')} Läufe)"
             )
-        with open(path) as f:
-            data = json.load(f)
-        self.theta     = np.array(data["theta"], dtype=np.float64)
-        self.intercept = float(data["intercept"])
 
         # Stationsindividuellen Features für ΔV̂: nur die Features die sich
         # beim Entfernen einer einzelnen Station tatsächlich ändern.
@@ -115,11 +132,6 @@ class VFAModel:
         # kein Differenzierungssignal. f5 (n_carryover) gehört nicht zu Stationen.
         # Für extra_costs nur f0-f3 verwenden (stations-spezifische Features).
         self._station_feature_mask = np.array([True, True, True, True, False, False])
-
-        logger.info(
-            f"VFA: θ geladen aus {path} "
-            f"(R²={data.get('r2', '?'):.4f}, {data.get('n_runs', '?')} Läufe)"
-        )
 
     # ------------------------------------------------------------------
     # Wertfunktion

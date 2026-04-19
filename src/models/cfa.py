@@ -62,6 +62,9 @@ class CFAModel:
         Kostenparameter (None → Standardwerte).
     theta_path : Path | str | None
         Pfad zu data/cfa/theta.json. None → Standardpfad.
+    theta_override : float | None
+        Direkt übergebener θ-Wert (überschreibt theta_path). Wird für
+        iteratives Policy-Training verwendet, um θ ohne Datei-I/O zu setzen.
     """
 
     def __init__(
@@ -72,6 +75,7 @@ class CFAModel:
         stations_df: Optional[pd.DataFrame] = None,
         cost_params: Optional[CostParams] = None,
         theta_path: Optional[Path | str] = None,
+        theta_override: Optional[float] = None,
     ) -> None:
         self.solver = VRPSolver(traffic_matrices, config, all_coords=all_coords)
         self.config = config
@@ -103,19 +107,23 @@ class CFAModel:
         cfa_cfg = config.get("cfa", {})
         self.alpha: float = float(cfa_cfg.get("alpha", 10.0))
 
-        path = Path(theta_path) if theta_path else _DEFAULT_THETA_PATH
-        if not path.exists():
-            raise FileNotFoundError(
-                f"CFA-Gewicht nicht gefunden: {path}\n"
-                f"Bitte zuerst 'python scripts/train_cfa.py' ausführen."
+        if theta_override is not None:
+            self.theta: float = float(theta_override)
+            logger.info(f"CFA: θ={self.theta:.4e} EUR/(kW·Tag) (direkt übergeben)")
+        else:
+            path = Path(theta_path) if theta_path else _DEFAULT_THETA_PATH
+            if not path.exists():
+                raise FileNotFoundError(
+                    f"CFA-Gewicht nicht gefunden: {path}\n"
+                    f"Bitte zuerst 'python scripts/train_cfa.py' ausführen."
+                )
+            with open(path) as f:
+                data = json.load(f)
+            self.theta = float(data["theta"])
+            logger.info(
+                f"CFA: θ={self.theta:.4e} EUR/(kW·Tag) geladen aus {path} "
+                f"(R²={data.get('r2', '?'):.4f}, {data.get('n_runs', '?')} Läufe)"
             )
-        with open(path) as f:
-            data = json.load(f)
-        self.theta: float = float(data["theta"])
-        logger.info(
-            f"CFA: θ={self.theta:.4e} EUR/(kW·Tag) geladen aus {path} "
-            f"(R²={data.get('r2', '?'):.4f}, {data.get('n_runs', '?')} Läufe)"
-        )
 
     # ------------------------------------------------------------------
     # Hilfsmethoden

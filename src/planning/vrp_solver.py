@@ -102,6 +102,12 @@ class DailyPlan:
     objective_value: int = 0
     """Zielfunktionswert des Solvers."""
 
+    n_dropped: int = 0
+    """Anzahl der Routine-Stops, die im Initialplan-Retry gedroppt wurden (0 = kein Retry)."""
+
+    status_before_retry: str = ""
+    """Solver-Status des ersten (gescheiterten) Solve-Versuchs, falls Retry nötig war."""
+
 
 
 # ---------------------------------------------------------------------------
@@ -159,6 +165,10 @@ class VRPSolver:
         )
         self._time_limit_initial: int = maint["solver_time_limit_initial"]
         self._time_limit_replan: int = maint["solver_time_limit_replan"]
+        planning = config.get("planning", {})
+        self._use_team_assignment: bool = bool(
+            planning.get("use_team_assignment", True)
+        )
 
     def _get_matrix(self, current_time_minutes: int) -> np.ndarray:
         """Gibt die passende Stundenmatrix für einen Abfahrtszeitpunkt zurück.
@@ -208,18 +218,26 @@ class VRPSolver:
         DailyPlan
         """
         limit = time_limit_seconds if time_limit_seconds is not None else self._time_limit_initial
+        effective_assignment = team_assignment if self._use_team_assignment else None
+
+        if effective_assignment:
+            # Jedes Team wird in einem eigenen 1-Fahrzeug-Modell gelöst.
+            # Das ist bei CFA/VFA deutlich schneller als ein gemeinsames Modell
+            # mit vielen Soft-Deadlines, das OR-Tools oft nicht löst.
+            return self._solve_teams_independently(tasks, extra_costs, limit, effective_assignment)
+
+        # Ohne team_assignment: gemeinsames Modell, global Drops bei Infeasibility
         team_states = [
             TeamState(team_id=i, current_node=0, current_time=0)
             for i in range(self.n_teams)
         ]
-        plan = self._solve(tasks, team_states, extra_costs, limit, team_assignment)
+        plan = self._solve(tasks, team_states, extra_costs, limit, None)
         if plan.solver_status not in ("OPTIMAL", "FEASIBLE") and self.all_coords is not None:
-            # Retry: Routine-Stops iterativ vom Depot entferntesten entfernen
+            status_before_retry = plan.solver_status
             depot_coord = self.all_coords[0]
-            routine = [t for t in tasks if t.task_type == "routine"]
             mandatory = [t for t in tasks if t.task_type != "routine"]
             routine_sorted = sorted(
-                routine,
+                [t for t in tasks if t.task_type == "routine"],
                 key=lambda t: float(np.linalg.norm(self.all_coords[t.node_idx] - depot_coord)),
                 reverse=True,
             )
@@ -227,20 +245,10 @@ class VRPSolver:
                 retry_tasks = mandatory + routine_sorted[drop_n:]
                 if not retry_tasks:
                     break
-                # team_assignment anpassen: gedropte Nodes entfernen
-                retry_assignment = None
-                if team_assignment:
-                    retry_nodes = {t.node_idx for t in retry_tasks}
-                    retry_assignment = {
-                        tid: [n for n in nodes if n in retry_nodes]
-                        for tid, nodes in team_assignment.items()
-                    }
-                plan = self._solve(retry_tasks, team_states, extra_costs, limit, retry_assignment)
+                plan = self._solve(retry_tasks, team_states, extra_costs, limit, None)
                 if plan.solver_status in ("OPTIMAL", "FEASIBLE"):
-                    logger.info(
-                        f"Retry erfolgreich nach {drop_n} Drop(s): "
-                        f"{len(retry_tasks)} Aufgaben gelöst."
-                    )
+                    plan.n_dropped = drop_n
+                    plan.status_before_retry = status_before_retry
                     break
         return plan
 
@@ -277,6 +285,162 @@ class VRPSolver:
     # Kernimplementierung
     # ------------------------------------------------------------------
 
+    def _solve_teams_independently(
+        self,
+        tasks: list[MaintenanceTask],
+        extra_costs: Optional[dict[int, int]],
+        time_limit_seconds: int,
+        team_assignment: dict[int, list[int]],
+    ) -> DailyPlan:
+        """
+        Löst jedes Team in einem eigenen 1-Fahrzeug-OR-Tools-Modell.
+
+        Bei use_team_assignment=True sind die Teams mathematisch unabhängig.
+        Ein 1-Fahrzeug-Modell pro Team ist dann ~4x schneller als ein
+        gemeinsames 2-Fahrzeug-Modell und liefert dieselbe Lösung.
+        Infeasibility eines Teams führt zum Drop depot-ferner Routine-Tasks
+        ausschließlich dieses Teams, ohne das andere Team zu beeinflussen.
+        """
+        depot_coord = self.all_coords[0] if self.all_coords is not None else None
+        routine_by_node = {t.node_idx: t for t in tasks if t.task_type == "routine"}
+        mandatory = [t for t in tasks if t.task_type != "routine"]
+
+        # Routine-Tasks nach Team aufteilen (gemäß team_assignment)
+        per_team: dict[int, list[MaintenanceTask]] = {
+            tid: [routine_by_node[n] for n in nodes if n in routine_by_node]
+            for tid, nodes in team_assignment.items()
+        }
+
+        # Lookup: node_idx → team_id für explizit zugewiesene Knoten
+        # (team_assignment enthält alle Tasks: Routine + Carryover-Störungen)
+        assignment_lookup: dict[int, int] = {
+            n: tid for tid, nodes in team_assignment.items() for n in nodes
+        }
+
+        # Mandatory-Tasks (Carryover-Störungen) zuweisen
+        unassigned_mandatory: list[MaintenanceTask] = []
+        for task in mandatory:
+            if task.node_idx in assignment_lookup:
+                # Selector hat diese Störung bereits explizit einem Team zugewiesen
+                per_team[assignment_lookup[task.node_idx]].append(task)
+            else:
+                unassigned_mandatory.append(task)
+
+        # Für unbekannte Mandatory-Tasks: geografisch nächstes Team
+        if unassigned_mandatory and self.all_coords is not None:
+            routine_nodes_per_team = {
+                tid: [n for n in nodes if n in routine_by_node]
+                for tid, nodes in team_assignment.items()
+            }
+            for task in unassigned_mandatory:
+                task_coord = self.all_coords[task.node_idx]
+                best_tid = min(
+                    team_assignment.keys(),
+                    key=lambda tid: (
+                        float(np.linalg.norm(
+                            np.mean([self.all_coords[n] for n in routine_nodes_per_team[tid]], axis=0)
+                            - task_coord
+                        ))
+                        if routine_nodes_per_team[tid] else float("inf")
+                    ),
+                )
+                per_team[best_tid].append(task)
+        elif unassigned_mandatory:
+            tids = sorted(team_assignment.keys())
+            for i, task in enumerate(unassigned_mandatory):
+                per_team[tids[i % len(tids)]].append(task)
+
+        all_routes: list[PlannedRoute] = []
+        total_travel = 0
+        total_dropped = 0
+        status_before_retry = ""
+        overall_status = "OPTIMAL"
+
+        for tid in sorted(team_assignment.keys()):
+            team_tasks = per_team[tid]
+            # TeamState mit team_id=tid → _extract_solution setzt PlannedRoute.team_id korrekt
+            team_state = [TeamState(team_id=tid, current_node=0, current_time=0)]
+
+            plan = self._solve(team_tasks, team_state, extra_costs, time_limit_seconds, None)
+
+            if plan.solver_status not in ("OPTIMAL", "FEASIBLE") and self.all_coords is not None:
+                if not status_before_retry:
+                    status_before_retry = plan.solver_status
+                team_mandatory = [t for t in team_tasks if t.task_type != "routine"]
+                team_routine_sorted = sorted(
+                    [t for t in team_tasks if t.task_type == "routine"],
+                    key=lambda t: float(np.linalg.norm(self.all_coords[t.node_idx] - depot_coord)),
+                    reverse=True,
+                )
+                found = False
+                for drop_n in range(1, len(team_routine_sorted) + 1):
+                    retry_tasks = team_mandatory + team_routine_sorted[drop_n:]
+                    # _solve([]) gibt OPTIMAL zurück → Schleife endet spätestens hier
+                    plan = self._solve(retry_tasks, team_state, extra_costs, time_limit_seconds, None)
+                    if plan.solver_status in ("OPTIMAL", "FEASIBLE"):
+                        total_dropped += drop_n
+                        found = True
+                        break
+                if not found:
+                    plan = DailyPlan(
+                        routes=[PlannedRoute(tid, [], [], [])],
+                        total_travel_time=0,
+                        solver_status="NO_SOLUTION",
+                    )
+
+            # Gesamtstatus: schlechtesten Einzelstatus weiterleiten
+            if plan.solver_status == "NO_SOLUTION" or overall_status == "NO_SOLUTION":
+                overall_status = "NO_SOLUTION"
+            elif plan.solver_status in ("INFEASIBLE", "INVALID"):
+                overall_status = plan.solver_status
+            elif plan.solver_status == "FEASIBLE" and overall_status == "OPTIMAL":
+                overall_status = "FEASIBLE"
+
+            all_routes.extend(plan.routes)
+            if plan.total_travel_time > 0:
+                total_travel += plan.total_travel_time
+
+        return DailyPlan(
+            routes=all_routes,
+            total_travel_time=total_travel,
+            solver_status=overall_status,
+            n_dropped=total_dropped,
+            status_before_retry=status_before_retry,
+        )
+
+    def _solve_trivial(
+        self,
+        tasks: list[MaintenanceTask],
+        team_states: list[TeamState],
+    ) -> Optional[DailyPlan]:
+        """Konstruiert für genau 1 Task und 1 Fahrzeug die triviale Route direkt.
+
+        Umgeht OR-Tools für den degenerierten Einzelknoten-Fall, bei dem die
+        SAVINGS-Strategie keinen gültigen Status-Code zurückliefert.
+        Gibt None zurück wenn die Bedingungen nicht erfüllt sind.
+        """
+        if len(tasks) != 1 or len(team_states) != 1:
+            return None
+        task = tasks[0]
+        state = team_states[0]
+        matrix = self._get_matrix(state.current_time)
+        travel_to = int(np.round(matrix[state.current_node, task.node_idx] / 60.0))
+        travel_back = int(np.round(matrix[task.node_idx, 0] / 60.0))
+        arrival = state.current_time + travel_to
+        departure = arrival + task.service_time
+        if departure + travel_back > self.WORKDAY_MINUTES:
+            return None  # genuiner Infeasibility-Fall → OR-Tools entscheidet
+        return DailyPlan(
+            routes=[PlannedRoute(
+                team_id=state.team_id,
+                stops=[task.node_idx],
+                arrival_times=[arrival],
+                departure_times=[departure],
+            )],
+            total_travel_time=travel_to + travel_back,
+            solver_status="OPTIMAL",
+        )
+
     def _solve(
         self,
         tasks: list[MaintenanceTask],
@@ -292,6 +456,10 @@ class VRPSolver:
                 total_travel_time=0,
                 solver_status="OPTIMAL",
             )
+
+        trivial = self._solve_trivial(tasks, team_states)
+        if trivial is not None:
+            return trivial
 
         # --- Node-Mapping ---
         # Knoten-Reihenfolge: Depot (0) zuerst, dann weitere eindeutige Knoten.
@@ -338,10 +506,11 @@ class VRPSolver:
             return task_service_map.get(r_node, self.default_service_time)
 
         # --- OR-Tools Routing Modell ---
+        n_vehicles = len(team_states)
         starts = [global_to_routing[s.current_node] for s in team_states]
-        ends = [global_to_routing[depot_node]] * self.n_teams
+        ends = [global_to_routing[depot_node]] * n_vehicles
 
-        manager = pywrapcp.RoutingIndexManager(n_routing, self.n_teams, starts, ends)
+        manager = pywrapcp.RoutingIndexManager(n_routing, n_vehicles, starts, ends)
         routing = pywrapcp.RoutingModel(manager)
 
         # Transit-Callback: Fahrzeit (Minuten) + Servicezeit am Quellknoten
@@ -410,7 +579,7 @@ class VRPSolver:
                     routing.VehicleVar(routing_idx).SetValues([vehicle_id])
 
         # Rückkehr zum Depot vor Tagesende
-        for v in range(self.n_teams):
+        for v in range(n_vehicles):
             time_dim.CumulVar(routing.End(v)).SetRange(0, self.WORKDAY_MINUTES)
 
         # Optionaler Makespan-Term für Lastverteilung (konfigurierbar)

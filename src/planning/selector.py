@@ -14,6 +14,7 @@ Algorithmus (gleich für alle Modelle – Myopic, CFA, VFA):
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -141,6 +142,16 @@ class DailyZoneSelector:
         time_budget = self._workday_minutes - self._travel_reserve_min
         routine_service = self.default_service_time
 
+        # Endspiel: Wenn alle verbleibenden Stationen theoretisch in einem Tag
+        # erledigt werden könnten, Obergrenze pro Team gleichmäßig aufteilen.
+        # Verhindert dass Team 0 die max. Kapazität ausschöpft und Team 1 leer ausgeht.
+        n_teams = len(team_states)
+        n_remaining = len(remaining_set)
+        if n_remaining <= n_teams * self.max_stations_per_team:
+            endgame_cap = math.ceil(n_remaining / n_teams)
+        else:
+            endgame_cap = self.max_stations_per_team
+
         claimed: set[int] = set()
 
         for state in team_states:
@@ -148,7 +159,7 @@ class DailyZoneSelector:
             carryover_service_min = sum(t.service_time for t in tasks_per_team[tid])
             remaining_min = max(0, time_budget - carryover_service_min)
             capacity_by_time = int(remaining_min // routine_service)
-            capacity_by_count = max(0, self.max_stations_per_team - len(tasks_per_team[tid]))
+            capacity_by_count = max(0, endgame_cap - len(tasks_per_team[tid]))
             capacity = min(capacity_by_time, capacity_by_count)
 
             start_zone = starting_zones.get(tid)
@@ -157,6 +168,8 @@ class DailyZoneSelector:
             )
             claimed.update(s - 1 for s in [t.node_idx for t in stations])
             tasks_per_team[tid].extend(stations)
+
+        self._rebalance_if_idle(tasks_per_team, team_states)
 
         return ZoneAssignment(
             team_tasks=tasks_per_team,
@@ -322,6 +335,50 @@ class DailyZoneSelector:
             MaintenanceTask(node_idx=s + 1, task_type="routine", service_time=self.default_service_time)
             for s in selected
         ]
+
+    def _rebalance_if_idle(
+        self,
+        tasks_per_team: dict[int, list[MaintenanceTask]],
+        team_states: list[TeamState],
+    ) -> None:
+        """Falls ein Team keine Routine-Stops hat, übernimmt es die Hälfte
+        der Stationen des beschäftigsten Teams (geografisch nächste zuerst).
+
+        Tritt typischerweise am Jahresende auf, wenn alle verbleibenden
+        Stationen in einer einzigen Zone liegen und kein zweites Team
+        eine eigene Startzone erhält.
+        """
+        routine_per_team: dict[int, list[MaintenanceTask]] = {
+            tid: [t for t in tasks if t.task_type == "routine"]
+            for tid, tasks in tasks_per_team.items()
+        }
+        idle_tids = [tid for tid, rt in routine_per_team.items() if not rt]
+        busy_tids = [tid for tid, rt in routine_per_team.items() if len(rt) >= 2]
+
+        if not idle_tids or not busy_tids:
+            return
+
+        for idle_tid in idle_tids:
+            idle_state = next(s for s in team_states if s.team_id == idle_tid)
+            idle_coord = self.all_coords[idle_state.current_node]
+
+            donor_tid = max(busy_tids, key=lambda tid: len(routine_per_team[tid]))
+            donor_routine = routine_per_team[donor_tid]
+            n_transfer = len(donor_routine) // 2
+            if n_transfer == 0:
+                continue
+
+            sorted_by_dist = sorted(
+                donor_routine,
+                key=lambda t: _approx_km(self.all_coords[t.node_idx], idle_coord),
+            )
+            to_transfer = sorted_by_dist[:n_transfer]
+
+            for task in to_transfer:
+                tasks_per_team[donor_tid].remove(task)
+                tasks_per_team[idle_tid].append(task)
+                routine_per_team[donor_tid].remove(task)
+                routine_per_team[idle_tid].append(task)
 
     def _distribute_carryover(
         self,

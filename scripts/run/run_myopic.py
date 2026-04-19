@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.data.loader import load_stations, get_coordinates, load_traffic_matrices
 from src.models.myopic import MyopicPolicy
@@ -99,8 +99,32 @@ def main() -> None:
     if out_path.suffix == ".log":
         sim.write_log(result, args.output, label="MYOPIC SIMULATION")
     else:
+        cp = policy.cost_params
+        fail_cfg = cfg.get("failure_simulation", {})
+        model_params = {
+            "seed": cfg["project"].get("seed"),
+            "failure_mode": fail_cfg.get("mode", "csv"),
+            "n_zones": cfg["planning"]["n_zones"],
+            "n_teams": cfg["maintenance"]["n_teams"],
+            "max_stations_per_team": cfg["planning"].get("max_stations_per_team"),
+            "value_based_zone_selection": cfg["planning"].get("value_based_zone_selection", False),
+            "use_team_assignment": cfg["planning"].get("use_team_assignment", True),
+            "cost_params": {
+                "wage_eur_per_hour": cp.wage_eur_per_hour,
+                "fuel_eur_per_km": cp.fuel_eur_per_km,
+                "downtime_eur_per_kwh": cp.downtime_eur_per_kwh,
+            },
+        }
+        if fail_cfg.get("mode") == "stochastic":
+            model_params["failure_simulation"] = {
+                "p1_per_hour": fail_cfg.get("p1_per_hour"),
+                "p2_per_hour": fail_cfg.get("p2_per_hour"),
+                "recovery_days": fail_cfg.get("recovery_days"),
+                "initial_factor": fail_cfg.get("initial_factor"),
+            }
         sim.write_json(result, str(out_path.with_suffix(".json")),
-                       label="MYOPIC SIMULATION", run_id=args.run_id)
+                       label="MYOPIC SIMULATION", run_id=args.run_id,
+                       model_params=model_params)
 
 
 if __name__ == "__main__":
