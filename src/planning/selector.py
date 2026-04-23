@@ -159,7 +159,8 @@ class DailyZoneSelector:
             carryover_service_min = sum(t.service_time for t in tasks_per_team[tid])
             remaining_min = max(0, time_budget - carryover_service_min)
             capacity_by_time = int(remaining_min // routine_service)
-            capacity_by_count = max(0, endgame_cap - len(tasks_per_team[tid]))
+            n_routine_assigned = sum(1 for t in tasks_per_team[tid] if t.task_type == "routine")
+            capacity_by_count = max(0, endgame_cap - n_routine_assigned)
             capacity = min(capacity_by_time, capacity_by_count)
 
             start_zone = starting_zones.get(tid)

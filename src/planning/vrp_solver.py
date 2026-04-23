@@ -193,6 +193,7 @@ class VRPSolver:
         extra_costs: Optional[dict[int, int]] = None,
         time_limit_seconds: Optional[int] = None,
         team_assignment: Optional[dict[int, list[int]]] = None,
+        internal_retry: bool = True,
     ) -> DailyPlan:
         """
         Erstellt den Initialplan für den Tag.
@@ -224,7 +225,9 @@ class VRPSolver:
             # Jedes Team wird in einem eigenen 1-Fahrzeug-Modell gelöst.
             # Das ist bei CFA/VFA deutlich schneller als ein gemeinsames Modell
             # mit vielen Soft-Deadlines, das OR-Tools oft nicht löst.
-            return self._solve_teams_independently(tasks, extra_costs, limit, effective_assignment)
+            return self._solve_teams_independently(
+                tasks, extra_costs, limit, effective_assignment, internal_retry=internal_retry
+            )
 
         # Ohne team_assignment: gemeinsames Modell, global Drops bei Infeasibility
         team_states = [
@@ -232,7 +235,7 @@ class VRPSolver:
             for i in range(self.n_teams)
         ]
         plan = self._solve(tasks, team_states, extra_costs, limit, None)
-        if plan.solver_status not in ("OPTIMAL", "FEASIBLE") and self.all_coords is not None:
+        if internal_retry and plan.solver_status not in ("OPTIMAL", "FEASIBLE") and self.all_coords is not None:
             status_before_retry = plan.solver_status
             depot_coord = self.all_coords[0]
             mandatory = [t for t in tasks if t.task_type != "routine"]
@@ -291,6 +294,7 @@ class VRPSolver:
         extra_costs: Optional[dict[int, int]],
         time_limit_seconds: int,
         team_assignment: dict[int, list[int]],
+        internal_retry: bool = True,
     ) -> DailyPlan:
         """
         Löst jedes Team in einem eigenen 1-Fahrzeug-OR-Tools-Modell.
@@ -363,7 +367,7 @@ class VRPSolver:
 
             plan = self._solve(team_tasks, team_state, extra_costs, time_limit_seconds, None)
 
-            if plan.solver_status not in ("OPTIMAL", "FEASIBLE") and self.all_coords is not None:
+            if internal_retry and plan.solver_status not in ("OPTIMAL", "FEASIBLE") and self.all_coords is not None:
                 if not status_before_retry:
                     status_before_retry = plan.solver_status
                 team_mandatory = [t for t in team_tasks if t.task_type != "routine"]

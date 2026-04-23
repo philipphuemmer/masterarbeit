@@ -590,9 +590,13 @@ class MaintenanceSimulator:
         print(f"    Carryover             : {result.total_carryover}")
         print()
         op = sum(r.operational_cost_eur for r in result.day_results)
+        wage = sum(r.wage_cost_eur for r in result.day_results)
+        fuel = sum(r.fuel_cost_eur for r in result.day_results)
         dt = sum(r.downtime_cost_eur for r in result.day_results)
         print(f"  Gesamtkosten            : {result.total_cost_eur:>10,.2f} €")
         print(f"    Betriebskosten        : {op:>10,.2f} €")
+        print(f"      davon Lohn          : {wage:>10,.2f} €")
+        print(f"      davon Fahrtkosten   : {fuel:>10,.2f} €")
         print(f"    Ausfallkosten         : {dt:>10,.2f} €")
         print(sep)
 
@@ -998,6 +1002,12 @@ class MaintenanceSimulator:
                 carried_disruptions.extend(carried)
                 downtime_cost += h_downtime
 
+                # Ausfallkosten für nicht mehr schaffbare Störungen: Meldung bis 16:00
+                report_min = float((hour - 8) * 60)
+                remaining_workday_h = (self.WORKDAY_MINUTES - report_min) / 60.0
+                for d in carried:
+                    downtime_cost += remaining_workday_h * d.power_kw * self.cost_params.downtime_eur_per_kwh
+
                 # Replan-Log: Diff vor/nach, pro Team
                 disruption_nodes = {d.node_idx for d in h_disruptions}
                 for r in sim_routes:
@@ -1136,6 +1146,18 @@ class MaintenanceSimulator:
                     })
 
             hourly_logs.append(hour_log)
+
+        # Ausfallkosten für Carryover-Störungen: ab 8:00 bis Service abgeschlossen
+        carryover_nodes = {t.node_idx for t in carryover_tasks if t.task_type == "disruption"}
+        accounted: set[int] = set()
+        cp = self.cost_params
+        for route in sim_routes:
+            for stop in route.stops:
+                if stop.node_idx in carryover_nodes and stop.node_idx not in accounted:
+                    accounted.add(stop.node_idx)
+                    dep = min(stop.departure_min, float(self.WORKDAY_MINUTES))
+                    power_kw = self.node_to_power.get(stop.node_idx, 22.0)
+                    downtime_cost += (dep / 60.0) * power_kw * cp.downtime_eur_per_kwh
 
         op_cost, wage_cost, fuel_cost = self._compute_operational_cost(sim_routes)
 

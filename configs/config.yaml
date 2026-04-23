@@ -33,7 +33,9 @@ osrm:
 depot:
   # WVV Betriebshof Sanderau, Friedrich-Spee-Straße 58-64, 97072 Würzburg
   name: "WVV Betriebshof Sanderau"
+  # 49.776414
   lat: 49.7817
+  # 9.938582
   lon: 9.9351
 
 planning:

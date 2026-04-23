@@ -33,7 +33,9 @@ class CostParams:
         Montagezeit Typ-2-Störung [min]. Standard: 30 min.
     """
 
-    wage_eur_per_hour: float = 40.0
+    # Stundenlohn in Bayern https://www.jobvector.de/gehalt/elektroinstallateur/bayern/
+    wage_eur_per_hour: float = 35.0
+    # gesetzliche Kilometerpauschale für Dienstreisen
     fuel_eur_per_km: float = 0.30
     downtime_eur_per_kwh: float = 0.50
     typ1_service_min: float = 60.0

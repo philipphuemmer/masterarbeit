@@ -1,23 +1,22 @@
 """
-Cost Function Approximation (CFA) – gelernte Wertfunktionsapproximation.
+CFA Real – echte Cost Function Approximation mit AddDisjunction.
 
-Approximiert die zukünftige Wertfunktion V(s) als lineare Funktion der
-stationsindividuellen Dringlichkeit:
+Unterschied zu cfa.py (VFA):
+    cfa.py setzt V̂(k) als Soft-Deadline-Hint außerhalb des Solvers und
+    droppt Stationen manuell in einem Retry-Loop.
 
-    V̂(k) = θ × power_kW[k] × days_since_maintenance[k]
+    cfa_real.py bettet V̂(k) direkt als skip_penalty (AddDisjunction) in
+    die Solver-Zielfunktion ein:
 
-θ wird offline aus Monte-Carlo-Simulationen mit der Myopic-Policy gelernt
-(scripts/train_cfa.py) und aus data/cfa/theta.json geladen.
+        min  Σ travel_time(route)
+           + Σ_k V̂(k)/wage_per_min × 1[Station k wird gedroppt]
 
-Initialplan:
-    Alle Routine-Tasks sind mandatory. Soft-Deadlines nach V̂:
-    Höhere Dringlichkeit → frühere Deadline → OR-Tools plant sie früher.
+    OR-Tools entscheidet simultan, welche Stationen sich lohnen zu besuchen.
+    Der manuelle Drop-Loop entfällt.
 
-Disruption Handling (CFA-Kern):
-    OR-Tools replant die gesamte Restroute (wie CFA Light).
-    Falls infeasible: Routine-Stops werden nach aufsteigendem V̂ gedroppt
-    (niedrigste Dringlichkeit zuerst) bis OR-Tools eine Lösung findet.
-    → Drop-Entscheidung basiert auf gelernten Zukunftskosten, nicht auf Position.
+V̂(k) = θ × power_kW[k] × days_since_maintenance[k]
+
+θ wird aus data/cfa/theta.json geladen (identisches Training wie cfa.py).
 """
 from __future__ import annotations
 
@@ -30,7 +29,6 @@ import numpy as np
 import pandas as pd
 
 from src.models.cost_params import CostParams
-from src.planning.clustering import _approx_km
 from src.models.simulator import (
     DisruptionEvent,
     HourLog,
@@ -44,9 +42,9 @@ logger = logging.getLogger(__name__)
 _DEFAULT_THETA_PATH = Path("data/cfa/theta.json")
 
 
-class CFAModel:
+class CFARealModel:
     """
-    Echtes CFA-Modell mit gelernter Wertfunktionsapproximation.
+    CFA-Modell mit AddDisjunction: V̂ als Solver-Objective-Term.
 
     Parameters
     ----------
@@ -63,8 +61,7 @@ class CFAModel:
     theta_path : Path | str | None
         Pfad zu data/cfa/theta.json. None → Standardpfad.
     theta_override : float | None
-        Direkt übergebener θ-Wert (überschreibt theta_path). Wird für
-        iteratives Policy-Training verwendet, um θ ohne Datei-I/O zu setzen.
+        Direkt übergebener θ-Wert (überschreibt theta_path).
     """
 
     def __init__(
@@ -98,6 +95,14 @@ class CFAModel:
 
         cp = self.cost_params
         self._wage_per_min: float = cp.wage_eur_per_hour / 60.0
+        self._mean_service_min: int = maint.get("mean_service_time", 30)
+
+        # Mittlere Fahrtzeit aus der Reisezeitmatrix schätzen (Sekunden → Minuten).
+        # Dient als Proxy für future_visit_cost: skip_penalty = (service + travel) + V̂/wage
+        any_matrix = next(iter(traffic_matrices.values()))
+        n = any_matrix.shape[0]
+        off_diag = any_matrix[np.arange(n)[:, None] != np.arange(n)].mean()
+        self._mean_travel_min: int = max(5, int(round(float(off_diag) / 60.0)))
 
         fail_cfg = config.get("failure_simulation", {})
         self.p_failure_per_hour: float = (
@@ -109,19 +114,19 @@ class CFAModel:
 
         if theta_override is not None:
             self.theta: float = float(theta_override)
-            logger.info(f"CFA: θ={self.theta:.4e} EUR/(kW·Tag) (direkt übergeben)")
+            logger.info(f"CFA-Real: θ={self.theta:.4e} EUR/(kW·Tag) (direkt übergeben)")
         else:
             path = Path(theta_path) if theta_path else _DEFAULT_THETA_PATH
             if not path.exists():
                 raise FileNotFoundError(
                     f"CFA-Gewicht nicht gefunden: {path}\n"
-                    f"Bitte zuerst 'python scripts/train_cfa.py' ausführen."
+                    f"Bitte zuerst 'python scripts/train/train_cfa.py' ausführen."
                 )
             with open(path) as f:
                 data = json.load(f)
             self.theta = float(data["theta"])
             logger.info(
-                f"CFA: θ={self.theta:.4e} EUR/(kW·Tag) geladen aus {path} "
+                f"CFA-Real: θ={self.theta:.4e} EUR/(kW·Tag) geladen aus {path} "
                 f"(R²={data.get('r2', '?'):.4f}, {data.get('n_runs', '?')} Läufe)"
             )
 
@@ -132,6 +137,23 @@ class CFAModel:
     def _value(self, node_idx: int, days_since_maintenance: float) -> float:
         """V̂(k) = θ × power_kW[k] × dsm[k] in EUR."""
         return self.theta * self.node_to_power.get(node_idx, 22.0) * days_since_maintenance
+
+    def _skip_penalty(self, node_idx: int, days_since_maintenance: float) -> int:
+        """Kosten des Weglassens in Minuten.
+
+        skip_penalty = future_visit_cost + V̂(k)/wage_per_min
+
+        future_visit_cost = service_time + mean_travel_time (was ein späterer Besuch kostet)
+        V̂(k)/wage_per_min = Ausfallkosten bis zum nächsten Besuch in Minuten
+
+        OR-Tools vergleicht:
+            visit heute:  travel + service (~45 min)
+            skip heute:   future_visit + V̂/wage (~45 + urgency min)
+        → OR-Tools skippt nur wenn V̂ ≈ 0 und Routing eng ist.
+        """
+        future_visit_min = self._mean_service_min + self._mean_travel_min
+        urgency_min = int(round(self._value(node_idx, days_since_maintenance) / self._wage_per_min))
+        return future_visit_min + urgency_min
 
     def _disruption_deadline_penalty(self, power_kw: float) -> int:
         """Deadline-Penalty für Störungen in Minuten/Minute.
@@ -152,60 +174,36 @@ class CFAModel:
         team_assignment: Optional[dict[int, list[int]]] = None,
     ) -> DailyPlan:
         """
-        Erstellt den Tagesplan mit wertfunktionsbasierter Soft-Deadline.
+        Erstellt den Tagesplan mit V̂-basierter AddDisjunction.
 
-        Alle Routine-Tasks sind mandatory. V̂ bestimmt die Reihenfolge:
-        höhere Dringlichkeit → frühere Soft-Deadline → OR-Tools plant früher.
+        Alle Routine-Tasks erhalten skip_penalty = V̂(k) / wage_per_min.
+        OR-Tools entscheidet selbst, welche Stationen besucht werden.
+        Disruption-Tasks bleiben mandatory (kein skip_penalty).
         """
-        routine_tasks = [t for t in tasks if t.task_type == "routine"]
-        n = len(routine_tasks)
-
-        if n > 0:
-            depot = self.all_coords[0]
-            urgency = [
-                self._value(t.node_idx, t.days_since_maintenance)
-                for t in routine_tasks
-            ]
-            scores = [
-                v / max(0.1, _approx_km(self.all_coords[t.node_idx], depot))
-                for t, v in zip(routine_tasks, urgency)
-            ]
-            for rank, idx in enumerate(np.argsort(scores)[::-1]):
-                deadline = int((rank + 1) / n * self.WORKDAY_MINUTES)
-                penalty = max(1, int(round(urgency[idx] / self._wage_per_min)))
-                routine_tasks[idx].soft_deadline_min = deadline
-                routine_tasks[idx].deadline_penalty = penalty
-
-        for task in tasks:
-            if task.task_type != "routine":
-                task.soft_deadline_min = 0
-                task.deadline_penalty = self._disruption_deadline_penalty(
-                    self.node_to_power.get(task.node_idx, 22.0)
-                )
-
+        n_routine = sum(1 for t in tasks if t.task_type == "routine")
         logger.info(
-            f"CFA Initialplan: {len(tasks)} Tasks, {n} Routine "
-            f"mit Soft-Deadlines (θ={self.theta:.3e})."
+            f"CFA-Real Initialplan: {len(tasks)} Tasks, {n_routine} Routine "
+            f"(θ={self.theta:.3e})."
         )
+
+        # Schritt 1: mandatory — verhindert unnötige Drops wenn feasible
         plan = self.solver.create_initial_plan(
             tasks, team_assignment=team_assignment, internal_retry=False
         )
 
-        if plan.solver_status not in ("OPTIMAL", "FEASIBLE") and routine_tasks:
-            # Fallback: V̂-basierter Drop statt Depot-Distanz (VRPSolver-Default)
-            mandatory = [t for t in tasks if t.task_type != "routine"]
-            routine_by_value = sorted(
-                routine_tasks,
-                key=lambda t: self._value(t.node_idx, t.days_since_maintenance),
+        if plan.solver_status not in ("OPTIMAL", "FEASIBLE"):
+            # Schritt 2: AddDisjunction — OR-Tools droppt simultan nach V̂
+            for task in tasks:
+                if task.task_type == "routine":
+                    task.skip_penalty = self._skip_penalty(
+                        task.node_idx, task.days_since_maintenance
+                    )
+            plan = self.solver.create_initial_plan(
+                tasks, team_assignment=team_assignment, internal_retry=False
             )
-            for n_drop in range(1, len(routine_tasks) + 1):
-                retry = mandatory + routine_by_value[n_drop:]
-                plan = self.solver.create_initial_plan(
-                    retry, team_assignment=team_assignment, internal_retry=False
-                )
-                if plan.solver_status in ("OPTIMAL", "FEASIBLE"):
-                    logger.info(f"CFA Initialplan Retry: {n_drop} Routine-Stop(s) nach V̂ gedroppt.")
-                    break
+            logger.info(
+                f"CFA-Real Initialplan Retry (AddDisjunction): {plan.solver_status}"
+            )
 
         return plan
 
@@ -218,10 +216,10 @@ class CFAModel:
         log: HourLog,
     ) -> tuple[int, list[DisruptionEvent], float]:
         """
-        OR-Tools Replan mit V̂-basiertem Drop im Retry.
+        OR-Tools Replan mit V̂-basierter AddDisjunction.
 
-        1. Replan mit allen verbleibenden Stops + Störungen (mandatory).
-        2. Falls infeasible: Droppe Routine-Stop mit niedrigstem V̂, repeat.
+        1. AddDisjunction-Replan: OR-Tools droppt Routine-Stops simultan nach V̂.
+        2. Falls NO_SOLUTION: manueller V̂-Drop-Loop als Fallback (analog CFA).
         """
         team_states = [
             TeamState(
@@ -242,6 +240,10 @@ class CFAModel:
                 priority=1 if s.task_type != "routine" else 2,
                 service_time=int(s.service_min),
                 days_since_maintenance=s.days_since_maintenance,
+                skip_penalty=(
+                    self._skip_penalty(s.node_idx, s.days_since_maintenance)
+                    if s.task_type == "routine" else None
+                ),
             )
             for r in sim_routes
             for s in r.remaining_stops_at(time_min)
@@ -263,14 +265,19 @@ class CFAModel:
         if not all_tasks:
             return 0, [], 0.0
 
+        # Schritt 1: AddDisjunction — OR-Tools droppt simultan nach V̂
         new_plan = self.solver.replan(all_tasks, team_states)
 
         if new_plan.solver_status in ("INFEASIBLE", "NO_SOLUTION"):
-            # CFA-Kern: Routine-Stops nach aufsteigendem V̂ droppen
+            log.notes.append(
+                f"CFA-Real Retry (AddDisjunction): {new_plan.solver_status}"
+            )
+            # Schritt 2: Manueller V̂-Drop-Loop als Fallback (analog CFA)
+            # skip_penalty entfernen damit verbleibende Routine-Stops mandatory sind
             routine_tasks = [t for t in remaining_tasks if t.task_type == "routine"]
+            for t in routine_tasks:
+                t.skip_penalty = None
             mandatory = [t for t in remaining_tasks if t.task_type != "routine"] + disruption_tasks
-
-            # Aufsteigend nach V̂ sortieren: niedrigste Dringlichkeit zuerst droppen
             routine_tasks.sort(key=lambda t: self._value(t.node_idx, t.days_since_maintenance))
 
             solved = False
@@ -282,15 +289,16 @@ class CFAModel:
                 if new_plan.solver_status not in ("INFEASIBLE", "NO_SOLUTION"):
                     dropped = [t.node_idx for t in routine_tasks[:n_drop]]
                     log.notes.append(
-                        f"CFA-Replan Retry: {n_drop} Routine-Stop(s) nach V̂ ausgebaut "
+                        f"CFA-Real V̂-Drop Retry: {n_drop} Routine-Stop(s) ausgebaut "
                         f"{dropped}, Status: {new_plan.solver_status}"
                     )
+                    all_tasks = retry_tasks
                     solved = True
                     break
 
             if not solved:
                 log.notes.append(
-                    f"CFA-Replan fehlgeschlagen ({new_plan.solver_status}): "
+                    f"CFA-Real-Replan fehlgeschlagen: "
                     f"{len(disruptions)} Störung(en) als Carryover."
                 )
                 return 0, list(disruptions), 0.0
@@ -303,7 +311,6 @@ class CFAModel:
         disruption_nodes = {d.node_idx: d for d in disruptions}
         downtime_cost = 0.0
         cp = self.cost_params
-        arrival_at_d = time_min  # Fallback
         for route in sim_routes:
             for stop in route.stops:
                 if stop.node_idx in disruption_nodes:
@@ -312,14 +319,13 @@ class CFAModel:
                     wait_h = max(0.0, (stop.arrival_min - report_min) / 60.0)
                     d_cost = wait_h * d.power_kw * cp.downtime_eur_per_kwh
                     downtime_cost += d_cost
-                    arrival_at_d = stop.arrival_min
                     if d_cost > 0:
                         log.notes.append(
                             f"  Ausfall {d_cost:.2f} EUR ({wait_h:.2f} h Wartezeit)"
                         )
 
         log.notes.append(
-            f"CFA-Replan: {len(disruptions)} Störung(en) eingearbeitet, "
+            f"CFA-Real-Replan: {len(disruptions)} Störung(en) eingearbeitet, "
             f"Status: {new_plan.solver_status}"
         )
         return len(disruptions), [], downtime_cost

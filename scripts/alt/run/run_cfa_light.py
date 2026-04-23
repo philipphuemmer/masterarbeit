@@ -22,7 +22,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.data.loader import load_stations, get_coordinates, load_traffic_matrices
-from src.models.cfa_light import CFALightModel
+from src.models.alt.cfa_light import CFALightModel
 from src.models.simulator import MaintenanceSimulator
 from src.planning.clustering import ZoneClusterer
 from src.planning.selector import DailyZoneSelector

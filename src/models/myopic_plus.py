@@ -107,12 +107,27 @@ class MyopicPlusModel:
     # Hilfsmethoden
     # ------------------------------------------------------------------
 
-    def _deadline_penalty(self, power_kw: float) -> int:
-        """Strafkosten in Minuten/Minute Deadline-Überschreitung."""
+    def _routine_deadline_penalty(self, power_kw: float) -> int:
+        """Soft-Deadline-Penalty für Routine-Tasks in Minuten/Minute.
+
+        Verwendet p_failure, weil die Station noch nicht ausgefallen ist —
+        der Erwartungswert der Ausfallkosten pro Minute Verzögerung ist:
+        power × p_failure/min × downtime_eur_per_kwh.
+        """
         cp = self.cost_params
         wage_per_min = cp.wage_eur_per_hour / 60.0
         penalty = self.alpha * power_kw * self.p_failure_per_hour * cp.downtime_eur_per_kwh / wage_per_min
         return max(1, int(round(penalty)))
+
+    def _disruption_deadline_penalty(self, power_kw: float) -> int:
+        """Soft-Deadline-Penalty für Störungen in Minuten/Minute.
+
+        Station ist definitiv ausgefallen — direkte Ausfallkosten pro Minute:
+        power × downtime_eur_per_kwh / 60 / wage_per_min.
+        """
+        cp = self.cost_params
+        cost_per_min = power_kw * cp.downtime_eur_per_kwh / 60.0
+        return max(1, int(round(cost_per_min / (cp.wage_eur_per_hour / 60.0))))
 
     def _skip_penalty(self, power_kw: float, remaining_hours: float, service_time: int = 45) -> int:
         """
@@ -153,7 +168,14 @@ class MyopicPlusModel:
             )
             for rank, task in enumerate(sorted_routine):
                 task.soft_deadline_min = int((rank + 1) / n * self.WORKDAY_MINUTES)
-                task.deadline_penalty = self._deadline_penalty(
+                task.deadline_penalty = self._routine_deadline_penalty(
+                    self.node_to_power.get(task.node_idx, 22.0)
+                )
+
+        for task in tasks:
+            if task.task_type != "routine":
+                task.soft_deadline_min = 0
+                task.deadline_penalty = self._disruption_deadline_penalty(
                     self.node_to_power.get(task.node_idx, 22.0)
                 )
 
@@ -211,7 +233,7 @@ class MyopicPlusModel:
                 priority=1,
                 service_time=int(round(d.service_min)),
                 soft_deadline_min=int(time_min),
-                deadline_penalty=self._deadline_penalty(d.power_kw),
+                deadline_penalty=self._disruption_deadline_penalty(d.power_kw),
             )
             for d in disruptions
         ]

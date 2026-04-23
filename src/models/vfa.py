@@ -196,12 +196,13 @@ class VFAModel:
         return float(self.theta[0] * urgency + self.theta[1] * failure_risk * power)
 
     def _disruption_deadline_penalty(self, power_kw: float) -> int:
-        """Deadline-Penalty für Störungen in Minuten/Minute Überschreitung (analog CFA)."""
-        penalty_eur = (
-            self.alpha * power_kw * self.p_failure_per_hour
-            * self.cost_params.downtime_eur_per_kwh
-        )
-        return max(1, int(round(penalty_eur / self._wage_per_min)))
+        """Deadline-Penalty für Störungen in Minuten/Minute.
+
+        Station ist definitiv ausgefallen — direkte Ausfallkosten pro Minute:
+        power × downtime_eur_per_kwh / 60 / wage_per_min.
+        """
+        cost_per_min = power_kw * self.cost_params.downtime_eur_per_kwh / 60.0
+        return max(1, int(round(cost_per_min / self._wage_per_min)))
 
     def _compute_extra_costs(
         self,
