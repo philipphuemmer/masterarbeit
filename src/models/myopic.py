@@ -157,7 +157,7 @@ class MyopicPolicy:
                     continue
 
             report_min = float((hour - 8) * 60)
-            wait_h = max(0.0, (arrival_at_d - report_min) / 60.0)
+            wait_h = max(0.0, (arrival_at_d + d.service_min - report_min) / 60.0)
             d_cost = wait_h * d.power_kw * self.cost_params.downtime_eur_per_kwh
             downtime_cost += d_cost
             if d_cost > 0:
@@ -274,7 +274,7 @@ class MyopicPolicy:
         )
         extra_time_h = total_extra / 60.0
         report_min = float((hour - 8) * 60)
-        downtime_h = max(0.0, (arrival_at_d - report_min) / 60.0)
+        downtime_h = max(0.0, (arrival_at_d + d.service_min - report_min) / 60.0)
 
         cost = (
             extra_time_h * cp.wage_eur_per_hour

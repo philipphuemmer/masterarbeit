@@ -48,7 +48,7 @@ planning:
   travel_reserve_min: 20     # Zeitpuffer für An-/Abfahrt zum Depot [min]
   # V̂-basierte Zonenauswahl (nur CFA/VFA): true → Zonenwert aus gelernter Wertfunktion
   # statt Konvexhüllenfläche; false → klassisches depot_distance + convex_hull_area (Myopic-Verhalten)
-  value_based_zone_selection: true
+  value_based_zone_selection: false
   # Team-Zuweisung im Initialplan: true → OR-Tools darf nur dem zugewiesenen Team fahren
   # (verhindert geografisch unpassende Zuordnungen, kann aber Infeasibility erzwingen).
   # false → OR-Tools verteilt Tasks frei über beide Teams.
@@ -112,7 +112,12 @@ maintenance:
   # 0 = keine Pause. VRP-Horizont wird automatisch um lunch_duration_min verkürzt.
   lunch_duration_min: 0
   lunch_earliest_min: 240   # = 12:00 Uhr
-  # OR-Tools Solver-Zeitlimits in Sekunden.
-  # Für 32 Stops / 2 Teams: 5s reichen für gute Lösung (30s = Qualitätsmaximum).
-  solver_time_limit_initial: 5
-  solver_time_limit_replan: 3
+  # OR-Tools Abbruchkriterium: "time" (Zeitlimit) oder "solution" (Lösungsanzahl).
+  # "solution" ist maschinenunabhängig reproduzierbar bei gleichem Seed.
+  solver_limit_mode: "solution"
+  # Zeitlimit in Sekunden (aktiv wenn solver_limit_mode: "time")
+  solver_time_limit_initial: 2
+  solver_time_limit_replan: 2
+  # Lösungsanzahl (aktiv wenn solver_limit_mode: "solution")
+  solver_solution_limit_initial: 50
+  solver_solution_limit_replan: 50

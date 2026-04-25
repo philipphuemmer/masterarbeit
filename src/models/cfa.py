@@ -172,9 +172,10 @@ class CFAModel:
             ]
             for rank, idx in enumerate(np.argsort(scores)[::-1]):
                 deadline = int((rank + 1) / n * self.WORKDAY_MINUTES)
-                penalty = max(1, int(round(urgency[idx] / self._wage_per_min)))
+                # Penalty = 1 min/min: V̂ steuert die Reihenfolge der Deadlines,
+                # nicht die Durchsetzungsstärke. Disruptions (4+ min/min) dominieren.
                 routine_tasks[idx].soft_deadline_min = deadline
-                routine_tasks[idx].deadline_penalty = penalty
+                routine_tasks[idx].deadline_penalty = 1
 
         for task in tasks:
             if task.task_type != "routine":
@@ -187,27 +188,7 @@ class CFAModel:
             f"CFA Initialplan: {len(tasks)} Tasks, {n} Routine "
             f"mit Soft-Deadlines (θ={self.theta:.3e})."
         )
-        plan = self.solver.create_initial_plan(
-            tasks, team_assignment=team_assignment, internal_retry=False
-        )
-
-        if plan.solver_status not in ("OPTIMAL", "FEASIBLE") and routine_tasks:
-            # Fallback: V̂-basierter Drop statt Depot-Distanz (VRPSolver-Default)
-            mandatory = [t for t in tasks if t.task_type != "routine"]
-            routine_by_value = sorted(
-                routine_tasks,
-                key=lambda t: self._value(t.node_idx, t.days_since_maintenance),
-            )
-            for n_drop in range(1, len(routine_tasks) + 1):
-                retry = mandatory + routine_by_value[n_drop:]
-                plan = self.solver.create_initial_plan(
-                    retry, team_assignment=team_assignment, internal_retry=False
-                )
-                if plan.solver_status in ("OPTIMAL", "FEASIBLE"):
-                    logger.info(f"CFA Initialplan Retry: {n_drop} Routine-Stop(s) nach V̂ gedroppt.")
-                    break
-
-        return plan
+        return self.solver.create_initial_plan(tasks, team_assignment=team_assignment)
 
     def handle_disruptions(
         self,
@@ -229,7 +210,7 @@ class CFAModel:
                 current_node=r.current_node_at(time_min),
                 current_time=int(r.lunch_end_min) if (
                     r.lunch_end_min is not None and time_min < r.lunch_end_min
-                ) else int(time_min),
+                ) else int(r.current_departure_at(time_min)),
                 completed_nodes=r.completed_nodes_at(time_min),
             )
             for r in sim_routes
@@ -270,8 +251,12 @@ class CFAModel:
             routine_tasks = [t for t in remaining_tasks if t.task_type == "routine"]
             mandatory = [t for t in remaining_tasks if t.task_type != "routine"] + disruption_tasks
 
-            # Aufsteigend nach V̂ sortieren: niedrigste Dringlichkeit zuerst droppen
-            routine_tasks.sort(key=lambda t: self._value(t.node_idx, t.days_since_maintenance))
+            # Aufsteigend nach V̂ sortieren; bei gleichem V̂: depotfernere Station zuerst droppen
+            # (spart mehr Fahrzeit und ist konsistent mit der Zonenlogik)
+            routine_tasks.sort(key=lambda t: (
+                self._value(t.node_idx, t.days_since_maintenance),
+                -_approx_km(self.all_coords[t.node_idx], self.all_coords[0]),
+            ))
 
             solved = False
             for n_drop in range(1, len(routine_tasks) + 1):
@@ -309,7 +294,7 @@ class CFAModel:
                 if stop.node_idx in disruption_nodes:
                     d = disruption_nodes[stop.node_idx]
                     report_min = float((hour - 8) * 60)
-                    wait_h = max(0.0, (stop.arrival_min - report_min) / 60.0)
+                    wait_h = max(0.0, (stop.departure_min - report_min) / 60.0)
                     d_cost = wait_h * d.power_kw * cp.downtime_eur_per_kwh
                     downtime_cost += d_cost
                     arrival_at_d = stop.arrival_min

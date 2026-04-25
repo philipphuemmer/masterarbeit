@@ -387,11 +387,23 @@ class DailyZoneSelector:
         team_states: list[TeamState],
         tasks_per_team: dict[int, list[MaintenanceTask]],
     ) -> None:
-        """Verteilt Vortags-Störungen zum geografisch nächsten Team."""
+        """Verteilt Vortags-Störungen balanciert zwischen Teams.
+
+        Primär: Team mit geringster akkumulierter Carryover-Servicezeit.
+        Tie-Breaker: geografisch nächstes Team.
+        So wird verhindert dass ein Team alle Carryovers bekommt und
+        den Arbeitstag weit überzieht.
+        """
+        carryover_service: dict[int, int] = {s.team_id: 0 for s in team_states}
+
         for task in carryover:
             task_coord = self.all_coords[task.node_idx]
             best_team = min(
                 team_states,
-                key=lambda s: _approx_km(task_coord, self.all_coords[s.current_node]),
+                key=lambda s: (
+                    carryover_service[s.team_id],
+                    _approx_km(task_coord, self.all_coords[s.current_node]),
+                ),
             )
             tasks_per_team[best_team.team_id].insert(0, task)
+            carryover_service[best_team.team_id] += task.service_time

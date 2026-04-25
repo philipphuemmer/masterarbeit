@@ -163,8 +163,15 @@ class VRPSolver:
             (maint["workday_end_hour"] - maint["workday_start_hour"]) * 60
             - maint.get("lunch_duration_min", 0)
         )
-        self._time_limit_initial: int = maint["solver_time_limit_initial"]
-        self._time_limit_replan: int = maint["solver_time_limit_replan"]
+        self._limit_mode: str = maint.get("solver_limit_mode", "time")
+        self._backup_time_limit_initial: int = maint["solver_time_limit_initial"]
+        self._backup_time_limit_replan: int  = maint["solver_time_limit_replan"]
+        if self._limit_mode == "solution":
+            self._time_limit_initial: int = maint.get("solver_solution_limit_initial", 10)
+            self._time_limit_replan: int  = maint.get("solver_solution_limit_replan", 5)
+        else:
+            self._time_limit_initial: int = maint["solver_time_limit_initial"]
+            self._time_limit_replan: int  = maint["solver_time_limit_replan"]
         planning = config.get("planning", {})
         self._use_team_assignment: bool = bool(
             planning.get("use_team_assignment", True)
@@ -198,7 +205,10 @@ class VRPSolver:
         """
         Erstellt den Initialplan für den Tag.
 
-        Beide Teams starten am Depot zum Tagesbeginn (t = 0 = 8:00 Uhr).
+        Carryover-Tasks (Vortags-Störungen) werden vorab greedy geroutet und
+        den Teams zugewiesen, bevor OR-Tools die Routine-Tasks plant. Das
+        garantiert, dass Carryover-Tasks immer zu Tagesbeginn abgearbeitet
+        werden — konsistent mit dem DB-Modell (Stein et al., Algorithm 2).
 
         Parameters
         ----------
@@ -221,39 +231,93 @@ class VRPSolver:
         limit = time_limit_seconds if time_limit_seconds is not None else self._time_limit_initial
         effective_assignment = team_assignment if self._use_team_assignment else None
 
-        if effective_assignment:
-            # Jedes Team wird in einem eigenen 1-Fahrzeug-Modell gelöst.
-            # Das ist bei CFA/VFA deutlich schneller als ein gemeinsames Modell
-            # mit vielen Soft-Deadlines, das OR-Tools oft nicht löst.
-            return self._solve_teams_independently(
-                tasks, extra_costs, limit, effective_assignment, internal_retry=internal_retry
-            )
+        carryover_tasks = [t for t in tasks if t.task_type == "carryover"]
+        routine_tasks = [t for t in tasks if t.task_type != "carryover"]
 
-        # Ohne team_assignment: gemeinsames Modell, global Drops bei Infeasibility
-        team_states = [
-            TeamState(team_id=i, current_node=0, current_time=0)
-            for i in range(self.n_teams)
-        ]
-        plan = self._solve(tasks, team_states, extra_costs, limit, None)
-        if internal_retry and plan.solver_status not in ("OPTIMAL", "FEASIBLE") and self.all_coords is not None:
-            status_before_retry = plan.solver_status
-            depot_coord = self.all_coords[0]
-            mandatory = [t for t in tasks if t.task_type != "routine"]
-            routine_sorted = sorted(
-                [t for t in tasks if t.task_type == "routine"],
-                key=lambda t: float(np.linalg.norm(self.all_coords[t.node_idx] - depot_coord)),
-                reverse=True,
+        carry_routes: Optional[dict[int, PlannedRoute]] = None
+        initial_states: Optional[dict[int, TeamState]] = None
+        carry_travel = 0
+
+        if carryover_tasks:
+            depot_states = [TeamState(team_id=i, current_node=0, current_time=0) for i in range(self.n_teams)]
+            carry_routes_list, depot_end_states, carry_travel = self._pre_route_mandatory(
+                carryover_tasks, depot_states, assignment=effective_assignment
             )
-            for drop_n in range(1, len(routine_sorted) + 1):
-                retry_tasks = mandatory + routine_sorted[drop_n:]
-                if not retry_tasks:
-                    break
-                plan = self._solve(retry_tasks, team_states, extra_costs, limit, None)
-                if plan.solver_status in ("OPTIMAL", "FEASIBLE"):
-                    plan.n_dropped = drop_n
-                    plan.status_before_retry = status_before_retry
-                    break
-        return plan
+            carry_routes = carry_routes_list
+            initial_states = {s.team_id: s for s in depot_end_states}
+            # Reduce assignment to routine nodes only for OR-Tools
+            if effective_assignment:
+                routine_nodes = {t.node_idx for t in routine_tasks}
+                effective_assignment = {
+                    tid: [n for n in nodes if n in routine_nodes]
+                    for tid, nodes in effective_assignment.items()
+                }
+
+        tasks_for_solver = routine_tasks if carryover_tasks else tasks
+
+        if not tasks_for_solver:
+            routes = list(carry_routes.values()) if carry_routes else [
+                PlannedRoute(i, [], [], []) for i in range(self.n_teams)
+            ]
+            return DailyPlan(routes=routes, total_travel_time=carry_travel, solver_status="OPTIMAL")
+
+        if effective_assignment:
+            plan = self._solve_teams_independently(
+                tasks_for_solver, extra_costs, limit, effective_assignment,
+                initial_states=initial_states, internal_retry=internal_retry,
+            )
+        else:
+            team_states = [
+                initial_states[i] if initial_states and i in initial_states
+                else TeamState(team_id=i, current_node=0, current_time=0)
+                for i in range(self.n_teams)
+            ]
+            active_states = [s for s in team_states if s.current_time < self.WORKDAY_MINUTES]
+            if not active_states:
+                return DailyPlan(
+                    routes=list(carry_routes.values()) if carry_routes else [PlannedRoute(i, [], [], []) for i in range(self.n_teams)],
+                    total_travel_time=carry_travel,
+                    solver_status="OPTIMAL",
+                )
+            plan = self._solve(tasks_for_solver, active_states, extra_costs, limit, None)
+            if internal_retry and plan.solver_status not in ("OPTIMAL", "FEASIBLE") and self.all_coords is not None:
+                status_before_retry = plan.solver_status
+                depot_coord = self.all_coords[0]
+                routine_sorted = sorted(
+                    tasks_for_solver,
+                    key=lambda t: float(np.linalg.norm(self.all_coords[t.node_idx] - depot_coord)),
+                    reverse=True,
+                )
+                for drop_n in range(1, len(routine_sorted) + 1):
+                    retry_tasks = routine_sorted[drop_n:]
+                    if not retry_tasks:
+                        break
+                    plan = self._solve(retry_tasks, team_states, extra_costs, limit, None)
+                    if plan.solver_status in ("OPTIMAL", "FEASIBLE"):
+                        plan.n_dropped = drop_n
+                        plan.status_before_retry = status_before_retry
+                        break
+
+        if not carry_routes:
+            return plan
+
+        merged_routes = []
+        for route in plan.routes:
+            tid = route.team_id
+            carry = carry_routes.get(tid, PlannedRoute(tid, [], [], []))
+            merged_routes.append(PlannedRoute(
+                team_id=tid,
+                stops=carry.stops + route.stops,
+                arrival_times=carry.arrival_times + route.arrival_times,
+                departure_times=carry.departure_times + route.departure_times,
+            ))
+        return DailyPlan(
+            routes=merged_routes,
+            total_travel_time=carry_travel + plan.total_travel_time,
+            solver_status=plan.solver_status,
+            n_dropped=plan.n_dropped,
+            status_before_retry=plan.status_before_retry,
+        )
 
     def replan(
         self,
@@ -282,11 +346,118 @@ class VRPSolver:
         DailyPlan
         """
         limit = time_limit_seconds if time_limit_seconds is not None else self._time_limit_replan
-        return self._solve(remaining_tasks, team_states, extra_costs, limit)
+
+        carryover = [t for t in remaining_tasks if t.task_type == "carryover"]
+        rest = [t for t in remaining_tasks if t.task_type != "carryover"]
+
+        if not carryover:
+            return self._solve(remaining_tasks, team_states, extra_costs, limit)
+
+        carry_routes, updated_states, carry_travel = self._pre_route_mandatory(carryover, team_states)
+
+        if not rest:
+            return DailyPlan(
+                routes=list(carry_routes.values()),
+                total_travel_time=carry_travel,
+                solver_status="OPTIMAL",
+            )
+
+        # Teams ohne verbleibende Kapazität aus dem OR-Tools-Solve heraushalten
+        active_states = [s for s in updated_states if s.current_time < self.WORKDAY_MINUTES]
+        exhausted_tids = {s.team_id for s in updated_states if s.current_time >= self.WORKDAY_MINUTES}
+
+        if not active_states:
+            return DailyPlan(
+                routes=list(carry_routes.values()),
+                total_travel_time=carry_travel,
+                solver_status="OPTIMAL",
+            )
+
+        rest_plan = self._solve(rest, active_states, extra_costs, limit)
+
+        merged_routes = []
+        active_route_by_tid = {r.team_id: r for r in rest_plan.routes}
+        for s in updated_states:
+            tid = s.team_id
+            carry = carry_routes.get(tid, PlannedRoute(tid, [], [], []))
+            routine_route = active_route_by_tid.get(tid, PlannedRoute(tid, [], [], []))
+            merged_routes.append(PlannedRoute(
+                team_id=tid,
+                stops=carry.stops + routine_route.stops,
+                arrival_times=carry.arrival_times + routine_route.arrival_times,
+                departure_times=carry.departure_times + routine_route.departure_times,
+            ))
+        return DailyPlan(
+            routes=merged_routes,
+            total_travel_time=carry_travel + rest_plan.total_travel_time,
+            solver_status=rest_plan.solver_status,
+        )
 
     # ------------------------------------------------------------------
     # Kernimplementierung
     # ------------------------------------------------------------------
+
+    def _pre_route_mandatory(
+        self,
+        mandatory_tasks: list[MaintenanceTask],
+        team_states: list[TeamState],
+        assignment: Optional[dict[int, list[int]]] = None,
+    ) -> tuple[dict[int, "PlannedRoute"], list["TeamState"], int]:
+        """
+        Routet nicht-Routine-Tasks (Carryover/Störungen) greedy vor OR-Tools.
+
+        Verwendet die aktuellen Teampositionen als Startpunkte — funktioniert
+        sowohl beim Tagesstart (Depot, t=0) als auch beim intra-day Replan
+        (beliebige Position und Zeit). Konsistent mit DB-Modell (Stein et al.,
+        Algorithm 2).
+
+        Gibt zurück: (Routen pro Team, aktualisierte TeamStates, Gesamtfahrzeit).
+        """
+        state_by_id = {s.team_id: s for s in team_states}
+        matrix = self._get_matrix(min(s.current_time for s in team_states))
+        by_team: dict[int, list[MaintenanceTask]] = {s.team_id: [] for s in team_states}
+
+        if assignment:
+            node_to_task = {t.node_idx: t for t in mandatory_tasks}
+            for tid, nodes in assignment.items():
+                for node in nodes:
+                    if node in node_to_task:
+                        by_team[tid].append(node_to_task[node])
+        else:
+            end_times = {s.team_id: s.current_time for s in team_states}
+            cur_nodes = {s.team_id: s.current_node for s in team_states}
+            for task in mandatory_tasks:
+                best_tid = min(
+                    by_team.keys(),
+                    key=lambda tid: end_times[tid] + int(round(
+                        matrix[cur_nodes[tid], task.node_idx] / 60
+                    )),
+                )
+                prev = by_team[best_tid][-1].node_idx if by_team[best_tid] else cur_nodes[best_tid]
+                end_times[best_tid] += int(round(matrix[prev, task.node_idx] / 60)) + task.service_time
+                by_team[best_tid].append(task)
+
+        routes: dict[int, PlannedRoute] = {}
+        new_states: list[TeamState] = []
+        total_travel = 0
+
+        for s in team_states:
+            tid = s.team_id
+            stops, arrivals, departures = [], [], []
+            cur_node, cur_time = s.current_node, s.current_time
+            for task in by_team[tid]:
+                travel = int(round(matrix[cur_node, task.node_idx] / 60))
+                total_travel += travel
+                arr = cur_time + travel
+                dep = arr + task.service_time
+                stops.append(task.node_idx)
+                arrivals.append(arr)
+                departures.append(dep)
+                cur_node, cur_time = task.node_idx, dep
+            routes[tid] = PlannedRoute(team_id=tid, stops=stops, arrival_times=arrivals, departure_times=departures)
+            new_states.append(TeamState(team_id=tid, current_node=cur_node, current_time=cur_time))
+
+        return routes, new_states, total_travel
 
     def _solve_teams_independently(
         self,
@@ -295,6 +466,7 @@ class VRPSolver:
         time_limit_seconds: int,
         team_assignment: dict[int, list[int]],
         internal_retry: bool = True,
+        initial_states: Optional[dict[int, "TeamState"]] = None,
     ) -> DailyPlan:
         """
         Löst jedes Team in einem eigenen 1-Fahrzeug-OR-Tools-Modell.
@@ -363,7 +535,15 @@ class VRPSolver:
         for tid in sorted(team_assignment.keys()):
             team_tasks = per_team[tid]
             # TeamState mit team_id=tid → _extract_solution setzt PlannedRoute.team_id korrekt
-            team_state = [TeamState(team_id=tid, current_node=0, current_time=0)]
+            team_state = [
+                initial_states[tid] if initial_states and tid in initial_states
+                else TeamState(team_id=tid, current_node=0, current_time=0)
+            ]
+
+            # Team hat nach Carryover-Vorroutung keine Kapazität mehr
+            if team_state[0].current_time >= self.WORKDAY_MINUTES:
+                all_routes.append(PlannedRoute(tid, [], [], []))
+                continue
 
             plan = self._solve(team_tasks, team_state, extra_costs, time_limit_seconds, None)
 
@@ -599,10 +779,24 @@ class VRPSolver:
         search_params.local_search_metaheuristic = (
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
-        search_params.time_limit.seconds = time_limit_seconds
+        if self._limit_mode == "solution":
+            search_params.solution_limit = time_limit_seconds  # Wert = solution_limit
+            backup = (self._backup_time_limit_replan
+                      if time_limit_seconds == self._time_limit_replan
+                      else self._backup_time_limit_initial)
+            search_params.time_limit.seconds = backup
+        else:
+            search_params.time_limit.seconds = time_limit_seconds
+
+        _sol_count = [0]
+        if getattr(self, "_count_solutions", False):
+            routing.AddAtSolutionCallback(lambda: _sol_count.__setitem__(0, _sol_count[0] + 1))
 
         solution = routing.SolveWithParameters(search_params)
         status = _STATUS_MAP.get(routing.status(), "UNKNOWN")
+
+        if getattr(self, "_count_solutions", False):
+            self._solution_counts.append(_sol_count[0])
 
         return self._extract_solution(solution, routing, manager, all_nodes, team_states, status)
 

@@ -206,7 +206,7 @@ class MyopicPlusModel:
                 current_node=r.current_node_at(time_min),
                 current_time=int(r.lunch_end_min) if (
                     r.lunch_end_min is not None and time_min < r.lunch_end_min
-                ) else int(time_min),
+                ) else int(r.current_departure_at(time_min)),
                 completed_nodes=r.completed_nodes_at(time_min),
             )
             for r in sim_routes
@@ -281,7 +281,7 @@ class MyopicPlusModel:
                 if stop.node_idx in disruption_nodes:
                     d = disruption_nodes[stop.node_idx]
                     report_min = float((hour - 8) * 60)
-                    wait_h = max(0.0, (stop.arrival_min - report_min) / 60.0)
+                    wait_h = max(0.0, (stop.departure_min - report_min) / 60.0)
                     downtime_cost += wait_h * d.power_kw * cp.downtime_eur_per_kwh
 
         log.notes.append(

@@ -530,8 +530,7 @@ class MaintenanceSimulator:
                 result.operational_cost_eur = op_cost
                 result.wage_cost_eur = wage_cost
                 result.fuel_cost_eur = fuel_cost
-                if not carryover_tasks:
-                    new_carryover = []
+                new_carryover = []
 
             # Stochastik: days_since_maintenance aktualisieren
             if self._failure_mode == "stochastic":
@@ -544,7 +543,7 @@ class MaintenanceSimulator:
             carryover_tasks = [
                 MaintenanceTask(
                     node_idx=d.node_idx,
-                    task_type="disruption",
+                    task_type="carryover",
                     priority=1,
                     service_time=int(round(d.service_min)),
                 )
@@ -683,7 +682,8 @@ class MaintenanceSimulator:
                 f.write(f"\n{'=' * 60}\n")
                 f.write(
                     f"TAG {dr.day:>3d}  |  Routine geplant: {dr.n_routine_tasks}, erledigt: {dr.n_routine_completed}  |  "
-                    f"Störungen: {dr.disruptions_handled} erledigt, "
+                    f"Störungen: {dr.disruptions_handled + dr.disruptions_carryover} gesamt, "
+                    f"{dr.disruptions_handled} erledigt, "
                     f"{dr.disruptions_carryover} Carryover  |  "
                     f"Kosten: {dr.total_cost_eur:.2f} EUR\n"
                 )
@@ -1148,7 +1148,7 @@ class MaintenanceSimulator:
             hourly_logs.append(hour_log)
 
         # Ausfallkosten für Carryover-Störungen: ab 8:00 bis Service abgeschlossen
-        carryover_nodes = {t.node_idx for t in carryover_tasks if t.task_type == "disruption"}
+        carryover_nodes = {t.node_idx for t in carryover_tasks if t.task_type == "carryover"}
         accounted: set[int] = set()
         cp = self.cost_params
         for route in sim_routes:

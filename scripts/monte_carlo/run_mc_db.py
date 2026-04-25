@@ -107,7 +107,9 @@ def analyse(results: list[SimulationResult], seeds: list[int]) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Monte-Carlo-Simulation (DB)")
     parser.add_argument("--runs",        type=int, default=30,
-                        help="Anzahl der Simulationsläufe N (Seeds 1…N, Standard: 30)")
+                        help="Letzter Seed (inklusiv, Standard: 30)")
+    parser.add_argument("--start-run",   type=int, default=1,
+                        help="Erster Seed zum Fortfahren (Standard: 1)")
     parser.add_argument("--max-days",    type=int, default=365,
                         help="Maximale Tage pro Lauf (Standard: 365)")
     parser.add_argument("--verbose",     action="store_true",
@@ -156,11 +158,14 @@ def main() -> None:
     json_dir.mkdir(parents=True, exist_ok=True)
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    seeds = list(range(1, args.runs + 1))
+    if args.start_run > args.runs:
+        print(f"Fehler: --start-run ({args.start_run}) > --runs ({args.runs})")
+        sys.exit(1)
+    seeds = list(range(args.start_run, args.runs + 1))
     results: list[SimulationResult] = []
     overview_path = log_dir / f"{Path(args.log_dir).name}_overview.log"
 
-    print(f"\nStarte {args.runs} Monte-Carlo-Läufe...\n")
+    print(f"\nStarte {len(seeds)} Monte-Carlo-Läufe (Seeds {seeds[0]}–{seeds[-1]})...\n")
     for seed in seeds:
         print(f"  Lauf {seed}/{args.runs} (Seed {seed})...", end=" ", flush=True)
 
