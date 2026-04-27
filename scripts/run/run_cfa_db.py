@@ -38,7 +38,7 @@ def main() -> None:
     parser.add_argument("--verbose",     action="store_true")
     parser.add_argument("--seed",        type=int,  default=None)
     parser.add_argument("--run-id",      type=int,  default=None)
-    parser.add_argument("--policy-path", type=str,  default="data/cfa_db/policy.json")
+    parser.add_argument("--policy-path", type=str,  default="data/training/cfa_db/policy.json")
     args = parser.parse_args()
 
     logging.basicConfig(

@@ -19,7 +19,7 @@ Training:
     G_t   : cost-to-go (undiskontiert, γ=1)
     A_t   : G_t − V(φ_t) — normiert
 
-Ausgabe: data/db/policy.json mit Netzgewichten + Feature-Normierung
+Ausgabe: data/training/db/policy.json mit Netzgewichten + Feature-Normierung
 
 Voraussetzung: failure_simulation.mode = stochastic in configs/config.yaml
     (sonst kein dsm-Tracking → triviale Features)
@@ -323,12 +323,12 @@ def main() -> None:
                         help="Finale Explorations-Std (Standard: 0.05)")
     parser.add_argument("--ppo-epochs",  type=int, default=4,
                         help="PPO-Update-Epochen pro Iteration (Standard: 4)")
-    parser.add_argument("--output",      type=str, default="data/db/policy.json",
-                        help="Ausgabepfad policy.json (Standard: data/db/policy.json)")
+    parser.add_argument("--output",      type=str, default="data/training/db/policy.json",
+                        help="Ausgabepfad policy.json (Standard: data/training/db/policy.json)")
     parser.add_argument("--verbose",     action="store_true",
                         help="Ausführliche Ausgabe")
     parser.add_argument("--resume",      type=str, default=None,
-                        help="Pfad zu train_state.pt zum Fortsetzen (z.B. data/db/checkpoints/train_state.pt)")
+                        help="Pfad zu train_state.pt zum Fortsetzen (z.B. data/training/db/checkpoints/train_state.pt)")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -386,7 +386,7 @@ def main() -> None:
         if not state_path.exists():
             print(f"FEHLER: Resume-Datei nicht gefunden: {state_path}")
             sys.exit(1)
-        state = torch.load(state_path, map_location="cpu")
+        state = torch.load(state_path, map_location="cpu", weights_only=False)
         policy_net.load_state_dict(state["policy_net"])
         value_net.load_state_dict(state["value_net"])
         policy_opt.load_state_dict(state["policy_opt"])

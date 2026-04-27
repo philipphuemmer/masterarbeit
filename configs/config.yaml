@@ -119,5 +119,5 @@ maintenance:
   solver_time_limit_initial: 2
   solver_time_limit_replan: 2
   # Lösungsanzahl (aktiv wenn solver_limit_mode: "solution")
-  solver_solution_limit_initial: 50
-  solver_solution_limit_replan: 50
+  solver_solution_limit_initial: 20
+  solver_solution_limit_replan: 10

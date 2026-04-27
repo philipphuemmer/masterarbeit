@@ -733,7 +733,8 @@ class VRPSolver:
         # Aktuellen Zeitstempel der Teams als festen Startwert setzen
         for v, state in enumerate(team_states):
             start_idx = routing.Start(v)
-            time_dim.CumulVar(start_idx).SetRange(state.current_time, state.current_time)
+            t = max(0, min(state.current_time, self.WORKDAY_MINUTES))
+            time_dim.CumulVar(start_idx).SetRange(t, t)
 
 
         # Soft-Deadlines: SetCumulVarSoftUpperBound für zeitkritische Knoten

@@ -186,8 +186,8 @@ def main() -> None:
                         help="Maximale Tage pro Lauf (Standard: 365)")
     parser.add_argument("--verbose",  action="store_true",
                         help="OR-Tools-Logging aktivieren")
-    parser.add_argument("--out",      type=str, default="data/cfa/theta.json",
-                        help="Ausgabepfad für θ (Standard: data/cfa/theta.json)")
+    parser.add_argument("--out",      type=str, default="data/training/cfa/theta.json",
+                        help="Ausgabepfad für θ (Standard: data/training/cfa/theta.json)")
     parser.add_argument("--fresh",    action="store_true",
                         help="Checkpoints ignorieren und von Runde 1 neu starten")
     args = parser.parse_args()

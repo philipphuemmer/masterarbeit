@@ -55,7 +55,7 @@ from src.planning.vrp_solver import (
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_POLICY_PATH = Path("data/db/policy.json")
+_DEFAULT_POLICY_PATH = Path("data/training/db/policy.json")
 
 _MAX_DSM = 365.0
 _MAX_DEPOT_KM = 30.0
@@ -74,7 +74,7 @@ class DBModel:
     node_to_power : dict[int, float] — node_idx → Nennleistung [kW].
     n_stations : Gesamtzahl der Stationen (ohne Depot).
     cost_params : Kostenparameter (None → Standardwerte).
-    policy_path : Pfad zu data/db/policy.json. None → Standardpfad.
+    policy_path : Pfad zu data/training/db/policy.json. None → Standardpfad.
     weights_override : dict | None — direkt übergebene Gewichte (für Training).
     """
 

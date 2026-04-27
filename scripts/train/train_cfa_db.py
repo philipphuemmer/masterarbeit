@@ -9,7 +9,7 @@ Training:    identisch mit DB (PPO, γ=1, Advantage-Normierung)
 Unterschied: Rollouts verwenden OR-Tools statt Greedy → bessere Basisrouten,
              aber langsamere Simulation pro Iteration.
 
-Ausgabe: data/cfa_db/policy.json
+Ausgabe: data/training/cfa_db/policy.json
 
 Ausführen:
     python scripts/train/train_cfa_db.py
@@ -225,7 +225,7 @@ def main() -> None:
     parser.add_argument("--sigma-start", type=float, default=0.5)
     parser.add_argument("--sigma-end",   type=float, default=0.05)
     parser.add_argument("--ppo-epochs",  type=int,   default=4)
-    parser.add_argument("--output",      type=str,   default="data/cfa_db/policy.json")
+    parser.add_argument("--output",      type=str,   default="data/training/cfa_db/policy.json")
     parser.add_argument("--resume",      type=str,   default=None,
                         help="Pfad zu train_state.pt zum Fortsetzen")
     parser.add_argument("--verbose",     action="store_true")

@@ -46,8 +46,8 @@ def main() -> None:
                         help="Zufallsseed (-1 = zufällig)")
     parser.add_argument("--run-id",     type=int,   default=None,
                         help="Run-ID für Monte-Carlo-Läufe")
-    parser.add_argument("--theta-path", type=str,   default="data/cfa/theta.json",
-                        help="Pfad zur theta.json (Standard: data/cfa/theta.json)")
+    parser.add_argument("--theta-path", type=str,   default="data/training/cfa/theta.json",
+                        help="Pfad zur theta.json (Standard: data/training/cfa/theta.json)")
     args = parser.parse_args()
 
     logging.basicConfig(

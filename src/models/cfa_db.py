@@ -18,7 +18,7 @@ Score beim Drop (falls OR-Tools infeasible):
 8 Zustandsmerkmale φ(S_t): identisch mit DBModel.
 
 Training: PPO (scripts/train/train_cfa_db.py)
-Ausgabe:  data/cfa_db/policy.json
+Ausgabe:  data/training/cfa_db/policy.json
 """
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ from src.planning.vrp_solver import (
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_POLICY_PATH = Path("data/cfa_db/policy.json")
+_DEFAULT_POLICY_PATH = Path("data/training/cfa_db/policy.json")
 
 _MAX_DSM = 365.0
 _MAX_DEPOT_KM = 30.0
@@ -66,7 +66,7 @@ class CFADBModel:
     node_to_power : dict[int, float] — node_idx → Nennleistung [kW].
     n_stations : Gesamtzahl der Stationen (ohne Depot).
     cost_params : Kostenparameter (None → Standardwerte).
-    policy_path : Pfad zu data/cfa_db/policy.json.
+    policy_path : Pfad zu data/training/cfa_db/policy.json.
     weights_override : dict | None — direkt übergebene Gewichte (für Training).
     """
 

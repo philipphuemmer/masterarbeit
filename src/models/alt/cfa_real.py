@@ -16,7 +16,7 @@ Unterschied zu cfa.py (VFA):
 
 V̂(k) = θ × power_kW[k] × days_since_maintenance[k]
 
-θ wird aus data/cfa/theta.json geladen (identisches Training wie cfa.py).
+θ wird aus data/training/cfa/theta.json geladen (identisches Training wie cfa.py).
 """
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ from src.planning.vrp_solver import DailyPlan, MaintenanceTask, TeamState, VRPSo
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_THETA_PATH = Path("data/cfa/theta.json")
+_DEFAULT_THETA_PATH = Path("data/training/cfa/theta.json")
 
 
 class CFARealModel:
@@ -59,7 +59,7 @@ class CFARealModel:
     cost_params : CostParams | None
         Kostenparameter (None → Standardwerte).
     theta_path : Path | str | None
-        Pfad zu data/cfa/theta.json. None → Standardpfad.
+        Pfad zu data/training/cfa/theta.json. None → Standardpfad.
     theta_override : float | None
         Direkt übergebener θ-Wert (überschreibt theta_path).
     """

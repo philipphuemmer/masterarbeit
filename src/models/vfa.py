@@ -22,7 +22,7 @@ Integration in OR-Tools:
     früh eingeplant.
 
 θ wird offline trainiert (scripts/train_vfa.py) und aus
-data/vfa/theta.json geladen.
+data/training/vfa/theta.json geladen.
 """
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ from src.planning.vrp_solver import DailyPlan, MaintenanceTask, TeamState, VRPSo
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_THETA_PATH = Path("data/vfa/theta.json")
+_DEFAULT_THETA_PATH = Path("data/training/vfa/theta.json")
 
 
 class VFAModel:
@@ -62,7 +62,7 @@ class VFAModel:
     n_stations : int
         Gesamtzahl der Stationen (ohne Depot).
     cost_params : Kostenparameter (None → Standardwerte).
-    theta_path : Pfad zu data/vfa/theta.json. None → Standardpfad.
+    theta_path : Pfad zu data/training/vfa/theta.json. None → Standardpfad.
     theta_override : np.ndarray | list | None
         Direkt übergebener θ-Vektor (überschreibt theta_path). Wird für
         iteratives Policy-Training verwendet, um θ ohne Datei-I/O zu setzen.
