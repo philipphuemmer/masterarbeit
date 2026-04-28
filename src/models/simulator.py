@@ -31,9 +31,16 @@ logger = logging.getLogger(__name__)
 # Hilfsfunktion
 # ---------------------------------------------------------------------------
 
+_LUNCH_START_MIN = 240   # 12:00 = 4h ab 8:00
+_LUNCH_DURATION  = 60    # 12:00–13:00
+
+
 def _fmt(minutes_from_8: float) -> str:
-    """Minuten ab 8:00 → 'HH:MM'-String."""
-    total = int(8 * 60 + minutes_from_8)
+    """Minuten ab 8:00 → 'HH:MM'-String (Mittagspause 12:00–13:00 eingerechnet)."""
+    m = int(minutes_from_8)
+    if m >= _LUNCH_START_MIN:
+        m += _LUNCH_DURATION
+    total = 8 * 60 + m
     return f"{total // 60:02d}:{total % 60:02d}"
 
 
@@ -150,6 +157,9 @@ class HourLog:
             for tp in self.initial_plan:
                 lines.append(f"    Team {tp['team_id']}: {tp['n_stops']} Stops")
                 for s in tp["route"]:
+                    if s["task_type"] == "lunch":
+                        lines.append(f"      --- Mittagspause {s['arrival_time']}–{s['departure_time']} ---")
+                        continue
                     lines.append(
                         f"      {s['from_label']:>8} --[{s['travel_time_min']:4.1f} min,"
                         f" {s['travel_km']:4.2f} km]--> Node {s['node_idx']:>3d}"
@@ -438,6 +448,12 @@ class MaintenanceSimulator:
         fail_cfg = config.get("failure_simulation", {})
         self._failure_mode: str = fail_cfg.get("mode", "csv")
         if self._failure_mode == "stochastic":
+            from src.data.loader import get_failure_rate_factors
+            _factors = get_failure_rate_factors(stations_df)
+            self._node_to_failure_factor: dict[int, float] = {
+                i + 1: _factors.get(i, 1.0) for i in range(len(stations_df))
+            }
+
             recovery_days = fail_cfg.get("recovery_days", 365)
             # Alle Stationen starten bei voller Ausfallwahrscheinlichkeit
             self._days_since_maintenance = np.full(
@@ -934,6 +950,9 @@ class MaintenanceSimulator:
             time_min = float((hour - 8) * 60)
             hour_log = HourLog(day=day, hour=hour)
 
+            if hour == 12:
+                hour_log.notes.append("Mittagspause 12:00–13:00")
+
             # 8:00: Strukturierter Initialplan
             if hour == 8:
                 hour_log.solver_debug = _solver_debug
@@ -942,7 +961,16 @@ class MaintenanceSimulator:
                 for r in sim_routes:
                     prev_node = 0
                     route_dicts = []
+                    lunch_inserted = False
                     for stop in r.stops:
+                        if not lunch_inserted and stop.arrival_min >= _LUNCH_START_MIN:
+                            route_dicts.append({
+                                "task_type": "lunch",
+                                "arrival_time": "12:00",
+                                "departure_time": "13:00",
+                                "service_min": _LUNCH_DURATION,
+                            })
+                            lunch_inserted = True
                         t_min = mat8[prev_node, stop.node_idx] / 60.0
                         km = _approx_km(self.all_coords[prev_node], self.all_coords[stop.node_idx])
                         route_dicts.append({
@@ -1212,10 +1240,11 @@ class MaintenanceSimulator:
 
                 t = min(self._days_since_maintenance[node_idx], recovery_days)
                 factor = initial_factor + (1.0 - initial_factor) * t / recovery_days
+                station_factor = self._node_to_failure_factor.get(node_idx, 1.0)
                 power_kw = self.node_to_power.get(node_idx, 22.0)
 
                 # Typ 1 prüfen
-                if self._rng.random() < p1_base * factor:
+                if self._rng.random() < p1_base * factor * station_factor:
                     events.append(DisruptionEvent(
                         day=day,
                         hour=hour,
@@ -1228,7 +1257,7 @@ class MaintenanceSimulator:
                     continue
 
                 # Typ 2 prüfen
-                if self._rng.random() < p2_base * factor:
+                if self._rng.random() < p2_base * factor * station_factor:
                     mat = self.traffic_matrices.get(
                         hour, list(self.traffic_matrices.values())[0]
                     )

@@ -4,7 +4,7 @@ Cost Function Approximation (CFA) – gelernte Wertfunktionsapproximation.
 Approximiert die zukünftige Wertfunktion V(s) als lineare Funktion der
 stationsindividuellen Dringlichkeit:
 
-    V̂(k) = θ × power_kW[k] × days_since_maintenance[k]
+    V̂(k) = θ × station_factor[k] × power_kW[k] × recovery_curve(dsm[k]) × recovery_days
 
 θ wird offline aus Monte-Carlo-Simulationen mit der Myopic-Policy gelernt
 (scripts/train_cfa.py) und aus data/training/cfa/theta.json geladen.
@@ -96,6 +96,15 @@ class CFAModel:
         else:
             self.node_to_power = {}
 
+        if stations_df is not None:
+            from src.data.loader import get_failure_rate_factors
+            _factors = get_failure_rate_factors(stations_df)
+            self._node_to_failure_factor: dict[int, float] = {
+                i + 1: _factors.get(i, 1.0) for i in range(len(stations_df))
+            }
+        else:
+            self._node_to_failure_factor = {}
+
         cp = self.cost_params
         self._wage_per_min: float = cp.wage_eur_per_hour / 60.0
 
@@ -130,8 +139,14 @@ class CFAModel:
     # ------------------------------------------------------------------
 
     def _value(self, node_idx: int, days_since_maintenance: float) -> float:
-        """V̂(k) = θ × power_kW[k] × dsm[k] in EUR."""
-        return self.theta * self.node_to_power.get(node_idx, 22.0) * days_since_maintenance
+        """V̂(k) = θ × station_factor[k] × power_kW[k] × recovery_curve(dsm) × recovery_days."""
+        fail_cfg = self.config.get("failure_simulation", {})
+        recovery_days: float = float(fail_cfg.get("recovery_days", 365))
+        initial_factor: float = float(fail_cfg.get("initial_factor", 0.1))
+        dsm = min(days_since_maintenance, recovery_days)
+        recovery_curve = initial_factor + (1.0 - initial_factor) * dsm / recovery_days
+        station_factor = self._node_to_failure_factor.get(node_idx, 1.0)
+        return self.theta * station_factor * self.node_to_power.get(node_idx, 22.0) * recovery_curve * recovery_days
 
     def _disruption_deadline_penalty(self, power_kw: float) -> int:
         """Deadline-Penalty für Störungen in Minuten/Minute.

@@ -1,16 +1,12 @@
 """
-Dynamic Balance (DB) Policy — OR-Tools mit state-abhängiger Soft-Deadline-Gewichtung.
+Dynamic Balance (DB) Policy — Cost Function Approximation (CFA).
 
-Erweiterung gegenüber Stein et al. (2024): statt Greedy-Einfügung verwendet
-der Initialplan OR-Tools. α_{S_t} steuert die Penalty-Stärke der Soft-Deadlines:
+Score-basierte Greedy-Einfügung mit state-abhängigem Balance-Parameter α:
 
-    deadline_penalty = max(1, round((1 − α_{S_t}) × MAX_PENALTY))
+    s(k, team) = (1 − α_{S_t}) · U(k) − α_{S_t} · Δτ(team, k)
 
     U(k) = power_kW[k] × dsm[k]   (stationsindividuelle Dringlichkeit)
-    Deadline-Position: Rang nach U(k) / Depot-Distanz (wie CFA nach V̂)
-
-    α_{S_t} → 0: hohe Penalties → OR-Tools erzwingt Reihenfolge nach U(k)
-    α_{S_t} → 1: niedrige Penalties → OR-Tools optimiert Routing frei
+    Δτ(team, k)                     (günstigste Einfügekosten in Minuten)
 
 α_{S_t} ∈ [0, 1] wird durch ein gelerntes MLP aus dem Zustand berechnet:
     α = σ(W3 · relu(W2 · relu(W1 · φ(S_t) + b1) + b2) + b3)
@@ -25,8 +21,8 @@ der Initialplan OR-Tools. α_{S_t} steuert die Penalty-Stärke der Soft-Deadline
     f6: std_dist_depot / MAX_KM          – Räumliche Streuung
     f7: n_carryover / SCALE              – Offene Carryover-Rückstände
 
-Initialplan: OR-Tools mit α-modulierten Soft-Deadline-Penalties.
-Disruption Handling: OR-Tools Replan mit U(k)-basiertem Drop (wie db_alt).
+Initialplan: Kein OR-Tools — reine score-basierte Greedy-Einfügung.
+Disruption Handling: OR-Tools Replan (wie CFA/VFA).
 
 Referenz: Stein, D. et al. (2024) — "Learning State-Dependent Policy
 Parametrizations for Dynamic Technician Routing with Rework"
@@ -52,6 +48,7 @@ from src.planning.clustering import _approx_km
 from src.planning.vrp_solver import (
     DailyPlan,
     MaintenanceTask,
+    PlannedRoute,
     TeamState,
     VRPSolver,
 )
@@ -64,14 +61,10 @@ _MAX_DSM = 365.0
 _MAX_DEPOT_KM = 30.0
 _CARRYOVER_SCALE = 10.0
 
-# Maximale Soft-Deadline-Penalty (bei α=0, volle Dringlichkeitsdurchsetzung).
-# Disruptions verwenden 4+ min/min → Routine-Deadlines bleiben nachrangig.
-_MAX_ROUTINE_PENALTY = 10
-
 
 class DBModel:
     """
-    Dynamic Balance Policy mit state-abhängigem α-Parameter und OR-Tools Routing.
+    Dynamic Balance Policy mit state-abhängigem α-Parameter.
 
     Parameters
     ----------
@@ -122,6 +115,12 @@ class DBModel:
         # Zustandskontext: wird von DBMaintenanceSimulator vor jedem Tag gesetzt
         self._n_remaining_total: int = n_stations
         self._n_carryover: int = 0
+
+        # 8:00-Matrix für initiales Routing (einmal gecacht)
+        self._mat8: np.ndarray = traffic_matrices.get(
+            self._workday_start_hour,
+            next(iter(traffic_matrices.values())),
+        )
 
         if weights_override is not None:
             self._load_weights(weights_override)
@@ -181,7 +180,7 @@ class DBModel:
 
             f1 = float(np.mean(dsm_vals > 90.0))
             f2 = float(np.mean(dsm_vals)) / _MAX_DSM
-            max_possible_urgency = 150.0 * _MAX_DSM
+            max_possible_urgency = 150.0 * _MAX_DSM  # single-station normalisation
             f3 = float(np.sum(urgency)) / (max_possible_urgency * max(1, self.n_stations))
             f4 = float(np.max(urgency)) / max_possible_urgency
 
@@ -216,6 +215,81 @@ class DBModel:
         return self.node_to_power.get(node_idx, 22.0) * dsm
 
     # ------------------------------------------------------------------
+    # Routing-Hilfsmethoden
+    # ------------------------------------------------------------------
+
+    def _travel_min(self, from_node: int, to_node: int) -> float:
+        """Reisezeit in Minuten via 8:00-Matrix (Initialplanung)."""
+        return float(self._mat8[from_node, to_node]) / 60.0
+
+    def _route_end_time(
+        self,
+        route: list[int],
+        tasks_map: dict[int, MaintenanceTask],
+    ) -> float:
+        """Gibt die geschätzte Endzeit (Abfahrt letzter Stop) in Minuten ab 8:00 zurück."""
+        t = 0.0
+        prev = 0
+        for node in route:
+            t += self._travel_min(prev, node)
+            service = float(tasks_map[node].service_time) if node in tasks_map else 30.0
+            t += service
+            prev = node
+        return t
+
+    def _cheapest_insertion(
+        self,
+        route: list[int],
+        node_k: int,
+        tasks_map: dict[int, MaintenanceTask],
+        current_end: float,
+    ) -> tuple[float, int]:
+        """
+        Minimale Einfügekosten Δτ(team, k) in Minuten und optimale Position.
+
+        Returns (inf, -1) wenn keine feasible Position existiert.
+        """
+        service_k = float(tasks_map[node_k].service_time) if node_k in tasks_map else 30.0
+        full = [0] + route + [0]
+        best_delta = np.inf
+        best_pos = -1
+
+        for pos in range(1, len(full)):
+            prev_n = full[pos - 1]
+            next_n = full[pos]
+            delta = (
+                self._travel_min(prev_n, node_k)
+                + self._travel_min(node_k, next_n)
+                - self._travel_min(prev_n, next_n)
+            )
+            if current_end + delta + service_k <= self.WORKDAY_MINUTES:
+                if delta < best_delta:
+                    best_delta = delta
+                    best_pos = pos
+
+        return best_delta, best_pos
+
+    def _compute_arrival_times(
+        self,
+        route: list[int],
+        tasks_map: dict[int, MaintenanceTask],
+    ) -> tuple[list[int], list[int]]:
+        """Ankunfts- und Abfahrtszeiten (Minuten ab 8:00, gerundet) für eine Route."""
+        arrivals: list[int] = []
+        departures: list[int] = []
+        t = 0.0
+        prev = 0
+        for node in route:
+            t += self._travel_min(prev, node)
+            arrival = t
+            service = float(tasks_map[node].service_time) if node in tasks_map else 30.0
+            t += service
+            arrivals.append(int(arrival))
+            departures.append(int(t))
+            prev = node
+        return arrivals, departures
+
+    # ------------------------------------------------------------------
     # Policy-Schnittstelle
     # ------------------------------------------------------------------
 
@@ -225,54 +299,143 @@ class DBModel:
         team_assignment: Optional[dict[int, list[int]]] = None,
     ) -> DailyPlan:
         """
-        OR-Tools Initialplan mit state-abhängiger Soft-Deadline-Gewichtung.
+        Score-basierte Greedy-Einfügung ohne OR-Tools.
 
-        α moduliert die Penalty-Stärke:
-          deadline_penalty = max(1, round((1−α) × MAX_PENALTY))
-
-        Deadline-Position: Rang nach U(k)/Depot-Distanz (höhere Dringlichkeit →
-        frühere Deadline). Identisch zu CFA, aber mit α-skalierter Penalty statt
-        festem Wert 1.
+        Algorithmus (Stein et al., Algorithm 2):
+          1. α = MLP(φ(S_t))
+          2. Für alle (k, team): score = (1−α)·U(k) − α·Δτ(team, k)
+          3. Paar mit höchstem Score feasible einfügen.
+          4. Wiederholen bis keine Stationen mehr oder kein Paar feasible.
         """
+        tasks_map: dict[int, MaintenanceTask] = {t.node_idx: t for t in tasks}
         routine_tasks = [t for t in tasks if t.task_type == "routine"]
-        n = len(routine_tasks)
+        carryover_tasks = [t for t in tasks if t.task_type != "routine"]
 
-        # α: global vorberechnet (DBMaintenanceSimulator) oder Fallback
+        # α: global vorberechnet (DBMaintenanceSimulator) oder Fallback auf heutiges Subset
         _precomp = getattr(self, '_precomputed_alpha', None)
         if _precomp is not None:
             alpha = _precomp
         else:
             phi = self.extract_features(routine_tasks)
             alpha = self._forward(phi)
-        logger.info(f"DB: α={alpha:.4f}, {n} Routine, "
-                    f"{len(tasks) - n} Carryover")
+        logger.info(f"DB: α={alpha:.4f}, {len(routine_tasks)} Routine, {len(carryover_tasks)} Carryover")
 
-        penalty = max(1, int(round((1.0 - alpha) * _MAX_ROUTINE_PENALTY)))
+        # Routen pro Team initialisieren
+        routes: dict[int, list[int]] = {i: [] for i in range(self.n_teams)}
+        end_times: dict[int, float] = {i: 0.0 for i in range(self.n_teams)}
 
-        if n > 0:
-            depot = self.all_coords[0]
-            urgency = [
-                self.node_to_power.get(t.node_idx, 22.0) * t.days_since_maintenance
-                for t in routine_tasks
-            ]
-            scores = [
-                u / max(0.1, _approx_km(self.all_coords[t.node_idx], depot))
-                for t, u in zip(routine_tasks, urgency)
-            ]
-            for rank, idx in enumerate(np.argsort(scores)[::-1]):
-                routine_tasks[idx].soft_deadline_min = int(
-                    (rank + 1) / n * self.WORKDAY_MINUTES
+        # team_assignment → welche Routine-Stationen gehören welchem Team
+        routine_for_team: dict[int, set[int]] = {i: set() for i in range(self.n_teams)}
+        use_assignment = (
+            team_assignment is not None
+            and self.config.get("planning", {}).get("use_team_assignment", True)
+        )
+        if use_assignment:
+            for tid, nodes in team_assignment.items():
+                for node in nodes:
+                    t = tasks_map.get(node)
+                    if t and t.task_type == "routine":
+                        routine_for_team[tid].add(node)
+        else:
+            all_routine_nodes = {t.node_idx for t in routine_tasks}
+            for tid in range(self.n_teams):
+                routine_for_team[tid] = all_routine_nodes
+
+        # Carryover-Tasks vorab in Teams laden (mandatory, Reihenfolge: FIFO)
+        if use_assignment:
+            for tid in range(self.n_teams):
+                carry_nodes = [
+                    node
+                    for node in (team_assignment or {}).get(tid, [])
+                    if tasks_map.get(node) and tasks_map[node].task_type != "routine"
+                ]
+                for node in carry_nodes:
+                    routes[tid].append(node)
+                end_times[tid] = self._route_end_time(routes[tid], tasks_map)
+        else:
+            # Carryover nach nächster Team-Position (Depot) verteilen
+            for task in carryover_tasks:
+                best_tid = min(range(self.n_teams), key=lambda i: end_times[i])
+                routes[best_tid].append(task.node_idx)
+                end_times[best_tid] = self._route_end_time(routes[best_tid], tasks_map)
+
+        # Unzugewiesene Routine-Stationen
+        unassigned: set[int] = {t.node_idx for t in routine_tasks}
+
+        # Score-basierte Greedy-Einfügung
+        while unassigned:
+            best_score = -np.inf
+            best_node: Optional[int] = None
+            best_tid: Optional[int] = None
+            best_pos: int = -1
+            best_delta: float = 0.0
+
+            for node in unassigned:
+                task = tasks_map.get(node)
+                if task is None:
+                    continue
+                u_k = self.node_to_power.get(node, 22.0) * task.days_since_maintenance
+
+                for tid in range(self.n_teams):
+                    # Respektiere Team-Zuordnung
+                    if use_assignment and node not in routine_for_team.get(tid, set()):
+                        continue
+
+                    delta, pos = self._cheapest_insertion(
+                        routes[tid], node, tasks_map, end_times[tid]
+                    )
+                    if pos == -1:
+                        continue  # nicht feasible
+
+                    score = (1.0 - alpha) * u_k - alpha * delta
+                    if score > best_score:
+                        best_score = score
+                        best_node = node
+                        best_tid = tid
+                        best_pos = pos
+                        best_delta = delta
+
+            if best_node is None:
+                break  # kein feasibles Paar mehr
+
+            unassigned.remove(best_node)
+            routes[best_tid].insert(best_pos - 1, best_node)
+            end_times[best_tid] += best_delta + tasks_map[best_node].service_time
+
+        # DailyPlan zusammenbauen
+        planned_routes: list[PlannedRoute] = []
+        total_travel = 0
+
+        for tid in range(self.n_teams):
+            route = routes[tid]
+            if not route:
+                planned_routes.append(
+                    PlannedRoute(team_id=tid, stops=[], arrival_times=[], departure_times=[])
                 )
-                routine_tasks[idx].deadline_penalty = penalty
+                continue
 
-        for task in tasks:
-            if task.task_type != "routine":
-                task.soft_deadline_min = 0
-                task.deadline_penalty = self._disruption_deadline_penalty(
-                    self.node_to_power.get(task.node_idx, 22.0)
+            arr_times, dep_times = self._compute_arrival_times(route, tasks_map)
+            planned_routes.append(
+                PlannedRoute(
+                    team_id=tid,
+                    stops=route,
+                    arrival_times=arr_times,
+                    departure_times=dep_times,
                 )
+            )
+            prev = 0
+            for node in route:
+                total_travel += int(self._travel_min(prev, node))
+                prev = node
 
-        return self.solver.create_initial_plan(tasks, team_assignment=team_assignment)
+        return DailyPlan(
+            routes=planned_routes,
+            total_travel_time=total_travel,
+            solver_status="FEASIBLE",
+            objective_value=0,
+            n_dropped=0,
+            status_before_retry="",
+        )
 
     def handle_disruptions(
         self,
@@ -283,7 +446,7 @@ class DBModel:
         log: HourLog,
     ) -> tuple[int, list[DisruptionEvent], float]:
         """
-        OR-Tools Replan mit U(k)-basiertem Drop im Retry (wie db_alt).
+        OR-Tools Replan mit U(k)-basiertem Drop im Retry (wie CFA, aber nach U statt V̂).
         """
         team_states = [
             TeamState(
@@ -332,6 +495,7 @@ class DBModel:
             mandatory = (
                 [t for t in remaining_tasks if t.task_type != "routine"] + disruption_tasks
             )
+            # Drop nach aufsteigendem U(k) = power × dsm (niedrigste Dringlichkeit zuerst)
             routine_tasks_rem.sort(
                 key=lambda t: self.node_to_power.get(t.node_idx, 22.0)
                 * t.days_since_maintenance
@@ -410,6 +574,8 @@ class DBMaintenanceSimulator(MaintenanceSimulator):
         self.policy._n_remaining_total = len(remaining)
         self.policy._n_carryover = len(carryover_tasks)
 
+        # α aus globalem Zustand vorberechnen — alle verbleibenden Stationen,
+        # damit create_initial_plan dieselbe Feature-Verteilung sieht wie das Training.
         dsm_map = getattr(self, '_days_since_maintenance', None)
         if dsm_map is not None and len(remaining) > 0:
             global_tasks = [

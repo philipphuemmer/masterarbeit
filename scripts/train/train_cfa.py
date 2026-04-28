@@ -2,7 +2,7 @@
 CFA-Training: Lernt den Gewichtsvektor θ der Wertfunktionsapproximation.
 
 Wertfunktion:
-    V(s) ≈ θ × Σ_k power_kW[k] × days_since_maintenance[k]
+    V(s) ≈ θ × Σ_k station_factor[k] × power_kW[k] × recovery_curve(dsm[k]) × recovery_days
 
 Training (iteratives Policy Iteration):
     Runde 1: N Myopic-Simulationen → θ₁  (Bootstrap)
@@ -10,7 +10,7 @@ Training (iteratives Policy Iteration):
     Runde r: N CFA(θ_{r-1})-Simulationen → θ_r
 
     Pro Tag / Runde:
-        Feature = Σ_k power_kW[k] × dsm[k]  (alle noch offenen Stationen)
+        Feature = Σ_k station_factor[k] × power_kW[k] × recovery_curve(dsm[k]) × recovery_days
         Target  = tatsächliche Restkosten G_t ab diesem Tag (unter aktueller Policy)
     OLS-Regression: G_t ≈ θ × Feature + intercept
 
@@ -60,12 +60,17 @@ class CFATrainingSimulator(MaintenanceSimulator):
         self.training_records: list[dict] = []
 
     def _run_day(self, day, remaining, team_states, carryover_tasks, day_disruptions):
-        # Feature vor dem Tageslauf erfassen
-        feature = sum(
-            self.node_to_power.get(idx + 1, 22.0)
-            * float(self._days_since_maintenance[idx + 1])
-            for idx in remaining
-        )
+        # Feature vor dem Tageslauf erfassen — identisch zur _value()-Formel in CFAModel
+        fail_cfg = self.config.get("failure_simulation", {})
+        recovery_days: float = float(fail_cfg.get("recovery_days", 365))
+        initial_factor: float = float(fail_cfg.get("initial_factor", 0.1))
+        feature = 0.0
+        for idx in remaining:
+            node_idx = idx + 1
+            dsm = min(float(self._days_since_maintenance[node_idx]), recovery_days)
+            recovery_curve = initial_factor + (1.0 - initial_factor) * dsm / recovery_days
+            station_factor = self._node_to_failure_factor.get(node_idx, 1.0)
+            feature += station_factor * self.node_to_power.get(node_idx, 22.0) * recovery_curve * recovery_days
         self.training_records.append({"day": day, "feature": feature})
         return super()._run_day(day, remaining, team_states, carryover_tasks, day_disruptions)
 

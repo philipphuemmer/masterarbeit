@@ -159,6 +159,7 @@ class VRPSolver:
         maint = config["maintenance"]
         self.default_service_time: int = maint["mean_service_time"]
         self._workday_start: int = maint["workday_start_hour"]
+        self._lunch_earliest_min: int = maint.get("lunch_earliest_min", 240)
         self.WORKDAY_MINUTES: int = (
             (maint["workday_end_hour"] - maint["workday_start_hour"]) * 60
             - maint.get("lunch_duration_min", 0)
@@ -185,6 +186,9 @@ class VRPSolver:
         current_time_minutes : Minuten ab 8:00 (z.B. 50 → 8:50 → 8-Uhr-Matrix).
         """
         hour = self._workday_start + current_time_minutes // 60
+        # Ab Mittagspause (12:00 = 240 min): nächste Stundenmatrix verwenden
+        if current_time_minutes >= self._lunch_earliest_min:
+            hour += 1
         # Auf verfügbare Stunden begrenzen
         available = sorted(self.traffic_matrices.keys())
         hour = max(available[0], min(hour, available[-1]))

@@ -8,12 +8,14 @@ Master's thesis on **maintenance route optimization for EV charging stations in 
 
 **Key numbers**: 397 stations, 2 teams, 8:00–16:00 workday, 40 zones (configurable), 20 stations/team/day max.
 
-**Five policy tiers** (all fully implemented):
+**Seven policy tiers** (all fully implemented):
 1. **Myopic** — greedy cheapest-insertion
 2. **MyopicPlus** — OR-Tools with power-weighted soft-deadlines, skip-penalties
 3. **CFA Light** — MyopicPlus with V̂-based drop decision + cheapest-insertion routing
 4. **CFA** — OR-Tools with learned V̂(k) = θ × power × dsm for scheduling + drop ordering
 5. **VFA** — OR-Tools with learned V̂(s) = θᵀφ(s) global state features for ΔV̂-based scheduling + drop ordering
+6. **DB** — OR-Tools with MLP-learned α(S) ∈ (0,1) modulating soft-deadline penalties; α→0 enforces urgency order U(k)=power×dsm, α→1 frees routing; trained via PPO
+7. **CFA-DB** — CFA routing with DB's MLP α used for drop-score: `(1−α)·U(k) − α·d_depot(k)`; trained via PPO
 
 ## Setup
 
@@ -38,10 +40,17 @@ python scripts/run/run_myopic_plus.py
 python scripts/run/run_cfa_light.py
 python scripts/run/run_cfa.py    # requires: python scripts/train/train_cfa.py first
 python scripts/run/run_vfa.py    # requires: python scripts/train/train_vfa.py first
+python scripts/run/run_db.py     # requires: python scripts/train/train_db.py first
+python scripts/run/run_cfa_db.py # requires: python scripts/train/train_cfa_db.py first
 
-# Training (CFA/VFA learn θ from Monte Carlo rollouts of the Myopic policy)
+# Training
+# CFA/VFA: learn θ from Monte Carlo rollouts of the Myopic policy
 python scripts/train/train_cfa.py
 python scripts/train/train_vfa.py
+# DB/CFA-DB: learn MLP α via PPO (requires failure_simulation.mode: stochastic)
+python scripts/train/train_db.py [--iterations 50 --rollouts 10 --max-days 200]
+python scripts/train/train_cfa_db.py
+# Outputs: data/training/db/policy.json, data/training/cfa_db/policy.json
 
 # Monte Carlo (N runs, aggregate analysis written to logs/<model>/log/<model>_overview.log)
 python scripts/monte_carlo/run_mc_myopic.py --runs 30
@@ -49,6 +58,8 @@ python scripts/monte_carlo/run_mc_myopic_plus.py --runs 30
 python scripts/monte_carlo/run_mc_cfa_light.py --runs 30
 python scripts/monte_carlo/run_mc_cfa.py --runs 30
 python scripts/monte_carlo/run_mc_vfa.py --runs 30
+python scripts/monte_carlo/run_mc_db.py --runs 30
+python scripts/monte_carlo/run_mc_cfa_db.py --runs 30
 
 # Build travel/traffic matrices (requires OSRM or Google Maps API)
 python scripts/setup/build_travel_matrix.py
@@ -86,6 +97,8 @@ No formal test suite exists (tests/ is empty).
 - `src/models/cfa_light.py` — MyopicPlus plan + V̂-based drop + cheapest-insertion routing (no OR-Tools replan)
 - `src/models/cfa.py` — OR-Tools with `V̂(k) = θ × power_kW × days_since_maintenance`; `θ` loaded from `data/cfa/theta.json`; drops lowest-V̂ routine stops when infeasible
 - `src/models/vfa.py` — OR-Tools with 6-feature global state `V̂(s) = θᵀφ(s)`; `ΔV̂(k) = V̂(s) − V̂(s\k)` as extra_costs; `θ` loaded from `data/vfa/theta.json`; `_station_value(node_idx, dsm)` is the lightweight per-station approximation used for zone scoring
+- `src/models/db.py` — OR-Tools with MLP-learned α(S) ∈ (0,1) modulating soft-deadline penalties; 8 state features φ(S): n_remaining ratio, fraction urgent (dsm>90), mean/sum/max urgency, depot distance mean/std, carryover count; `α` loaded from `data/training/db/policy.json`
+- `src/models/cfa_db.py` — CFA routing (U(k)-based soft-deadlines) + DB's MLP α for drop-score `(1−α)·U(k) − α·d_depot(k)`; `α` from `data/training/cfa_db/policy.json`
 - `src/models/cost_params.py` — shared economic constants (40 €/h wage, 0.30 €/km fuel, 0.50 €/kWh downtime)
 - `src/models/simulator.py` — shared simulation loop (`MaintenanceSimulator`) used by all policies
 
@@ -119,3 +132,4 @@ All parameters in `configs/config.yaml`. Key sections:
 - NumPy scalar types (`float32`, `int64`) are not JSON-serialisable — `write_json()` handles this via custom encoder; keep in mind when adding new logged fields
 - `value_based_zone_selection` only has effect when `failure_simulation.mode: stochastic` (requires `_days_since_maintenance` tracking); in `csv` mode it silently falls back to classical scoring
 - CFA/VFA `θ` is trained on the Myopic policy's rollouts — no retraining needed when changing zone scoring
+- DB/CFA-DB MLP α is trained via PPO and **requires `failure_simulation.mode: stochastic`** in config (csv mode has no `_days_since_maintenance` tracking, making state features trivial)

@@ -117,6 +117,51 @@ def load_traffic_matrices(config: dict | None = None) -> dict[int, np.ndarray]:
     return matrices
 
 
+def get_failure_rate_factors(df: pd.DataFrame, beta: float = 0.03) -> dict[int, float]:
+    """
+    Berechnet stationsindividuelle Ausfallraten-Faktoren aus Ladetyp und Alter.
+
+    Typ-Faktor: Schnelllader (DC) = 2× Normal (AC), normalisiert auf Mittelwert 1.0.
+    Alters-Faktor: linear um Mittelwert zentriert → 1 + β × (Alter - Ø_Alter).
+    Kombination: type_factor × age_factor, Mittelwert ≈ 1.0.
+
+    Returns
+    -------
+    dict {station_index (0-basiert) → kombinierter Faktor}
+    """
+    n = len(df)
+
+    # Typ-Faktor
+    type_col = "Art der Ladeeinrichtung"
+    if type_col in df.columns:
+        n_normal = (df[type_col] == "Normalladeeinrichtung").sum()
+        n_schnell = (df[type_col] == "Schnellladeeinrichtung").sum()
+        k = 2.0
+        alpha_normal = n / (n_normal + k * n_schnell)
+        alpha_schnell = k * alpha_normal
+        type_factors = np.where(
+            df[type_col].values == "Schnellladeeinrichtung",
+            alpha_schnell,
+            alpha_normal,
+        )
+    else:
+        type_factors = np.ones(n)
+
+    # Alters-Faktor
+    date_col = "Inbetriebnahmedatum"
+    if date_col in df.columns and pd.api.types.is_datetime64_any_dtype(df[date_col]):
+        ref = pd.Timestamp("2026-01-01")
+        ages = ((ref - df[date_col]).dt.days / 365.25).clip(lower=0)
+        ages = ages.fillna(ages.mean())
+        mean_age = float(ages.mean())
+        age_factors = (1.0 + beta * (ages - mean_age)).clip(lower=0.5, upper=2.0).values
+    else:
+        age_factors = np.ones(n)
+
+    combined = type_factors * age_factors
+    return {i: float(combined[i]) for i in range(n)}
+
+
 def save_processed(df: pd.DataFrame, config: dict | None = None) -> None:
     if config is None:
         config = load_config()
