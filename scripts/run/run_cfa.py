@@ -95,7 +95,7 @@ def main() -> None:
         print("  V̂-basierte Zonenauswahl aktiv (CFA).")
     sim = MaintenanceSimulator(policy, selector, coords, df, mats, cfg)
 
-    print(f"  θ = {policy.theta:.4e} EUR/(kW·Tag)")
+    print(f"  θ = {policy.theta}")
     print(f"\nStarte CFA-Simulation (max. {args.max_days} Tage)...\n")
 
     result = sim.run(mal_df, max_days=args.max_days)
@@ -117,7 +117,7 @@ def main() -> None:
         "max_stations_per_team": cfg["planning"].get("max_stations_per_team"),
         "value_based_zone_selection": cfg["planning"].get("value_based_zone_selection", False),
         "use_team_assignment": cfg["planning"].get("use_team_assignment", True),
-        "theta": policy.theta,
+        "theta": policy.theta.tolist() if hasattr(policy.theta, 'tolist') else policy.theta,
         "alpha": policy.alpha,
         "p_failure_per_hour": policy.p_failure_per_hour,
         "theta_path": str(args.theta_path),

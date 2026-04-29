@@ -200,7 +200,7 @@ def main() -> None:
 
     with open(args.theta_path) as f:
         theta_data = json.load(f)
-    print(f"  θ = {theta_data['theta']:.4e} EUR/(kW·Tag)  "
+    print(f"  θ = {theta_data['theta']}  "
           f"(R²={theta_data.get('r2', '?'):.4f}, {theta_data.get('n_runs', '?')} Trainingsläufe)")
 
     json_dir = Path(args.log_dir) / "json"
@@ -249,7 +249,7 @@ def main() -> None:
             "n_teams": run_cfg["maintenance"]["n_teams"],
             "max_stations_per_team": run_cfg["planning"].get("max_stations_per_team"),
             "value_based_zone_selection": run_cfg["planning"].get("value_based_zone_selection", False),
-            "theta": policy.theta,
+            "theta": policy.theta.tolist() if hasattr(policy.theta, 'tolist') else policy.theta,
             "alpha": policy.alpha,
             "p_failure_per_hour": policy.p_failure_per_hour,
             "theta_path": str(args.theta_path),

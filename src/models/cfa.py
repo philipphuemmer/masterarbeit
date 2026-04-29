@@ -1,23 +1,25 @@
 """
-Cost Function Approximation (CFA) – gelernte Wertfunktionsapproximation.
+Cost Function Approximation (CFA) – mehrdimensionale Wertfunktionsapproximation.
 
-Approximiert die zukünftige Wertfunktion V(s) als lineare Funktion der
-stationsindividuellen Dringlichkeit:
+Approximiert die Kosten des Weglassens von Station k als lineares Modell:
 
-    V̂(k) = θ × station_factor[k] × power_kW[k] × recovery_curve(dsm[k]) × recovery_days
+    C̃(drop k) = θᵀ φ(k)
 
-θ wird offline aus Monte-Carlo-Simulationen mit der Myopic-Policy gelernt
-(scripts/train_cfa.py) und aus data/training/cfa/theta.json geladen.
+    φ(k) = [power_kW, age_years, is_DC, recovery_curve(dsm), mean_dist_to_others]
+
+θ ∈ ℝ⁵ wird per OLS aus Monte-Carlo-Simulationen gelernt.
+Features werden pro Station standardisiert (μ, σ aus Trainingsdaten).
+
+Gegenüber skalarem CFA: θ cancelt nicht mehr in Ranking-Entscheidungen,
+da verschiedene Features unterschiedlich gewichtet werden.
 
 Initialplan:
-    Alle Routine-Tasks sind mandatory. Soft-Deadlines nach V̂:
-    Höhere Dringlichkeit → frühere Deadline → OR-Tools plant sie früher.
+    Soft-Deadlines nach C̃-Rang (höhere Kosten → frühere Deadline).
+    Penalty = 1 min/min (schwach) damit Disruptions dominieren.
 
 Disruption Handling (CFA-Kern):
-    OR-Tools replant die gesamte Restroute (wie CFA Light).
-    Falls infeasible: Routine-Stops werden nach aufsteigendem V̂ gedroppt
-    (niedrigste Dringlichkeit zuerst) bis OR-Tools eine Lösung findet.
-    → Drop-Entscheidung basiert auf gelernten Zukunftskosten, nicht auf Position.
+    Falls infeasible: Drop nach aufsteigendem C̃(drop k) —
+    Station mit niedrigsten Zukunftskosten fliegt zuerst raus.
 """
 from __future__ import annotations
 
@@ -96,14 +98,46 @@ class CFAModel:
         else:
             self.node_to_power = {}
 
+        # Stationsindividuelle Features vorberechnen
         if stations_df is not None:
             from src.data.loader import get_failure_rate_factors
             _factors = get_failure_rate_factors(stations_df)
             self._node_to_failure_factor: dict[int, float] = {
                 i + 1: _factors.get(i, 1.0) for i in range(len(stations_df))
             }
+            # Alter in Jahren
+            date_col = "Inbetriebnahmedatum"
+            ref = pd.Timestamp("2026-01-01")
+            self._node_to_age: dict[int, float] = {}
+            for i, (_, row) in enumerate(stations_df.iterrows()):
+                if date_col in stations_df.columns and pd.notna(row.get(date_col)):
+                    age = max(0.0, (ref - pd.Timestamp(row[date_col])).days / 365.25)
+                else:
+                    age = 5.0
+                self._node_to_age[i + 1] = age
+            # Ladetyp: DC = 1, AC = 0
+            type_col = "Art der Ladeeinrichtung"
+            self._node_to_is_dc: dict[int, float] = {
+                i + 1: float(row.get(type_col, "") == "Schnellladeeinrichtung")
+                for i, (_, row) in enumerate(stations_df.iterrows())
+            }
         else:
             self._node_to_failure_factor = {}
+            self._node_to_age = {}
+            self._node_to_is_dc = {}
+
+        # Mittlere Distanz jeder Station zu allen anderen (in km)
+        if all_coords is not None and len(all_coords) > 2:
+            n = len(all_coords)
+            self._node_to_mean_dist: dict[int, float] = {
+                i: float(np.mean([
+                    _approx_km(all_coords[i], all_coords[j])
+                    for j in range(1, n) if j != i
+                ]))
+                for i in range(1, n)
+            }
+        else:
+            self._node_to_mean_dist = {}
 
         cp = self.cost_params
         self._wage_per_min: float = cp.wage_eur_per_hour / 60.0
@@ -117,20 +151,24 @@ class CFAModel:
         self.alpha: float = float(cfa_cfg.get("alpha", 10.0))
 
         if theta_override is not None:
-            self.theta: float = float(theta_override)
-            logger.info(f"CFA: θ={self.theta:.4e} EUR/(kW·Tag) (direkt übergeben)")
+            self.theta = np.asarray(theta_override, dtype=float)
+            self._feature_means = np.zeros(len(self.theta))
+            self._feature_stds = np.ones(len(self.theta))
+            logger.info(f"CFA: θ={self.theta} (direkt übergeben)")
         else:
             path = Path(theta_path) if theta_path else _DEFAULT_THETA_PATH
             if not path.exists():
                 raise FileNotFoundError(
                     f"CFA-Gewicht nicht gefunden: {path}\n"
-                    f"Bitte zuerst 'python scripts/train_cfa.py' ausführen."
+                    f"Bitte zuerst 'python scripts/train/train_cfa.py' ausführen."
                 )
             with open(path) as f:
                 data = json.load(f)
-            self.theta = float(data["theta"])
+            self.theta = np.array(data["theta"], dtype=float)
+            self._feature_means = np.array(data.get("feature_means", np.zeros(len(self.theta))))
+            self._feature_stds = np.array(data.get("feature_stds", np.ones(len(self.theta))))
             logger.info(
-                f"CFA: θ={self.theta:.4e} EUR/(kW·Tag) geladen aus {path} "
+                f"CFA: θ={self.theta} geladen aus {path} "
                 f"(R²={data.get('r2', '?'):.4f}, {data.get('n_runs', '?')} Läufe)"
             )
 
@@ -138,15 +176,26 @@ class CFAModel:
     # Hilfsmethoden
     # ------------------------------------------------------------------
 
-    def _value(self, node_idx: int, days_since_maintenance: float) -> float:
-        """V̂(k) = θ × station_factor[k] × power_kW[k] × recovery_curve(dsm) × recovery_days."""
+    def _phi(self, node_idx: int, days_since_maintenance: float) -> np.ndarray:
+        """Feature-Vektor φ(k) = [power, age, is_DC, recovery_curve, mean_dist]."""
         fail_cfg = self.config.get("failure_simulation", {})
-        recovery_days: float = float(fail_cfg.get("recovery_days", 365))
-        initial_factor: float = float(fail_cfg.get("initial_factor", 0.1))
+        recovery_days = float(fail_cfg.get("recovery_days", 365))
+        initial_factor = float(fail_cfg.get("initial_factor", 0.1))
         dsm = min(days_since_maintenance, recovery_days)
         recovery_curve = initial_factor + (1.0 - initial_factor) * dsm / recovery_days
-        station_factor = self._node_to_failure_factor.get(node_idx, 1.0)
-        return self.theta * station_factor * self.node_to_power.get(node_idx, 22.0) * recovery_curve * recovery_days
+        return np.array([
+            self.node_to_power.get(node_idx, 22.0),
+            self._node_to_age.get(node_idx, 5.0),
+            self._node_to_is_dc.get(node_idx, 0.0),
+            recovery_curve,
+            self._node_to_mean_dist.get(node_idx, 5.0),
+        ])
+
+    def _value(self, node_idx: int, days_since_maintenance: float) -> float:
+        """C̃(drop k) = θᵀ × φ_scaled(k) — approximierte Kosten des Weglassens."""
+        phi = self._phi(node_idx, days_since_maintenance)
+        phi_scaled = (phi - self._feature_means) / np.maximum(self._feature_stds, 1e-8)
+        return float(self.theta @ phi_scaled)
 
     def _disruption_deadline_penalty(self, power_kw: float) -> int:
         """Deadline-Penalty für Störungen in Minuten/Minute.
@@ -201,7 +250,7 @@ class CFAModel:
 
         logger.info(
             f"CFA Initialplan: {len(tasks)} Tasks, {n} Routine "
-            f"mit Soft-Deadlines (θ={self.theta:.3e})."
+            f"mit Soft-Deadlines (θ={np.array2string(self.theta, precision=3)})."
         )
         return self.solver.create_initial_plan(tasks, team_assignment=team_assignment)
 
