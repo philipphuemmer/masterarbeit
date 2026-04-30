@@ -10,12 +10,12 @@ Master's thesis on **maintenance route optimization for EV charging stations in 
 
 **Seven policy tiers** (all fully implemented):
 1. **Myopic** — greedy cheapest-insertion
-2. **MyopicPlus** — OR-Tools with power-weighted soft-deadlines, skip-penalties
-3. **CFA Light** — MyopicPlus with V̂-based drop decision + cheapest-insertion routing
-4. **CFA** — OR-Tools with learned V̂(k) = θ × power × dsm for scheduling + drop ordering
-5. **VFA** — OR-Tools with learned V̂(s) = θᵀφ(s) global state features for ΔV̂-based scheduling + drop ordering
-6. **DB** — OR-Tools with MLP-learned α(S) ∈ (0,1) modulating soft-deadline penalties; α→0 enforces urgency order U(k)=power×dsm, α→1 frees routing; trained via PPO
-7. **CFA-DB** — CFA routing with DB's MLP α used for drop-score: `(1−α)·U(k) − α·d_depot(k)`; trained via PPO
+2. **MyopicPlus** — OR-Tools with power-weighted soft-deadlines ranked by depot distance
+3. **CFA Light** — MyopicPlus plan + V̂-based drop + cheapest-insertion routing (no OR-Tools replan); lives in `src/models/alt/cfa_light.py`
+4. **CFA** — OR-Tools with multi-linear `C̃(drop k) = θᵀ φ_scaled(k)`, θ ∈ ℝ⁴ learned via OLS; φ(k) = [power_kW, age_years, recovery_curve(dsm), mean_dist_to_others]
+5. **VFA** — OR-Tools with 6-feature global state `V̂(s) = θᵀφ(s) + intercept`; `ΔV̂(k) = V̂(s) − V̂(s\k)` as extra_costs; `_station_value()` used for zone scoring
+6. **DB** — OR-Tools with MLP-learned α(S) ∈ (0,1) modulating soft-deadline penalties; α→0 enforces urgency order, α→1 frees routing; trained via PPO
+7. **CFA-DB** — CFA-style U(k) soft-deadlines + DB's MLP α for drop-score: `(1−α)·U(k) − α·d_depot(k)`; trained via PPO
 
 ## Setup
 
@@ -44,9 +44,9 @@ python scripts/run/run_db.py     # requires: python scripts/train/train_db.py fi
 python scripts/run/run_cfa_db.py # requires: python scripts/train/train_cfa_db.py first
 
 # Training
-# CFA/VFA: learn θ from Monte Carlo rollouts of the Myopic policy
-python scripts/train/train_cfa.py
-python scripts/train/train_vfa.py
+# CFA/VFA: learn θ from Monte Carlo rollouts of the Myopic policy (OLS)
+python scripts/train/train_cfa.py   # → data/training/cfa/theta.json
+python scripts/train/train_vfa.py   # → data/training/vfa/theta.json
 # DB/CFA-DB: learn MLP α via PPO (requires failure_simulation.mode: stochastic)
 python scripts/train/train_db.py [--iterations 50 --rollouts 10 --max-days 200]
 python scripts/train/train_cfa_db.py
@@ -80,7 +80,7 @@ No formal test suite exists (tests/ is empty).
 ## Architecture
 
 ### Data Flow
-1. `src/data/loader.py` — loads CSV, parses German decimal commas, filters operational stations, prepends depot (index 0) to coordinate list
+1. `src/data/loader.py` — loads CSV, parses German decimal commas, filters operational stations, prepends depot (index 0) to coordinate list; `get_failure_rate_factors()` returns per-station failure multipliers
 2. `src/api/osrm.py` or `src/api/google_maps.py` — builds n×n travel matrices; OSRM preferred (no batching, local Docker); both cache as `.npy`
 3. Hourly traffic matrices (`traffic_matrix_8uhr.npy` … `traffic_matrix_17uhr.npy`) enable time-dependent routing
 
@@ -92,13 +92,26 @@ No formal test suite exists (tests/ is empty).
 - `src/planning/vrp_solver.py` — OR-Tools with time windows (0–workday_minutes), makespan balancing, intra-day replanning; selects correct hourly traffic matrix per departure time; supports `extra_costs` dict (node_idx → penalty minutes) and `soft_deadline_min` / `deadline_penalty` on `MaintenanceTask`
 
 ### Models
-- `src/models/myopic.py` — greedy cheapest-insertion with hourly disruption handling
-- `src/models/myopic_plus.py` — OR-Tools initial plan with power-weighted soft-deadlines and AddDisjunction skip-penalties for routing
-- `src/models/cfa_light.py` — MyopicPlus plan + V̂-based drop + cheapest-insertion routing (no OR-Tools replan)
-- `src/models/cfa.py` — OR-Tools with `V̂(k) = θ × power_kW × days_since_maintenance`; `θ` loaded from `data/cfa/theta.json`; drops lowest-V̂ routine stops when infeasible
-- `src/models/vfa.py` — OR-Tools with 6-feature global state `V̂(s) = θᵀφ(s)`; `ΔV̂(k) = V̂(s) − V̂(s\k)` as extra_costs; `θ` loaded from `data/vfa/theta.json`; `_station_value(node_idx, dsm)` is the lightweight per-station approximation used for zone scoring
-- `src/models/db.py` — OR-Tools with MLP-learned α(S) ∈ (0,1) modulating soft-deadline penalties; 8 state features φ(S): n_remaining ratio, fraction urgent (dsm>90), mean/sum/max urgency, depot distance mean/std, carryover count; `α` loaded from `data/training/db/policy.json`
-- `src/models/cfa_db.py` — CFA routing (U(k)-based soft-deadlines) + DB's MLP α for drop-score `(1−α)·U(k) − α·d_depot(k)`; `α` from `data/training/cfa_db/policy.json`
+
+**Common interface:** all models implement `create_initial_plan(tasks)` + `handle_disruptions(disruptions, sim_routes, time_min, hour, log)`. Disruption handling always tries OR-Tools replan first; on INFEASIBLE it iteratively drops the routine stop with the lowest value score until feasible.
+
+- `src/models/myopic.py` — greedy cheapest-insertion; no learned components
+- `src/models/myopic_plus.py` — OR-Tools initial plan; deadline per station ranked by depot distance, penalty = `α × power × p_failure × downtime_eur_per_kwh / wage_per_min`
+- `src/models/alt/cfa_light.py` — MyopicPlus plan + V̂-based drop + greedy cheapest-insertion routing
+- `src/models/cfa.py` — **multi-linear CFA**:
+  - `φ(k) = [power_kW, age_years, recovery_curve(dsm), mean_dist_to_others]`
+  - `recovery_curve = initial_factor + (1 − initial_factor) × dsm / recovery_days`
+  - `C̃(drop k) = θᵀ × φ_scaled(k)` (features z-scored with training μ, σ)
+  - θ ∈ ℝ⁴ loaded from `data/training/cfa/theta.json`; OR-Tools soft-deadlines ranked by C̃/depot_dist ratio
+- `src/models/vfa.py` — **global-state VFA**:
+  - `φ(s) = [Σ(power×dsm), Σ(failure_risk×power), mean(dsm), max(power×dsm), n_remaining/n_stations, n_carryover]`
+  - `V̂(s) = θᵀφ(s) + intercept`; `ΔV̂(k) = V̂(s) − V̂(s\k)` used as OR-Tools `extra_costs`
+  - θ loaded from `data/training/vfa/theta.json`; `_station_value(node_idx, dsm)` is marginal contribution via f0, f1 only (used for zone scoring)
+- `src/models/db.py` — **MLP α-policy**:
+  - `φ(S) = [n_remaining/n_stations, frac(dsm>90), mean(dsm)/365, Σ(power×dsm)/norm, max(power×dsm)/norm, mean(dist_depot)/30km, std(dist_depot)/30km, n_carryover/10]`
+  - `α = σ(MLP(φ(S)))` ∈ (0,1); `penalty = max(1, round((1−α) × MAX_ROUTINE_PENALTY))`
+  - MLP weights loaded from `data/training/db/policy.json`
+- `src/models/cfa_db.py` — CFA-style U(k) = power × dsm soft-deadlines; drop-score = `(1−α)·U(k) − α·d_depot(k)` using DB's MLP α; weights from `data/training/cfa_db/policy.json`
 - `src/models/cost_params.py` — shared economic constants (40 €/h wage, 0.30 €/km fuel, 0.50 €/kWh downtime)
 - `src/models/simulator.py` — shared simulation loop (`MaintenanceSimulator`) used by all policies
 
@@ -116,14 +129,14 @@ No formal test suite exists (tests/ is empty).
 ### Failure Simulation
 Two modes via `failure_simulation.mode` in config:
 - `csv` — load from `data/malfunction.csv` (100 days, Poisson arrivals)
-- `stochastic` — probabilistic per station per hour with recovery curve: `p(t) = p_base × (initial_factor + (1−initial_factor) × t/recovery_days)`
+- `stochastic` — probabilistic per station per hour with recovery curve: `p(t) = (p1_per_hour + p2_per_hour) × (initial_factor + (1−initial_factor) × t/recovery_days)`; `t` = days since last maintenance
 
 ### Configuration
 All parameters in `configs/config.yaml`. Key sections:
 - `planning`: `n_zones`, `max_stations_per_team`, `value_based_zone_selection`, `priority_weights` (depot_distance, convex_hull_area, zone_value)
 - `maintenance`: `n_teams`, `workday_start/end_hour`, `mean_service_time`, OR-Tools time limits
 - `cfa.alpha`: disruption deadline penalty scaling factor
-- `failure_simulation`: mode, per-hour probabilities, recovery curve
+- `failure_simulation`: mode, `p1_per_hour`, `p2_per_hour`, `recovery_days`, `initial_factor`
 
 ## Important Notes
 
@@ -131,5 +144,6 @@ All parameters in `configs/config.yaml`. Key sections:
 - Distance matrices and processed data are git-ignored; regenerate with the build scripts
 - NumPy scalar types (`float32`, `int64`) are not JSON-serialisable — `write_json()` handles this via custom encoder; keep in mind when adding new logged fields
 - `value_based_zone_selection` only has effect when `failure_simulation.mode: stochastic` (requires `_days_since_maintenance` tracking); in `csv` mode it silently falls back to classical scoring
-- CFA/VFA `θ` is trained on the Myopic policy's rollouts — no retraining needed when changing zone scoring
+- CFA/VFA θ is trained on Myopic policy rollouts via OLS — no retraining needed when changing zone scoring only
 - DB/CFA-DB MLP α is trained via PPO and **requires `failure_simulation.mode: stochastic`** in config (csv mode has no `_days_since_maintenance` tracking, making state features trivial)
+- CFA features are z-scored at inference time using μ, σ stored alongside θ in `theta.json`; always read both `feature_means` and `feature_stds` from that file

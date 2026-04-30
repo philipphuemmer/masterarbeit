@@ -219,7 +219,7 @@ class DailyZoneSelector:
                 )
                 for z in open_zones
             ])
-            scores = self.w_value * _norm(zone_values) + self.w_depot * _norm(dists)
+            scores = zone_values
         else:
             areas = self.clusterer.convex_hull_areas_[open_zones]
             scores = self.w_depot * _norm(dists) + self.w_area * _norm(areas)

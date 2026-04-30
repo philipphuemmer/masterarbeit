@@ -48,7 +48,7 @@ planning:
   travel_reserve_min: 20     # Zeitpuffer für An-/Abfahrt zum Depot [min]
   # V̂-basierte Zonenauswahl (nur CFA/VFA): true → Zonenwert aus gelernter Wertfunktion
   # statt Konvexhüllenfläche; false → klassisches depot_distance + convex_hull_area (Myopic-Verhalten)
-  value_based_zone_selection: false
+  value_based_zone_selection: true
   # Team-Zuweisung im Initialplan: true → OR-Tools darf nur dem zugewiesenen Team fahren
   # (verhindert geografisch unpassende Zuordnungen, kann aber Infeasibility erzwingen).
   # false → OR-Tools verteilt Tasks frei über beide Teams.
