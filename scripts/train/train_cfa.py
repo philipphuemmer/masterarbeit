@@ -55,7 +55,7 @@ class CFATrainingSimulator(MaintenanceSimulator):
         φ(k) = [power_kW, age_years, is_DC, recovery_curve(dsm), mean_dist_to_others]
     """
 
-    N_FEATURES = 5
+    N_FEATURES = 4
 
     def __init__(self, *args, **kwargs) -> None:
         # stations_df ist das 4. Argument (policy, selector, coords, stations_df, mats, config)
@@ -100,7 +100,6 @@ class CFATrainingSimulator(MaintenanceSimulator):
         return np.array([
             self.node_to_power.get(node_idx, 22.0),
             self._node_to_age.get(node_idx, 5.0),
-            self._node_to_is_dc.get(node_idx, 0.0),
             recovery_curve,
             self._node_to_mean_dist.get(node_idx, 5.0),
         ])
@@ -304,7 +303,7 @@ def main() -> None:
     elif args.fresh:
         print("  --fresh: starte von Runde 1 (Checkpoints ignoriert).")
 
-    feature_names = ["power_kW", "age_years", "is_DC", "recovery_curve", "mean_dist_km"]
+    feature_names = ["power_kW", "age_years", "recovery_curve", "mean_dist_km"]
     print(f"\nIteratives CFA-Training: Runde {start_round}–{args.rounds}, {args.runs} Läufe/Runde")
     print(f"Features: {feature_names}")
 

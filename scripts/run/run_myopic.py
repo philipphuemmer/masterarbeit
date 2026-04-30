@@ -72,7 +72,9 @@ def main() -> None:
     selector = DailyZoneSelector(clusterer, cfg, coords)
 
     # --- Policy & Simulator ---
-    policy = MyopicPolicy(solver, coords, mats, cfg)
+    policy = MyopicPolicy(solver, coords, mats, cfg, stations_df=df)
+    if cfg["planning"].get("value_based_zone_selection", False):
+        selector.value_fn = policy._zone_value
     sim = MaintenanceSimulator(policy, selector, coords, df, mats, cfg)
 
     # --- Stördaten ---

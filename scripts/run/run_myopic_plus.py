@@ -74,6 +74,8 @@ def main() -> None:
 
     selector = DailyZoneSelector(clusterer, cfg, coords)
     policy = MyopicPlusModel(mats, cfg, all_coords=coords, stations_df=df)
+    if cfg["planning"].get("value_based_zone_selection", False):
+        selector.value_fn = policy._zone_value
     sim = MaintenanceSimulator(policy, selector, coords, df, mats, cfg)
 
     failure_mode = cfg.get("failure_simulation", {}).get("mode", "csv")

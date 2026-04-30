@@ -177,7 +177,7 @@ class CFAModel:
     # ------------------------------------------------------------------
 
     def _phi(self, node_idx: int, days_since_maintenance: float) -> np.ndarray:
-        """Feature-Vektor φ(k) = [power, age, is_DC, recovery_curve, mean_dist]."""
+        """Feature-Vektor φ(k) = [power, age, recovery_curve, mean_dist]."""
         fail_cfg = self.config.get("failure_simulation", {})
         recovery_days = float(fail_cfg.get("recovery_days", 365))
         initial_factor = float(fail_cfg.get("initial_factor", 0.1))
@@ -186,7 +186,6 @@ class CFAModel:
         return np.array([
             self.node_to_power.get(node_idx, 22.0),
             self._node_to_age.get(node_idx, 5.0),
-            self._node_to_is_dc.get(node_idx, 0.0),
             recovery_curve,
             self._node_to_mean_dist.get(node_idx, 5.0),
         ])
@@ -225,6 +224,7 @@ class CFAModel:
         n = len(routine_tasks)
 
         if n > 0:
+            depot = self.all_coords[0]
             depot = self.all_coords[0]
             urgency = [
                 self._value(t.node_idx, t.days_since_maintenance)

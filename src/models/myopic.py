@@ -23,6 +23,7 @@ import logging
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 
 from src.models.cost_params import CostParams
 from src.models.simulator import (
@@ -63,12 +64,39 @@ class MyopicPolicy:
         traffic_matrices: dict[int, np.ndarray],
         config: dict,
         cost_params: Optional[CostParams] = None,
+        stations_df: Optional[pd.DataFrame] = None,
     ) -> None:
         self.solver = solver
         self.all_coords = all_coords
         self.traffic_matrices = traffic_matrices
         self.config = config
         self.cost_params = cost_params or CostParams()
+
+        pwr_col = "Nennleistung Ladeeinrichtung [kW]"
+        if stations_df is not None and pwr_col in stations_df.columns:
+            self.node_to_power: dict[int, float] = {
+                i + 1: (float(row[pwr_col]) if pd.notna(row.get(pwr_col)) else 22.0)
+                for i, (_, row) in enumerate(stations_df.iterrows())
+            }
+        else:
+            self.node_to_power: dict[int, float] = {}
+
+    # ------------------------------------------------------------------
+    # Hilfsmethoden
+    # ------------------------------------------------------------------
+
+    def _zone_value(self, node_idx: int, days_since_maintenance: float) -> float:
+        """Heuristischer Stationswert für V̂-basierte Zonenauswahl.
+
+        Approximiert erwartete Ausfallkosten: power × recovery_curve(dsm).
+        recovery_curve = initial_factor + (1 - initial_factor) × dsm / recovery_days
+        """
+        fail_cfg = self.config.get("failure_simulation", {})
+        recovery_days = float(fail_cfg.get("recovery_days", 365))
+        initial_factor = float(fail_cfg.get("initial_factor", 0.1))
+        dsm = min(days_since_maintenance, recovery_days)
+        recovery_curve = initial_factor + (1.0 - initial_factor) * dsm / recovery_days
+        return self.node_to_power.get(node_idx, 22.0) * recovery_curve
 
     # ------------------------------------------------------------------
     # Policy-Schnittstelle

@@ -107,6 +107,19 @@ class MyopicPlusModel:
     # Hilfsmethoden
     # ------------------------------------------------------------------
 
+    def _zone_value(self, node_idx: int, days_since_maintenance: float) -> float:
+        """Heuristischer Stationswert für V̂-basierte Zonenauswahl.
+
+        Approximiert erwartete Ausfallkosten: power × recovery_curve(dsm).
+        recovery_curve = initial_factor + (1 - initial_factor) × dsm / recovery_days
+        """
+        fail_cfg = self.config.get("failure_simulation", {})
+        recovery_days = float(fail_cfg.get("recovery_days", 365))
+        initial_factor = float(fail_cfg.get("initial_factor", 0.1))
+        dsm = min(days_since_maintenance, recovery_days)
+        recovery_curve = initial_factor + (1.0 - initial_factor) * dsm / recovery_days
+        return self.node_to_power.get(node_idx, 22.0) * recovery_curve
+
     def _routine_deadline_penalty(self, power_kw: float) -> int:
         """Soft-Deadline-Penalty für Routine-Tasks in Minuten/Minute.
 

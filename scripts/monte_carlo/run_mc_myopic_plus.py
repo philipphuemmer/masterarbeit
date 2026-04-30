@@ -220,6 +220,8 @@ def main() -> None:
 
         selector = DailyZoneSelector(clusterer, run_cfg, coords)
         policy   = MyopicPlusModel(mats, run_cfg, all_coords=coords, stations_df=df_base)
+        if run_cfg["planning"].get("value_based_zone_selection", False):
+            selector.value_fn = policy._zone_value
         sim      = MaintenanceSimulator(policy, selector, coords, df_base, mats, run_cfg)
 
         result = sim.run(mal_df, max_days=args.max_days)
