@@ -87,6 +87,7 @@ failure_simulation:
   # Erholungskurve nach Wartung: p(t) = p_base * (initial_factor + (1 - initial_factor) * t / recovery_days)
   recovery_days: 365      # Tage bis zur vollständigen Erholung auf 100 %
   initial_factor: 0.1     # Wahrscheinlichkeitsfaktor direkt nach Wartung (10 %)
+  randomize_initial_dsm: true  # true → jede Station startet mit Uniform(0, recovery_days) dsm (seed-abhängig)
 
 cfa:
   # Erwartete Ausfallkosten als Zusatzterm in der VRP-Zielfunktion:

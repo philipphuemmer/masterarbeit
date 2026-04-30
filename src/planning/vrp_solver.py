@@ -784,8 +784,8 @@ class VRPSolver:
         search_params.local_search_metaheuristic = (
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
-        search_params.random_seed = 42
-        search_params.num_search_workers = 1
+        search_params.sat_parameters.random_seed = 42
+        search_params.sat_parameters.num_search_workers = 4
         if self._limit_mode == "solution":
             search_params.solution_limit = time_limit_seconds  # Wert = solution_limit
             backup = (self._backup_time_limit_replan

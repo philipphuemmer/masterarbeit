@@ -455,10 +455,16 @@ class MaintenanceSimulator:
             }
 
             recovery_days = fail_cfg.get("recovery_days", 365)
-            # Alle Stationen starten bei voller Ausfallwahrscheinlichkeit
-            self._days_since_maintenance = np.full(
-                self.n_stations + 1, float(recovery_days)
-            )
+            if fail_cfg.get("randomize_initial_dsm", False):
+                seed = config.get("project", {}).get("seed", 42)
+                init_rng = np.random.default_rng(seed)
+                initial_dsm = init_rng.uniform(0, recovery_days, size=self.n_stations + 1)
+                initial_dsm[0] = 0.0  # Depot hat kein dsm
+                self._days_since_maintenance = initial_dsm
+            else:
+                self._days_since_maintenance = np.full(
+                    self.n_stations + 1, float(recovery_days)
+                )
             seed = config.get("project", {}).get("seed", 42)
             self._rng = np.random.default_rng(seed)
 
