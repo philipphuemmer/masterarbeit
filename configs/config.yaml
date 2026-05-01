@@ -9,7 +9,7 @@ data:
   separator: ";"
   # Coordinate columns in the CSV
   lat_col: "Breitengrad"
-  lon_col: "Längengrad"
+  lon_col: "Laengengrad"
   id_col: "Ladeeinrichtungs-ID"
 
 google_maps:
@@ -48,7 +48,7 @@ planning:
   travel_reserve_min: 20     # Zeitpuffer für An-/Abfahrt zum Depot [min]
   # V̂-basierte Zonenauswahl (nur CFA/VFA): true → Zonenwert aus gelernter Wertfunktion
   # statt Konvexhüllenfläche; false → klassisches depot_distance + convex_hull_area (Myopic-Verhalten)
-  value_based_zone_selection: true
+  value_based_zone_selection: false
   # Team-Zuweisung im Initialplan: true → OR-Tools darf nur dem zugewiesenen Team fahren
   # (verhindert geografisch unpassende Zuordnungen, kann aber Infeasibility erzwingen).
   # false → OR-Tools verteilt Tasks frei über beide Teams.
@@ -79,15 +79,15 @@ failure_simulation:
   # bei 397 Säulen und 9 Arbeitsstunden):
   #   Typ 1: 3 / (397 * 9) ≈ 0.00084
   #   Typ 2: 1 / (397 * 9) ≈ 0.00028
-  #   Typ 1: 5 / (397 * 9) ≈ 0.00130
-  #   Typ 2: 2 / (397 * 9) ≈ 0.00056
+  #   Typ 1: 5 / (397 * 9) ≈ 0.00130            1,5 Erhöhung: 0.00195
+  #   Typ 2: 2 / (397 * 9) ≈ 0.00056            1,5 Erhöhung: 0.00084
   p1_per_hour: 0.00130
   p2_per_hour: 0.00056
 
   # Erholungskurve nach Wartung: p(t) = p_base * (initial_factor + (1 - initial_factor) * t / recovery_days)
   recovery_days: 365      # Tage bis zur vollständigen Erholung auf 100 %
   initial_factor: 0.1     # Wahrscheinlichkeitsfaktor direkt nach Wartung (10 %)
-  randomize_initial_dsm: true  # true → jede Station startet mit Uniform(0, recovery_days) dsm (seed-abhängig)
+  randomize_initial_dsm: false  # true → jede Station startet mit Uniform(0, recovery_days) dsm (fixer Seed → gleich für alle Runs)
 
 cfa:
   # Erwartete Ausfallkosten als Zusatzterm in der VRP-Zielfunktion:
