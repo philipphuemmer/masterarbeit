@@ -288,15 +288,15 @@ def main() -> None:
         days = result.days_to_complete or "?"
         print(f"fertig ({days} Tage, {result.total_cost_eur:,.0f} €)")
 
-    cost_params_dict = {
-        "wage_eur_per_hour":    cp.wage_eur_per_hour,
-        "fuel_eur_per_km":      cp.fuel_eur_per_km,
-        "downtime_eur_per_kwh": cp.downtime_eur_per_kwh,
-    }
-    overview_text = analyse(results, seeds, cfg=cfg, cost_params=cost_params_dict)
+        cost_params_dict = {
+            "wage_eur_per_hour":    cp.wage_eur_per_hour,
+            "fuel_eur_per_km":      cp.fuel_eur_per_km,
+            "downtime_eur_per_kwh": cp.downtime_eur_per_kwh,
+        }
+        overview_text = analyse(results, seeds[:len(results)], cfg=cfg, cost_params=cost_params_dict)
+        overview_path = log_dir / f"{Path(args.log_dir).name}_overview.log"
+        overview_path.write_text(overview_text, encoding="utf-8")
 
-    overview_path = log_dir / f"{Path(args.log_dir).name}_overview.log"
-    overview_path.write_text(overview_text, encoding="utf-8")
     print(f"Overview gespeichert: {overview_path.resolve()}")
 
 
