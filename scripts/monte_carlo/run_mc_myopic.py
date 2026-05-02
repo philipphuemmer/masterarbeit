@@ -114,7 +114,7 @@ def analyse(results: list[SimulationResult], seeds: list[int], cfg: dict | None 
         out(f"    Min. Teamabstand         : {pl.get('min_team_separation_km', '–')} km")
         out(f"    Max. Stationen/Team      : {pl.get('max_stations_per_team', '–')}")
         out(f"    Zeitpuffer Depot         : {pl.get('travel_reserve_min', '–')} min")
-        out(f"    V̂-basierte Zonenauswahl  : {'Ja' if pl.get('value_based_zone_selection') else 'Nein'}")
+        out(f"    V̂-basierte Zonenauswahl  : {pl.get('zone_selection_mode', 'classic')}")
         out(f"    Team-Zuweisung           : {'Ja' if pl.get('use_team_assignment', True) else 'Nein'}")
         out(f"    Gewicht Depot-Entfernung : {pw.get('depot_distance', '–')}")
         out(f"    Gewicht Fläche           : {pw.get('convex_hull_area', '–')}")
@@ -218,9 +218,10 @@ def main() -> None:
         clusterer.fit(coords[1:], (run_cfg["depot"]["lat"], run_cfg["depot"]["lon"]))
 
         solver   = VRPSolver(mats, run_cfg, all_coords=coords)
-        selector = DailyZoneSelector(clusterer, run_cfg, coords)
+        charging_points = df_base["Anzahl Ladepunkte"].fillna(1).astype(int).values
+        selector = DailyZoneSelector(clusterer, run_cfg, coords, charging_points)
         policy   = MyopicPolicy(solver, coords, mats, run_cfg, stations_df=df_base)
-        if run_cfg["planning"].get("value_based_zone_selection", False):
+        if run_cfg["planning"].get("zone_selection_mode", "classic") == "value_based":
             selector.value_fn = policy._zone_value
         sim      = MaintenanceSimulator(policy, selector, coords, df_base, mats, run_cfg)
 
@@ -234,7 +235,7 @@ def main() -> None:
             "n_zones": run_cfg["planning"]["n_zones"],
             "n_teams": run_cfg["maintenance"]["n_teams"],
             "max_stations_per_team": run_cfg["planning"].get("max_stations_per_team"),
-            "value_based_zone_selection": run_cfg["planning"].get("value_based_zone_selection", False),
+            "zone_selection_mode": run_cfg["planning"].get("zone_selection_mode", "classic"),
             "cost_params": {
                 "wage_eur_per_hour": cp.wage_eur_per_hour,
                 "fuel_eur_per_km": cp.fuel_eur_per_km,
@@ -250,7 +251,7 @@ def main() -> None:
             "min_team_separation_km":     pl_cfg.get("min_team_separation_km"),
             "max_stations_per_team":      pl_cfg.get("max_stations_per_team"),
             "travel_reserve_min":         pl_cfg.get("travel_reserve_min"),
-            "value_based_zone_selection": pl_cfg.get("value_based_zone_selection", False),
+            "zone_selection_mode": pl_cfg.get("zone_selection_mode", "classic"),
             "use_team_assignment":        pl_cfg.get("use_team_assignment", True),
             "priority_weights":           pl_cfg.get("priority_weights", {}),
         }

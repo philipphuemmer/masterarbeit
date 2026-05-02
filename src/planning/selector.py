@@ -57,6 +57,7 @@ class DailyZoneSelector:
         clusterer: ZoneClusterer,
         config: dict,
         all_coords: np.ndarray,
+        charging_points: Optional[np.ndarray] = None,
     ) -> None:
         self.clusterer = clusterer
         self.all_coords = all_coords
@@ -68,6 +69,10 @@ class DailyZoneSelector:
         self.max_stations_per_team: int = planning_cfg.get("max_stations_per_team", 16)
         maint_cfg = config.get("maintenance", {})
         self.default_service_time: int = maint_cfg.get("mean_service_time", 30)
+        self.service_time_mode: str = maint_cfg.get("service_time_mode", "fixed")
+        self.minutes_per_charging_point: int = maint_cfg.get("minutes_per_charging_point", 15)
+        # charging_points[station_idx] = Anzahl Ladepunkte (0-basiert, ohne Depot)
+        self.charging_points: Optional[np.ndarray] = charging_points
         self._workday_minutes: int = (
             (maint_cfg.get("workday_end_hour", 17) - maint_cfg.get("workday_start_hour", 8)) * 60
             - maint_cfg.get("lunch_duration_min", 0)
@@ -78,13 +83,10 @@ class DailyZoneSelector:
         self.w_depot: float = float(w.get("depot_distance", 0.5))
         self.w_area: float = float(w.get("convex_hull_area", 0.5))
         self.w_value: float = float(w.get("zone_value", 0.5))
-        self.use_value_based: bool = bool(
-            planning_cfg.get("value_based_zone_selection", False)
-        )
+        self.zone_selection_mode: str = planning_cfg.get("zone_selection_mode", "classic")
 
-        # Wird nach Konstruktion gesetzt (run_cfa.py / run_vfa.py):
+        # Wird nach Konstruktion gesetzt wenn zone_selection_mode == "value_based":
         #   selector.value_fn = lambda node_idx, dsm: model._value(node_idx, dsm)
-        # None → klassisches depot_distance + convex_hull_area Scoring
         self.value_fn: Optional[Callable[[int, float], float]] = None
 
     # ------------------------------------------------------------------
@@ -205,13 +207,9 @@ class DailyZoneSelector:
             span = arr.max() - arr.min()
             return (arr - arr.min()) / span if span > 0 else np.zeros_like(arr)
 
-        if (
-            self.use_value_based
-            and self.value_fn is not None
-            and dsm_array is not None
-        ):
+        if self.zone_selection_mode == "value_based" and self.value_fn is not None and dsm_array is not None:
             # V̂-basierte Zonenauswahl: Summe der stationsindividuellen Werte pro Zone
-            zone_values = np.array([
+            scores = np.array([
                 sum(
                     self.value_fn(s + 1, float(dsm_array[s + 1]))
                     for s in self.clusterer.station_indices_per_zone_[z]
@@ -219,8 +217,16 @@ class DailyZoneSelector:
                 )
                 for z in open_zones
             ])
-            scores = zone_values
+        elif self.zone_selection_mode == "centrality":
+            assert self.clusterer.mean_dist_to_other_centroids_ is not None
+            # Kleinere mittlere Distanz zu anderen Zentroiden = zentralere Zone = höherer Score
+            centrality_dists = self.clusterer.mean_dist_to_other_centroids_[open_zones]
+            scores = 1 - _norm(centrality_dists)
+        elif self.zone_selection_mode == "depot_distance":
+            # Nächste Zonen zum Depot zuerst
+            scores = 1 - _norm(dists)
         else:
+            # classic: depot_distance + convex_hull_area
             areas = self.clusterer.convex_hull_areas_[open_zones]
             scores = self.w_depot * _norm(dists) + self.w_area * _norm(areas)
 
@@ -333,7 +339,7 @@ class DailyZoneSelector:
 
         # node_idx = station_idx + 1 (Depot belegt Index 0)
         return [
-            MaintenanceTask(node_idx=s + 1, task_type="routine", service_time=self.default_service_time)
+            MaintenanceTask(node_idx=s + 1, task_type="routine", service_time=self._service_time(s))
             for s in selected
         ]
 
@@ -380,6 +386,14 @@ class DailyZoneSelector:
                 tasks_per_team[idle_tid].append(task)
                 routine_per_team[donor_tid].remove(task)
                 routine_per_team[idle_tid].append(task)
+
+    def _service_time(self, station_idx: int) -> int:
+        if (
+            self.service_time_mode == "per_charging_point"
+            and self.charging_points is not None
+        ):
+            return int(self.charging_points[station_idx]) * self.minutes_per_charging_point
+        return self.default_service_time
 
     def _distribute_carryover(
         self,

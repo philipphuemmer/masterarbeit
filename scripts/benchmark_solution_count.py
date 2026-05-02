@@ -42,9 +42,9 @@ def run_and_count(cfg: dict, time_limit: int, max_days: int) -> dict:
                               random_state=cfg["project"]["seed"])
     clusterer.fit(coords[1:], (cfg["depot"]["lat"], cfg["depot"]["lon"]))
 
-    selector = DailyZoneSelector(clusterer, cfg, coords)
+    selector = DailyZoneSelector(clusterer, cfg, coords, charging_points)
     policy = CFAModel(mats, cfg, all_coords=coords, stations_df=df)
-    if cfg["planning"].get("value_based_zone_selection", False):
+    if cfg["planning"].get("zone_selection_mode", "classic") == "value_based":
         selector.value_fn = policy._value
     sim = MaintenanceSimulator(policy, selector, coords, df, mats, cfg)
 

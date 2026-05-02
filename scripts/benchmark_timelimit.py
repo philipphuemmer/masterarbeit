@@ -41,11 +41,11 @@ def run_with_limit(cfg: dict, mal_df, limit_seconds: int, max_days: int, model: 
     )
     clusterer.fit(coords[1:], (cfg["depot"]["lat"], cfg["depot"]["lon"]))
 
-    selector = DailyZoneSelector(clusterer, cfg, coords)
+    selector = DailyZoneSelector(clusterer, cfg, coords, charging_points)
 
     if model == "cfa":
         policy = CFAModel(mats, cfg, all_coords=coords, stations_df=df)
-        if cfg["planning"].get("value_based_zone_selection", False):
+        if cfg["planning"].get("zone_selection_mode", "classic") == "value_based":
             selector.value_fn = policy._value
     else:
         policy = MyopicPlusModel(mats, cfg, all_coords=coords, stations_df=df)

@@ -34,6 +34,7 @@ from src.models.simulator import (
     _fmt,
 )
 from src.planning.clustering import _approx_km
+from src.planning.greedy_routing import greedy_initial_plan, handle_disruptions_greedy
 from src.planning.vrp_solver import DailyPlan, MaintenanceTask, VRPSolver
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,14 @@ class MyopicPolicy:
         self.config = config
         self.cost_params = cost_params or CostParams()
 
+        maint = config["maintenance"]
+        self._use_or_tools: bool = bool(config.get("solver", {}).get("use_or_tools", True))
+        self._workday_start_hour: int = maint["workday_start_hour"]
+        self._lunch_earliest_min: int = maint.get("lunch_earliest_min", 240)
+        self._lunch_duration_min: int = maint.get("lunch_duration_min", 0)
+        self._workday_minutes: int = (maint["workday_end_hour"] - maint["workday_start_hour"]) * 60
+        self.n_teams: int = maint["n_teams"]
+
         pwr_col = "Nennleistung Ladeeinrichtung [kW]"
         if stations_df is not None and pwr_col in stations_df.columns:
             self.node_to_power: dict[int, float] = {
@@ -107,7 +116,21 @@ class MyopicPolicy:
         tasks: list[MaintenanceTask],
         team_assignment: Optional[dict[int, list[int]]] = None,
     ) -> DailyPlan:
-        """Delegiert an den OR-Tools Solver."""
+        if not self._use_or_tools:
+            return greedy_initial_plan(
+                tasks=tasks,
+                team_assignment=team_assignment,
+                all_coords=self.all_coords,
+                traffic_matrices=self.traffic_matrices,
+                workday_start_hour=self._workday_start_hour,
+                workday_minutes=self._workday_minutes,
+                lunch_earliest_min=self._lunch_earliest_min,
+                lunch_duration_min=self._lunch_duration_min,
+                n_teams=self.n_teams,
+                route_score_fn=lambda node, dsm, cur: (
+                    1.0 / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
+                ),
+            )
         return self.solver.create_initial_plan(tasks, team_assignment=team_assignment)
 
     def handle_disruptions(
@@ -129,6 +152,23 @@ class MyopicPolicy:
         -------
         (n_handled, carryover_liste, ausfallkosten_eur)
         """
+        if not self._use_or_tools:
+            return handle_disruptions_greedy(
+                disruptions=disruptions,
+                sim_routes=sim_routes,
+                time_min=time_min,
+                hour=hour,
+                all_coords=self.all_coords,
+                traffic_matrices=self.traffic_matrices,
+                workday_start_hour=self._workday_start_hour,
+                workday_minutes=self._workday_minutes,
+                cost_params=self.cost_params,
+                log=log,
+                drop_score_fn=lambda node, dsm, rem_h: (
+                    1.0 / max(0.1, _approx_km(self.all_coords[node], self.all_coords[0]))
+                ),
+                travel_time_only=True,
+            )
         matrix = self._get_matrix(time_min)
         carryover: list[DisruptionEvent] = []
         downtime_cost = 0.0

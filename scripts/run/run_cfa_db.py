@@ -79,7 +79,8 @@ def main() -> None:
     )
     clusterer.fit(coords[1:], (cfg["depot"]["lat"], cfg["depot"]["lon"]))
 
-    selector = DailyZoneSelector(clusterer, cfg, coords)
+    charging_points = df["Anzahl Ladepunkte"].fillna(1).astype(int).values
+    selector = DailyZoneSelector(clusterer, cfg, coords, charging_points)
     policy = CFADBModel(
         mats, cfg,
         all_coords=coords,
@@ -88,7 +89,7 @@ def main() -> None:
         policy_path=args.policy_path,
     )
 
-    if cfg["planning"].get("value_based_zone_selection", False):
+    if cfg["planning"].get("zone_selection_mode", "classic") == "value_based":
         selector.value_fn = policy._station_value
         print("  V̂-basierte Zonenauswahl aktiv (CFA-DB: U(k) = power × dsm).")
 
@@ -112,7 +113,7 @@ def main() -> None:
         "n_zones": cfg["planning"]["n_zones"],
         "n_teams": cfg["maintenance"]["n_teams"],
         "max_stations_per_team": cfg["planning"].get("max_stations_per_team"),
-        "value_based_zone_selection": cfg["planning"].get("value_based_zone_selection", False),
+        "zone_selection_mode": cfg["planning"].get("zone_selection_mode", "classic"),
         "policy_path": str(args.policy_path),
         "alpha_mean": policy.alpha_mean,
         "cost_params": {

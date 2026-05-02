@@ -59,10 +59,11 @@ class ZoneClusterer:
         self.random_state = random_state
 
         # Werden in fit() befüllt
-        self.zone_labels_: np.ndarray | None = None          # (n_stations,)
-        self.centroids_: np.ndarray | None = None             # (n_zones, 2)
-        self.convex_hull_areas_: np.ndarray | None = None     # (n_zones,) in km²
-        self.mean_depot_distances_: np.ndarray | None = None  # (n_zones,) in km
+        self.zone_labels_: np.ndarray | None = None                    # (n_stations,)
+        self.centroids_: np.ndarray | None = None                      # (n_zones, 2)
+        self.convex_hull_areas_: np.ndarray | None = None              # (n_zones,) in km²
+        self.mean_depot_distances_: np.ndarray | None = None           # (n_zones,) in km
+        self.mean_dist_to_other_centroids_: np.ndarray | None = None   # (n_zones,) in km
         self.station_indices_per_zone_: dict[int, list[int]] | None = None
         self._kmeans: KMeans | None = None
 
@@ -119,6 +120,14 @@ class ZoneClusterer:
 
             # Konvexe-Hülle-Fläche (km²)
             self.convex_hull_areas_[z] = _convex_hull_area_km2(zone_coords)
+
+        # Mittlere Distanz jedes Zonenschwerpunkts zu allen anderen Schwerpunkten (km)
+        # Kleiner Wert = zentrale Zone
+        c = self.centroids_
+        self.mean_dist_to_other_centroids_ = np.array([
+            np.mean([_approx_km(c[z], c[other]) for other in range(self.n_zones) if other != z])
+            for z in range(self.n_zones)
+        ])
 
         return self
 

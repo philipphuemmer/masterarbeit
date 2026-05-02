@@ -39,6 +39,7 @@ from src.models.simulator import (
     plan_to_sim_routes,
 )
 from src.planning.clustering import _approx_km
+from src.planning.greedy_routing import greedy_initial_plan, handle_disruptions_greedy
 from src.planning.vrp_solver import DailyPlan, MaintenanceTask, TeamState, VRPSolver
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,10 @@ class MyopicPlusModel:
         # Skalierungsfaktor α
         cfa_cfg = config.get("cfa", {})
         self.alpha: float = float(cfa_cfg.get("alpha", 10.0))
+        self._use_or_tools: bool = bool(config.get("solver", {}).get("use_or_tools", True))
+        self._workday_start_hour: int = maint["workday_start_hour"]
+        self._lunch_earliest_min: int = maint.get("lunch_earliest_min", 240)
+        self._lunch_duration_min: int = maint.get("lunch_duration_min", 0)
 
     # ------------------------------------------------------------------
     # Hilfsmethoden
@@ -170,6 +175,27 @@ class MyopicPlusModel:
         Hochleistungs-Stationen erhalten frühe Deadlines mit hohem Penalty
         pro Minute Überschreitung → OR-Tools plant sie bevorzugt früh ein.
         """
+        if not self._use_or_tools:
+            n_routine = sum(1 for t in tasks if t.task_type == "routine")
+            logger.info(
+                f"MyopicPlus Greedy-Initialplan: {len(tasks)} Tasks, "
+                f"{n_routine} Routine (Nearest-Neighbor)."
+            )
+            return greedy_initial_plan(
+                tasks=tasks,
+                team_assignment=team_assignment,
+                all_coords=self.all_coords,
+                traffic_matrices=self.solver.traffic_matrices,
+                workday_start_hour=self._workday_start_hour,
+                workday_minutes=self.WORKDAY_MINUTES,
+                lunch_earliest_min=self._lunch_earliest_min,
+                lunch_duration_min=self._lunch_duration_min,
+                n_teams=self.n_teams,
+                route_score_fn=lambda node, dsm, cur: (
+                    1.0 / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
+                ),
+            )
+
         routine_tasks = [t for t in tasks if t.task_type == "routine"]
         n = len(routine_tasks)
 
@@ -193,7 +219,7 @@ class MyopicPlusModel:
                 )
 
         logger.info(
-            f"CFA Initialplan: {len(tasks)} Tasks, "
+            f"MyopicPlus OR-Tools-Initialplan: {len(tasks)} Tasks, "
             f"{n} Routine mit Soft-Deadlines."
         )
         return self.solver.create_initial_plan(tasks, team_assignment=team_assignment)
@@ -213,6 +239,23 @@ class MyopicPlusModel:
         Routine-Knoten: optional (AddDisjunction), Skip-Penalty ∝ kW.
         → OR-Tools wirft niedrig-priorisierte Routinen raus, um Störungen früh zu bedienen.
         """
+        if not self._use_or_tools:
+            return handle_disruptions_greedy(
+                disruptions=disruptions,
+                sim_routes=sim_routes,
+                time_min=time_min,
+                hour=hour,
+                all_coords=self.all_coords,
+                traffic_matrices=self.solver.traffic_matrices,
+                workday_start_hour=self._workday_start_hour,
+                workday_minutes=self.WORKDAY_MINUTES,
+                cost_params=self.cost_params,
+                log=log,
+                drop_score_fn=lambda node, dsm, rem_h: (
+                    self.node_to_power.get(node, 22.0) * rem_h * self.p_failure_per_hour
+                ),
+            )
+
         team_states = [
             TeamState(
                 team_id=r.team_id,

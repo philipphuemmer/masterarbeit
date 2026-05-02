@@ -173,7 +173,7 @@ def run_round(
     """
     Phi_all: list[np.ndarray] = []
     y_all:   list[float]      = []
-    use_value_based = cfg["planning"].get("value_based_zone_selection", False)
+    use_value_based = cfg["planning"].get("zone_selection_mode", "classic") == "value_based"
 
     if round_idx == 1:
         label = "Myopic"
@@ -193,7 +193,8 @@ def run_round(
         )
         clusterer.fit(coords[1:], (run_cfg["depot"]["lat"], run_cfg["depot"]["lon"]))
 
-        selector = DailyZoneSelector(clusterer, run_cfg, coords)
+        charging_points = df_base["Anzahl Ladepunkte"].fillna(1).astype(int).values
+        selector = DailyZoneSelector(clusterer, run_cfg, coords, charging_points)
 
         if round_idx == 1:
             solver = VRPSolver(mats, run_cfg, all_coords=coords)

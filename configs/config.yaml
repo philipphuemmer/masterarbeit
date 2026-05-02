@@ -2,6 +2,14 @@ project:
   name: "Wartungsoptimierung E-Ladesäulen Würzburg"
   seed: 42
 
+solver:
+  # true  → OR-Tools für Initialplan und Replan (bisheriges Verhalten aller Modelle)
+  # false → Greedy Routing (kein OR-Tools):
+  #   Initialplan  CFA:        Greedy nach C̃(k)/dist(aktuelle Position, k)
+  #   Initialplan  MyopicPlus: Greedy Nearest-Neighbor nach 1/dist(aktuelle Position, k)
+  #   Replan beide: Cheapest-Insertion + modellspezifischer Drop (C̃ bzw. power×hours×p)
+  use_or_tools: false
+
 data:
   raw_path: "data/raw/charging_stations_wue.csv"
   processed_path: "data/processed/stations_clean.csv"
@@ -46,17 +54,20 @@ planning:
   min_team_separation_km: 1.0  # Mindestabstand zwischen Team-Zonen
   max_stations_per_team: 20  # Max. Routine-Kandidaten pro Team; OR-Tools löst innerhalb Zeitfenster
   travel_reserve_min: 20     # Zeitpuffer für An-/Abfahrt zum Depot [min]
-  # V̂-basierte Zonenauswahl (nur CFA/VFA): true → Zonenwert aus gelernter Wertfunktion
-  # statt Konvexhüllenfläche; false → klassisches depot_distance + convex_hull_area (Myopic-Verhalten)
-  value_based_zone_selection: false
+  # Zonenauswahlmodus:
+  #   "classic"        → depot_distance + convex_hull_area (Myopic-Verhalten)
+  #   "centrality"     → Zonen mit geringster mittlerer Distanz zu anderen Zonen zuerst
+  #   "depot_distance" → nur mittlere Depot-Entfernung (nächste Zonen zuerst)
+  #   "value_based"    → modellspezifische Wertfunktion (CFA/VFA/...)
+  zone_selection_mode: "classic"
   # Team-Zuweisung im Initialplan: true → OR-Tools darf nur dem zugewiesenen Team fahren
   # (verhindert geografisch unpassende Zuordnungen, kann aber Infeasibility erzwingen).
   # false → OR-Tools verteilt Tasks frei über beide Teams.
   use_team_assignment: true
   priority_weights:
-    depot_distance: 0.5      # Gewicht für mittlere Depot-Entfernung
-    convex_hull_area: 0.5    # Gewicht für Zonengröße (nur aktiv wenn value_based_zone_selection: false)
-    zone_value: 0.5          # Gewicht für V̂-Zonenwert (nur aktiv wenn value_based_zone_selection: true)
+    depot_distance: 0.5      # Gewicht für mittlere Depot-Entfernung (nur classic)
+    convex_hull_area: 0.5    # Gewicht für Zonengröße (nur classic)
+    zone_value: 0.5          # Gewicht für V̂-Zonenwert (nur value_based)
 
 environment:
   # Wie viele Ladesäulen maximal in einer Episode besucht werden
@@ -81,12 +92,12 @@ failure_simulation:
   #   Typ 2: 1 / (397 * 9) ≈ 0.00028
   #   Typ 1: 5 / (397 * 9) ≈ 0.00130            1,5 Erhöhung: 0.00195
   #   Typ 2: 2 / (397 * 9) ≈ 0.00056            1,5 Erhöhung: 0.00084
-  p1_per_hour: 0.00130
-  p2_per_hour: 0.00056
+  p1_per_hour: 0.00150
+  p2_per_hour: 0.00075
 
   # Erholungskurve nach Wartung: p(t) = p_base * (initial_factor + (1 - initial_factor) * t / recovery_days)
   recovery_days: 365      # Tage bis zur vollständigen Erholung auf 100 %
-  initial_factor: 0.1     # Wahrscheinlichkeitsfaktor direkt nach Wartung (10 %)
+  initial_factor: 0.2     # Wahrscheinlichkeitsfaktor direkt nach Wartung (10 %)
   randomize_initial_dsm: false  # true → jede Station startet mit Uniform(0, recovery_days) dsm (fixer Seed → gleich für alle Runs)
 
 cfa:
@@ -98,7 +109,12 @@ cfa:
 maintenance:
   # Failure-Wahrscheinlichkeit pro Zeitschritt (wird später durch Daten kalibriert)
   failure_rate: 0.02
-  # Mittlere Wartungszeit in Minuten
+  # Wartungszeit pro Station:
+  #   "fixed"                → mean_service_time für alle Stationen gleich
+  #   "per_charging_point"   → Anzahl Ladepunkte × minutes_per_charging_point
+  service_time_mode: "fixed"
+  minutes_per_charging_point: 15
+  # Mittlere Wartungszeit in Minuten (nur aktiv wenn service_time_mode: "fixed")
   mean_service_time: 45
   # Anzahl Wartungsteams
   n_teams: 2

@@ -181,7 +181,7 @@ def run_round(
     """
     X_all: list[np.ndarray] = []
     y_all: list[float] = []
-    use_value_based = cfg["planning"].get("value_based_zone_selection", False)
+    use_value_based = cfg["planning"].get("zone_selection_mode", "classic") == "value_based"
 
     label = "Myopic" if round_idx == 1 else f"CFA(θ={theta_prev})"
     print(f"\n  Runde {round_idx}: {label}\n")
@@ -198,11 +198,11 @@ def run_round(
         )
         clusterer.fit(coords[1:], (run_cfg["depot"]["lat"], run_cfg["depot"]["lon"]))
 
-        selector = DailyZoneSelector(clusterer, run_cfg, coords)
+        charging_points = df_base["Anzahl Ladepunkte"].fillna(1).astype(int).values
+        selector = DailyZoneSelector(clusterer, run_cfg, coords, charging_points)
 
         if round_idx == 1:
-            solver = VRPSolver(mats, run_cfg, all_coords=coords)
-            policy = MyopicPolicy(solver, coords, mats, run_cfg)
+            policy = MyopicPolicy(VRPSolver(mats, run_cfg, all_coords=coords), coords, mats, run_cfg)
         else:
             policy = CFAModel(
                 mats, run_cfg,

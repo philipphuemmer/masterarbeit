@@ -317,7 +317,8 @@ def main() -> None:
                 random_state=seed,
             )
             clusterer.fit(coords[1:], (run_cfg["depot"]["lat"], run_cfg["depot"]["lon"]))
-            selector = DailyZoneSelector(clusterer, run_cfg, coords)
+            charging_points = df_base["Anzahl Ladepunkte"].fillna(1).astype(int).values
+            selector = DailyZoneSelector(clusterer, run_cfg, coords, charging_points)
 
             policy = CFADBModel(
                 mats, run_cfg,
@@ -327,7 +328,7 @@ def main() -> None:
                 weights_override=weights,
             )
 
-            if run_cfg["planning"].get("value_based_zone_selection", False):
+            if run_cfg["planning"].get("zone_selection_mode", "classic") == "value_based":
                 selector.value_fn = policy._station_value
 
             sim = CFADBTrainingSimulator(

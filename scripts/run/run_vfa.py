@@ -89,7 +89,8 @@ def main() -> None:
     )
     clusterer.fit(coords[1:], (cfg["depot"]["lat"], cfg["depot"]["lon"]))
 
-    selector = DailyZoneSelector(clusterer, cfg, coords)
+    charging_points = df["Anzahl Ladepunkte"].fillna(1).astype(int).values
+    selector = DailyZoneSelector(clusterer, cfg, coords, charging_points)
     policy   = VFAModel(
         mats, cfg,
         all_coords=coords,
@@ -97,7 +98,7 @@ def main() -> None:
         n_stations=len(df),
         theta_path=args.theta_path,
     )
-    if cfg["planning"].get("value_based_zone_selection", False):
+    if cfg["planning"].get("zone_selection_mode", "classic") == "value_based":
         selector.value_fn = policy._station_value
         print("  V̂-basierte Zonenauswahl aktiv (VFA).")
     sim = MaintenanceSimulator(policy, selector, coords, df, mats, cfg)
@@ -123,7 +124,7 @@ def main() -> None:
         "n_zones": cfg["planning"]["n_zones"],
         "n_teams": cfg["maintenance"]["n_teams"],
         "max_stations_per_team": cfg["planning"].get("max_stations_per_team"),
-        "value_based_zone_selection": cfg["planning"].get("value_based_zone_selection", False),
+        "zone_selection_mode": cfg["planning"].get("zone_selection_mode", "classic"),
         "use_team_assignment": cfg["planning"].get("use_team_assignment", True),
         "theta": policy.theta.tolist(),
         "intercept": policy.intercept,

@@ -292,7 +292,8 @@ def _bootstrap_rollout(
         random_state=seed,
     )
     clusterer.fit(coords[1:], (run_cfg["depot"]["lat"], run_cfg["depot"]["lon"]))
-    selector = DailyZoneSelector(clusterer, run_cfg, coords)
+    charging_points = df_base["Anzahl Ladepunkte"].fillna(1).astype(int).values
+    selector = DailyZoneSelector(clusterer, run_cfg, coords, charging_points)
     policy = MyopicPolicy(mats, run_cfg, all_coords=coords, stations_df=df_base)
     sim = MaintenanceSimulator(policy, selector, coords, df_base, mats, run_cfg)
     sim.run(mal_df, max_days=max_days)
@@ -430,7 +431,8 @@ def main() -> None:
                 random_state=seed,
             )
             clusterer.fit(coords[1:], (run_cfg["depot"]["lat"], run_cfg["depot"]["lon"]))
-            selector = DailyZoneSelector(clusterer, run_cfg, coords)
+            charging_points = df_base["Anzahl Ladepunkte"].fillna(1).astype(int).values
+            selector = DailyZoneSelector(clusterer, run_cfg, coords, charging_points)
 
             policy = DBModel(
                 mats, run_cfg,
@@ -438,6 +440,7 @@ def main() -> None:
                 node_to_power=node_to_power,
                 n_stations=len(df_base),
                 weights_override=weights,
+                stations_df=df_base,
             )
 
             sim = DBTrainingSimulator(
