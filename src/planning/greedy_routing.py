@@ -21,6 +21,7 @@ handle_disruptions_greedy() fügt Störungen per Cheapest-Insertion ein:
     Droppe Routine-Stop mit niedrigstem drop_score_fn(node_idx, dsm, remaining_hours)
     (niedrig = weniger wichtig = zuerst opfern)
 
+    Myopic:     drop_score_fn = dist(cur, k)          (depotfernste → niedrigster Score)
     CFA:        drop_score_fn = C̃(k)
     MyopicPlus: drop_score_fn = power × remaining_hours × p_failure
 """
@@ -220,7 +221,7 @@ def handle_disruptions_greedy(
     workday_minutes: int,
     cost_params: CostParams,
     log: HourLog,
-    drop_score_fn: Callable[[int, float, float], float],
+    drop_score_fn: Callable[[int, float, float, int], float],
     travel_time_only: bool = False,
 ) -> tuple[int, list[DisruptionEvent], float]:
     """
@@ -229,14 +230,15 @@ def handle_disruptions_greedy(
     Für jede Störung:
       1. Finde günstigste Einfügeposition über alle Teams.
       2. Falls keine feasible Position: droppe Routine-Stops nach aufsteigendem
-         drop_score_fn(node_idx, dsm, remaining_hours) bis Platz entsteht.
+         drop_score_fn(node_idx, dsm, remaining_hours, current_node) bis Platz entsteht.
       3. Falls immer noch nicht möglich: Carryover.
 
     Parameters
     ----------
     drop_score_fn
-        (node_idx, days_since_maintenance, remaining_hours) → float.
+        (node_idx, days_since_maintenance, remaining_hours, current_node) → float.
         Niedrigerer Score → zuerst droppen.
+        Myopic:     dist(cur, k)
         CFA:        C̃(k)
         MyopicPlus: power × remaining_hours × p_failure
     """
@@ -417,7 +419,7 @@ def _find_best_drop_and_insert(
     workday_start_hour: int,
     workday_minutes: int,
     cost_params: CostParams,
-    drop_score_fn: Callable[[int, float, float], float],
+    drop_score_fn: Callable[[int, float, float, int], float],
     travel_time_only: bool = False,
 ) -> Optional[tuple[float, int, list[int], int, float]]:
     """
@@ -436,16 +438,16 @@ def _find_best_drop_and_insert(
         if not routine_stops:
             continue
 
-        # Aufsteigend nach drop_score_fn sortieren (niedrigster Score = erst droppen)
-        routine_sorted = sorted(
-            routine_stops,
-            key=lambda x: drop_score_fn(x[1].node_idx, x[1].days_since_maintenance, remaining_hours),
-        )
-
         cur_node = route.current_node_at(time_min)
         cur_dep  = route.current_departure_at(time_min)
         if route.lunch_end_min is not None and cur_dep < route.lunch_end_min:
             cur_dep = route.lunch_end_min
+
+        # Aufsteigend nach drop_score_fn sortieren (niedrigster Score = erst droppen)
+        routine_sorted = sorted(
+            routine_stops,
+            key=lambda x: drop_score_fn(x[1].node_idx, x[1].days_since_maintenance, remaining_hours, cur_node),
+        )
 
         dropped_indices: list[int] = []
 

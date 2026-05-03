@@ -164,8 +164,8 @@ class MyopicPolicy:
                 workday_minutes=self._workday_minutes,
                 cost_params=self.cost_params,
                 log=log,
-                drop_score_fn=lambda node, dsm, rem_h: (
-                    1.0 / max(0.1, _approx_km(self.all_coords[node], self.all_coords[0]))
+                drop_score_fn=lambda node, dsm, rem_h, cur: (
+                    _approx_km(self.all_coords[cur], self.all_coords[node])
                 ),
                 travel_time_only=True,
             )

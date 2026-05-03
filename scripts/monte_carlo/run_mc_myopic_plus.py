@@ -46,7 +46,7 @@ def analyse(results: list[SimulationResult], seeds: list[int], cfg: dict | None 
     buf = io.StringIO()
 
     def out(line: str = "") -> None:
-        print(line)
+        #print(line)
         buf.write(line + "\n")
 
     sep = "=" * 70
@@ -287,7 +287,7 @@ def main() -> None:
 
         results.append(result)
         days = result.days_to_complete or "?"
-        print(f"fertig ({days} Tage, {result.total_cost_eur:,.0f} €)")
+        #print(f"fertig ({days} Tage, {result.total_cost_eur:,.0f} €)")
 
         cost_params_dict = {
             "wage_eur_per_hour":    cp.wage_eur_per_hour,
@@ -298,7 +298,7 @@ def main() -> None:
         overview_path = log_dir / f"{Path(args.log_dir).name}_overview.log"
         overview_path.write_text(overview_text, encoding="utf-8")
 
-    print(f"Overview gespeichert: {overview_path.resolve()}")
+    #print(f"Overview gespeichert: {overview_path.resolve()}")
 
 
 if __name__ == "__main__":

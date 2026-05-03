@@ -192,7 +192,8 @@ class MyopicPlusModel:
                 lunch_duration_min=self._lunch_duration_min,
                 n_teams=self.n_teams,
                 route_score_fn=lambda node, dsm, cur: (
-                    1.0 / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
+                    self.node_to_power.get(node, 22.0)
+                    / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
                 ),
             )
 
@@ -251,8 +252,9 @@ class MyopicPlusModel:
                 workday_minutes=self.WORKDAY_MINUTES,
                 cost_params=self.cost_params,
                 log=log,
-                drop_score_fn=lambda node, dsm, rem_h: (
-                    self.node_to_power.get(node, 22.0) * rem_h * self.p_failure_per_hour
+                drop_score_fn=lambda node, dsm, rem_h, cur: (
+                    self.node_to_power.get(node, 22.0)
+                    / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
                 ),
             )
 

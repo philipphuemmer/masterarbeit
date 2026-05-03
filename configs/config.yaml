@@ -59,7 +59,7 @@ planning:
   #   "centrality"     → Zonen mit geringster mittlerer Distanz zu anderen Zonen zuerst
   #   "depot_distance" → nur mittlere Depot-Entfernung (nächste Zonen zuerst)
   #   "value_based"    → modellspezifische Wertfunktion (CFA/VFA/...)
-  zone_selection_mode: "classic"
+  zone_selection_mode: "centrality"
   # Team-Zuweisung im Initialplan: true → OR-Tools darf nur dem zugewiesenen Team fahren
   # (verhindert geografisch unpassende Zuordnungen, kann aber Infeasibility erzwingen).
   # false → OR-Tools verteilt Tasks frei über beide Teams.
@@ -97,7 +97,7 @@ failure_simulation:
 
   # Erholungskurve nach Wartung: p(t) = p_base * (initial_factor + (1 - initial_factor) * t / recovery_days)
   recovery_days: 365      # Tage bis zur vollständigen Erholung auf 100 %
-  initial_factor: 0.2     # Wahrscheinlichkeitsfaktor direkt nach Wartung (10 %)
+  initial_factor: 0.1     # Wahrscheinlichkeitsfaktor direkt nach Wartung (10 %)
   randomize_initial_dsm: false  # true → jede Station startet mit Uniform(0, recovery_days) dsm (fixer Seed → gleich für alle Runs)
 
 cfa:

@@ -231,6 +231,13 @@ class CFAModel:
                 f"CFA Greedy-Initialplan: {len(tasks)} Tasks, {n_routine} Routine "
                 f"(C̃/dist, θ={np.array2string(self.theta, precision=3)})."
             )
+            # Shift so that min(C̃) → 1.0: negative values würden bei kleiner Distanz
+            # den Score stark negativ machen und Nearest-Neighbor umkehren.
+            min_val = min(
+                (self._value(t.node_idx, t.days_since_maintenance) for t in tasks),
+                default=0.0,
+            )
+            shift = max(0.0, -min_val) + 1.0
             return greedy_initial_plan(
                 tasks=tasks,
                 team_assignment=team_assignment,
@@ -242,7 +249,7 @@ class CFAModel:
                 lunch_duration_min=self._lunch_duration_min,
                 n_teams=self.solver.n_teams,
                 route_score_fn=lambda node, dsm, cur: (
-                    self._value(node, dsm)
+                    (self._value(node, dsm) + shift)
                     / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
                 ),
             )
@@ -306,7 +313,7 @@ class CFAModel:
                 workday_minutes=self.WORKDAY_MINUTES,
                 cost_params=self.cost_params,
                 log=log,
-                drop_score_fn=lambda node, dsm, rem_h: self._value(node, dsm),
+                drop_score_fn=lambda node, dsm, rem_h, cur: self._value(node, dsm),
             )
 
         team_states = [

@@ -21,6 +21,11 @@ Score-basierte Greedy-Einfügung mit state-abhängigem Balance-Parameter α:
     f6: std_dist_depot / MAX_KM          – Räumliche Streuung
     f7: n_carryover / SCALE              – Offene Carryover-Rückstände
 
+U(k) — Stationsindividuelle Dringlichkeit:
+    C̃(k) = θᵀ × φ_scaled(k), φ = [power_kW, age_years, recovery_curve(dsm), mean_dist_to_others]
+    θ aus data/training/cfa/theta.json (identisch mit CFA-Modell).
+    Fallback wenn θ fehlt: power × recovery_curve × station_factor.
+
 Initialplan: Kein OR-Tools — reine score-basierte Greedy-Einfügung.
 Disruption Handling: OR-Tools Replan (wie CFA/VFA).
 
@@ -35,6 +40,7 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 
 from src.models.cost_params import CostParams
 from src.planning.greedy_routing import greedy_initial_plan, handle_disruptions_greedy
@@ -57,15 +63,21 @@ from src.planning.vrp_solver import (
 logger = logging.getLogger(__name__)
 
 _DEFAULT_POLICY_PATH = Path("data/training/db/policy.json")
+_DEFAULT_CFA_THETA_PATH = Path("data/training/cfa/theta.json")
 
 _MAX_DSM = 365.0
 _MAX_DEPOT_KM = 30.0
 _CARRYOVER_SCALE = 10.0
+_DELTA_SCALE_MIN = 60.0  # Referenz für Δτ-Normierung (≈ max sinnvolle Einfügezeit)
 
 
 class DBModel:
     """
     Dynamic Balance Policy mit state-abhängigem α-Parameter.
+
+    U(k) verwendet dieselbe CFA-Wertfunktion C̃(k) = θᵀφ_scaled(k) mit
+    φ = [power_kW, age_years, recovery_curve(dsm), mean_dist_to_others].
+    θ wird aus data/training/cfa/theta.json geladen (Fallback: power×recovery_curve).
 
     Parameters
     ----------
@@ -136,8 +148,47 @@ class DBModel:
             self._node_to_failure_factor: dict[int, float] = {
                 i + 1: factors.get(i, 1.0) for i in range(len(stations_df))
             }
+            date_col = "Inbetriebnahmedatum"
+            ref = pd.Timestamp("2026-01-01")
+            self._node_to_age: dict[int, float] = {}
+            for i, (_, row) in enumerate(stations_df.iterrows()):
+                if date_col in stations_df.columns and pd.notna(row.get(date_col)):
+                    age = max(0.0, (ref - pd.Timestamp(row[date_col])).days / 365.25)
+                else:
+                    age = 5.0
+                self._node_to_age[i + 1] = age
         else:
             self._node_to_failure_factor = {}
+            self._node_to_age = {}
+
+        if all_coords is not None and len(all_coords) > 2:
+            n = len(all_coords)
+            self._node_to_mean_dist: dict[int, float] = {
+                i: float(np.mean([
+                    _approx_km(all_coords[i], all_coords[j])
+                    for j in range(1, n) if j != i
+                ]))
+                for i in range(1, n)
+            }
+        else:
+            self._node_to_mean_dist = {}
+
+        # CFA-θ für verbesserte U(k)-Berechnung (C̃(k) = θᵀφ_scaled)
+        self._theta: Optional[np.ndarray] = None
+        self._theta_means: np.ndarray = np.zeros(4)
+        self._theta_stds: np.ndarray = np.ones(4)
+        if _DEFAULT_CFA_THETA_PATH.exists():
+            with open(_DEFAULT_CFA_THETA_PATH) as f:
+                _cfa = json.load(f)
+            self._theta = np.array(_cfa["theta"], dtype=float)
+            self._theta_means = np.array(_cfa.get("feature_means", np.zeros(4)), dtype=float)
+            self._theta_stds = np.array(_cfa.get("feature_stds", np.ones(4)), dtype=float)
+            logger.info(f"DB: CFA-θ={self._theta} geladen für U(k)")
+        else:
+            logger.warning(
+                f"DB: {_DEFAULT_CFA_THETA_PATH} nicht gefunden — "
+                "Fallback auf power×recovery_curve für U(k)."
+            )
 
         if weights_override is not None:
             self._load_weights(weights_override)
@@ -227,13 +278,30 @@ class DBModel:
         logit = float(self._W3 @ x + self._b3)
         return 1.0 / (1.0 + np.exp(-logit))
 
+    def _phi_cfa(self, node_idx: int, dsm: float) -> np.ndarray:
+        """φ(k) = [power_kW, age_years, recovery_curve(dsm), mean_dist_to_others] — wie CFA."""
+        t = min(dsm, self._recovery_days)
+        rc = self._initial_factor + (1.0 - self._initial_factor) * t / self._recovery_days
+        return np.array([
+            self.node_to_power.get(node_idx, 22.0),
+            self._node_to_age.get(node_idx, 5.0),
+            rc,
+            self._node_to_mean_dist.get(node_idx, 5.0),
+        ])
+
     def _station_value(self, node_idx: int, dsm: float) -> float:
-        """U(k) = power_kW × recovery_curve(dsm) × station_factor — erwartete Ausfallkosten."""
+        """U(k) = C̃(k) = θᵀ × φ_scaled(k) — approximierte Kosten des Weglassens (wie CFA).
+
+        Fallback auf power × recovery_curve × station_factor wenn θ nicht verfügbar.
+        """
+        if self._theta is not None:
+            phi = self._phi_cfa(node_idx, dsm)
+            phi_scaled = (phi - self._theta_means) / np.maximum(self._theta_stds, 1e-8)
+            return float(self._theta @ phi_scaled)
         power = self.node_to_power.get(node_idx, 22.0)
         t = min(dsm, self._recovery_days)
-        recovery_curve = self._initial_factor + (1.0 - self._initial_factor) * t / self._recovery_days
-        station_factor = self._node_to_failure_factor.get(node_idx, 1.0)
-        return power * recovery_curve * station_factor
+        rc = self._initial_factor + (1.0 - self._initial_factor) * t / self._recovery_days
+        return power * rc * self._node_to_failure_factor.get(node_idx, 1.0)
 
     # ------------------------------------------------------------------
     # Routing-Hilfsmethoden
@@ -383,6 +451,20 @@ class DBModel:
         # Unzugewiesene Routine-Stationen
         unassigned: set[int] = {t.node_idx for t in routine_tasks}
 
+        # C̃(k) vorberechnen und auf [0,1] normieren: verhindert Skalendominanz gegenüber Δτ.
+        # Δτ wird auf [0,1] normiert via _DELTA_SCALE_MIN, sodass α direkt als Balance-Gewicht
+        # zwischen Dringlichkeit und Routingeffizienz interpretierbar bleibt.
+        c_vals: dict[int, float] = {
+            node: self._station_value(node, tasks_map[node].days_since_maintenance)
+            for node in unassigned
+            if node in tasks_map
+        }
+        if len(c_vals) > 1:
+            c_min = min(c_vals.values())
+            c_range = max(max(c_vals.values()) - c_min, 1e-8)
+        else:
+            c_min, c_range = 0.0, 1.0
+
         # Score-basierte Greedy-Einfügung
         while unassigned:
             best_score = -np.inf
@@ -395,7 +477,7 @@ class DBModel:
                 task = tasks_map.get(node)
                 if task is None:
                     continue
-                u_k = self._station_value(node, task.days_since_maintenance)
+                u_k = (c_vals.get(node, 0.0) - c_min) / c_range  # ∈ [0, 1]
 
                 for tid in range(self.n_teams):
                     # Respektiere Team-Zuordnung
@@ -408,7 +490,8 @@ class DBModel:
                     if pos == -1:
                         continue  # nicht feasible
 
-                    score = (1.0 - alpha) * u_k - alpha * delta
+                    delta_norm = delta / _DELTA_SCALE_MIN  # ≈ [0, 1]
+                    score = (1.0 - alpha) * u_k - alpha * delta_norm
                     if score > best_score:
                         best_score = score
                         best_node = node
@@ -482,7 +565,7 @@ class DBModel:
                 workday_minutes=self.WORKDAY_MINUTES,
                 cost_params=self.cost_params,
                 log=log,
-                drop_score_fn=lambda node, dsm, rem_h: self._station_value(node, dsm),
+                drop_score_fn=lambda node, dsm, rem_h, cur: self._station_value(node, dsm),
             )
 
         team_states = [
