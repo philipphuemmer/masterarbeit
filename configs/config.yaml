@@ -48,7 +48,7 @@ depot:
 
 planning:
   # K-Means Clustering (reines K-Means, kein Balance-Zwang) Normal: 60
-  n_zones: 40
+  n_zones: 120
   # Tägliche Zonenauswahl
   n_top_candidates: 20       # Aus allen offenen Zonen: Top-N nach Prioritätsscore für Startzone
   min_team_separation_km: 1.0  # Mindestabstand zwischen Team-Zonen
@@ -59,7 +59,7 @@ planning:
   #   "centrality"     → Zonen mit geringster mittlerer Distanz zu anderen Zonen zuerst
   #   "depot_distance" → nur mittlere Depot-Entfernung (nächste Zonen zuerst)
   #   "value_based"    → modellspezifische Wertfunktion (CFA/VFA/...)
-  zone_selection_mode: "centrality"
+  zone_selection_mode: "value_based"
   # Team-Zuweisung im Initialplan: true → OR-Tools darf nur dem zugewiesenen Team fahren
   # (verhindert geografisch unpassende Zuordnungen, kann aber Infeasibility erzwingen).
   # false → OR-Tools verteilt Tasks frei über beide Teams.

@@ -252,7 +252,7 @@ class MyopicPlusModel:
                 workday_minutes=self.WORKDAY_MINUTES,
                 cost_params=self.cost_params,
                 log=log,
-                drop_score_fn=lambda node, dsm, rem_h, cur: (
+                drop_score_fn=lambda node, dsm, rem_h, cur, det: (
                     self.node_to_power.get(node, 22.0)
                     / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
                 ),

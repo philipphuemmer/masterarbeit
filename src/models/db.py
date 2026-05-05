@@ -343,6 +343,10 @@ class DBModel:
         best_delta = np.inf
         best_pos = -1
 
+        # Depot-Rückkehr von der aktuellen letzten Station im Weg (fehlt in current_end).
+        # Für leere Routen ist delta bereits ein Rundtrip depot→k→depot, kein Korrektur nötig.
+        depot_return = self._travel_min(route[-1], 0) if route else 0.0
+
         for pos in range(1, len(full)):
             prev_n = full[pos - 1]
             next_n = full[pos]
@@ -351,7 +355,7 @@ class DBModel:
                 + self._travel_min(node_k, next_n)
                 - self._travel_min(prev_n, next_n)
             )
-            if current_end + delta + service_k <= self.WORKDAY_MINUTES:
+            if current_end + delta + service_k + depot_return <= self.WORKDAY_MINUTES:
                 if delta < best_delta:
                     best_delta = delta
                     best_pos = pos
@@ -565,7 +569,7 @@ class DBModel:
                 workday_minutes=self.WORKDAY_MINUTES,
                 cost_params=self.cost_params,
                 log=log,
-                drop_score_fn=lambda node, dsm, rem_h, cur: self._station_value(node, dsm),
+                drop_score_fn=lambda node, dsm, rem_h, cur, det: self._station_value(node, dsm),
             )
 
         team_states = [

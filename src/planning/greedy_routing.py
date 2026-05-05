@@ -221,7 +221,7 @@ def handle_disruptions_greedy(
     workday_minutes: int,
     cost_params: CostParams,
     log: HourLog,
-    drop_score_fn: Callable[[int, float, float, int], float],
+    drop_score_fn: Callable[[int, float, float, int, float], float],
     travel_time_only: bool = False,
 ) -> tuple[int, list[DisruptionEvent], float]:
     """
@@ -230,13 +230,13 @@ def handle_disruptions_greedy(
     Für jede Störung:
       1. Finde günstigste Einfügeposition über alle Teams.
       2. Falls keine feasible Position: droppe Routine-Stops nach aufsteigendem
-         drop_score_fn(node_idx, dsm, remaining_hours, current_node) bis Platz entsteht.
+         drop_score_fn(node_idx, dsm, remaining_hours, current_node, detour_min) bis Platz entsteht.
       3. Falls immer noch nicht möglich: Carryover.
 
     Parameters
     ----------
     drop_score_fn
-        (node_idx, days_since_maintenance, remaining_hours, current_node) → float.
+        (node_idx, days_since_maintenance, remaining_hours, current_node, detour_min) → float.
         Niedrigerer Score → zuerst droppen.
         Myopic:     dist(cur, k)
         CFA:        C̃(k)
@@ -419,7 +419,7 @@ def _find_best_drop_and_insert(
     workday_start_hour: int,
     workday_minutes: int,
     cost_params: CostParams,
-    drop_score_fn: Callable[[int, float, float, int], float],
+    drop_score_fn: Callable[[int, float, float, int, float], float],
     travel_time_only: bool = False,
 ) -> Optional[tuple[float, int, list[int], int, float]]:
     """
@@ -443,10 +443,23 @@ def _find_best_drop_and_insert(
         if route.lunch_end_min is not None and cur_dep < route.lunch_end_min:
             cur_dep = route.lunch_end_min
 
+        # Detour je Station vorberechnen: Zeit die das Entfernen von k aus der Route spart.
+        # Approximation (exakt nur vor dem ersten Drop; danach ändern sich Nachbarn).
+        detours: dict[int, float] = {}
+        for i, s in enumerate(remaining):
+            prev = remaining[i - 1].node_idx if i > 0 else cur_node
+            nxt  = remaining[i + 1].node_idx if i < len(remaining) - 1 else 0
+            detours[s.node_idx] = max(0.0, (
+                matrix[prev, s.node_idx] + matrix[s.node_idx, nxt] - matrix[prev, nxt]
+            ) / 60.0)
+
         # Aufsteigend nach drop_score_fn sortieren (niedrigster Score = erst droppen)
         routine_sorted = sorted(
             routine_stops,
-            key=lambda x: drop_score_fn(x[1].node_idx, x[1].days_since_maintenance, remaining_hours, cur_node),
+            key=lambda x: drop_score_fn(
+                x[1].node_idx, x[1].days_since_maintenance, remaining_hours, cur_node,
+                detours.get(x[1].node_idx, 0.0),
+            ),
         )
 
         dropped_indices: list[int] = []

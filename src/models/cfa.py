@@ -313,7 +313,9 @@ class CFAModel:
                 workday_minutes=self.WORKDAY_MINUTES,
                 cost_params=self.cost_params,
                 log=log,
-                drop_score_fn=lambda node, dsm, rem_h, cur: self._value(node, dsm),
+                drop_score_fn=lambda node, dsm, rem_h, cur, det: (
+                    self._value(node, dsm) - self._wage_per_min * det
+                ),
             )
 
         team_states = [
