@@ -1,12 +1,13 @@
 """
-Monte-Carlo-Simulation für die VFA-Policy (gelernte Wertfunktionsapproximation).
+Monte-Carlo-Simulation für die Hybrid-VFA-Policy.
 
 Führt N Läufe durch (Seed 1 … N), speichert jeden Lauf als
 logs/vfa/json/run_<N>.json und logs/vfa/log/run_<N>.log.
 Am Ende wird eine aggregierte Analyse als logs/vfa/log/vfa_overview.log gespeichert.
 
-Voraussetzung: theta muss trainiert sein:
-    python scripts/train_vfa.py
+Voraussetzungen:
+    python scripts/train/train_cfa_future.py   → data/training/cfa_future/theta.json
+    python scripts/train/train_vfa.py          → data/training/vfa/theta.json
 
 Ausführen:
     .venv/bin/python3 scripts/monte_carlo/run_mc_vfa.py --runs 30
@@ -28,14 +29,18 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.data.loader import load_stations, get_coordinates, load_traffic_matrices
-from src.models.vfa import VFAModel
+from src.models.vfa import VFAModel, STATE_FEATURE_NAMES
 from src.models.simulator import MaintenanceSimulator, SimulationResult
 from src.planning.clustering import ZoneClusterer
 from src.planning.selector import DailyZoneSelector
 
 
-def analyse(results: list[SimulationResult], seeds: list[int], cfg: dict | None = None, cost_params: dict | None = None) -> str:
-    """Gibt aggregierte Statistiken über alle Läufe aus und gibt den Text zurück."""
+def analyse(
+    results: list[SimulationResult],
+    seeds: list[int],
+    cfg: dict | None = None,
+    cost_params: dict | None = None,
+) -> str:
     total_costs   = np.array([r.total_cost_eur for r in results])
     op_costs      = np.array([sum(d.operational_cost_eur for d in r.day_results) for r in results])
     wage_costs    = np.array([sum(d.wage_cost_eur for d in r.day_results) for r in results])
@@ -50,7 +55,7 @@ def analyse(results: list[SimulationResult], seeds: list[int], cfg: dict | None 
     buf = io.StringIO()
 
     def out(line: str = "") -> None:
-        print(line)
+        #print(line)
         buf.write(line + "\n")
 
     sep = "=" * 70
@@ -72,16 +77,15 @@ def analyse(results: list[SimulationResult], seeds: list[int], cfg: dict | None 
             + (f"  {unit}" if unit else "")
         )
 
-    row("Gesamtkosten (€)",           total_costs,   "€")
-    row("  Betriebskosten (€)",       op_costs,      "€")
-    row("    Lohnkosten (€)",         wage_costs,    "€")
-    row("    Fahrtkosten (€)",        fuel_costs,    "€")
-    row("  Ausfallkosten (€)",        dt_costs,      "€")
-    row("Simulationstage",            days_done)
-    row("Same-Day-Rate",              same_day_rate * 100, "%")
-    row("Gesamtstörungen",            total_disrupt)
-    row("Gesamtcarryover",            carryovers)
-
+    row("Gesamtkosten (€)",      total_costs,   "€")
+    row("  Betriebskosten (€)",  op_costs,      "€")
+    row("    Lohnkosten (€)",    wage_costs,    "€")
+    row("    Fahrtkosten (€)",   fuel_costs,    "€")
+    row("  Ausfallkosten (€)",   dt_costs,      "€")
+    row("Simulationstage",       days_done)
+    row("Same-Day-Rate",         same_day_rate * 100, "%")
+    row("Gesamtstörungen",       total_disrupt)
+    row("Gesamtcarryover",       carryovers)
     out(sep)
 
     out(f"\n  {'Seed':>5}  {'Tage':>5}  {'Gesamt (€)':>12}  "
@@ -105,6 +109,7 @@ def analyse(results: list[SimulationResult], seeds: list[int], cfg: dict | None 
         pl = cfg.get("planning", {})
         mt = cfg.get("maintenance", {})
         fs = cfg.get("failure_simulation", {})
+        vf = cfg.get("vfa", {})
         pw = pl.get("priority_weights", {})
 
         out(f"\n{sep}")
@@ -116,24 +121,12 @@ def analyse(results: list[SimulationResult], seeds: list[int], cfg: dict | None 
         out(f"    Top-Kandidaten           : {pl.get('n_top_candidates', '–')}")
         out(f"    Min. Teamabstand         : {pl.get('min_team_separation_km', '–')} km")
         out(f"    Max. Stationen/Team      : {pl.get('max_stations_per_team', '–')}")
-        out(f"    Zeitpuffer Depot         : {pl.get('travel_reserve_min', '–')} min")
         out(f"    V̂-basierte Zonenauswahl  : {pl.get('zone_selection_mode', 'classic')}")
-        out(f"    Team-Zuweisung           : {'Ja' if pl.get('use_team_assignment', True) else 'Nein'}")
-        out(f"    Gewicht Depot-Entfernung : {pw.get('depot_distance', '–')}")
-        out(f"    Gewicht Fläche           : {pw.get('convex_hull_area', '–')}")
         out(f"    Gewicht Zonenwert (V̂)    : {pw.get('zone_value', '–')}")
 
-        out("\n  Solver (OR-Tools)")
-        slm = mt.get("solver_limit_mode", "time")
-        out(f"    Abbruchkriterium         : {slm}")
-        if slm == "solution":
-            out(f"    Lösungslimit initial     : {mt.get('solver_solution_limit_initial', '–')}")
-            out(f"    Lösungslimit Replan      : {mt.get('solver_solution_limit_replan', '–')}")
-        else:
-            out(f"    Zeitlimit initial        : {mt.get('solver_time_limit_initial', '–')} s")
-            out(f"    Zeitlimit Replan         : {mt.get('solver_time_limit_replan', '–')} s")
-        out(f"    Makespan-Koeffizient     : {mt.get('global_span_cost_coefficient', 0)}")
-        out(f"    Mittagspause             : {mt.get('lunch_duration_min', 0)} min")
+        out("\n  Hybrid-VFA")
+        out(f"    α (lokaler Term)         : {vf.get('alpha', 1.0)}")
+        out(f"    β (globaler Term)        : {vf.get('beta',  1.0)}")
 
         out("\n  Wartung")
         out(f"    Teams                    : {mt.get('n_teams', '–')}")
@@ -161,19 +154,16 @@ def analyse(results: list[SimulationResult], seeds: list[int], cfg: dict | None 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Monte-Carlo-Simulation (VFA)")
-    parser.add_argument("--runs",       type=int, default=30,
-                        help="Letzter Seed (inklusiv, Standard: 30)")
-    parser.add_argument("--start-run",  type=int, default=1,
-                        help="Erster Seed zum Fortfahren (Standard: 1)")
-    parser.add_argument("--max-days",   type=int, default=365,
-                        help="Maximale Tage pro Lauf (Standard: 365)")
-    parser.add_argument("--verbose",    action="store_true",
-                        help="OR-Tools Logging aktivieren")
-    parser.add_argument("--theta-path", type=str, default="data/training/vfa/theta.json",
-                        help="Pfad zur theta.json (Standard: data/training/vfa/theta.json)")
-    parser.add_argument("--log-dir",    type=str, default="logs/vfa",
-                        help="Basisordner für JSON- und Log-Ausgaben (Standard: logs/vfa)")
+    parser = argparse.ArgumentParser(description="Monte-Carlo-Simulation (Hybrid-VFA)")
+    parser.add_argument("--runs",        type=int, default=30)
+    parser.add_argument("--start-run",   type=int, default=1)
+    parser.add_argument("--max-days",    type=int, default=365)
+    parser.add_argument("--verbose",     action="store_true")
+    parser.add_argument("--local-theta", type=str,
+                        default="data/training/cfa_future/theta.json")
+    parser.add_argument("--global-theta", type=str,
+                        default="data/training/vfa/theta.json")
+    parser.add_argument("--log-dir",     type=str, default="logs/vfa")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -196,19 +186,7 @@ def main() -> None:
         print(f"  {len(mal_df)} Störereignisse aus malfunction.csv geladen.")
     else:
         mal_df = None
-        print(f"  Störungsmodus: stochastisch")
-
-    with open(args.theta_path) as f:
-        theta_data = json.load(f)
-    print(f"  θ = {theta_data['theta']}  "
-          f"(R²={theta_data.get('r2', '?'):.4f}, {theta_data.get('n_runs', '?')} Trainingsläufe)")
-
-    # node_to_power einmalig aufbauen (wird pro Lauf weitergegeben)
-    pwr_col = "Nennleistung Ladeeinrichtung [kW]"
-    node_to_power: dict[int, float] = {
-        i + 1: (float(row[pwr_col]) if pd.notna(row.get(pwr_col)) else 22.0)
-        for i, (_, row) in enumerate(df_base.iterrows())
-    }
+        print("  Störungsmodus: stochastisch")
 
     json_dir = Path(args.log_dir) / "json"
     log_dir  = Path(args.log_dir) / "log"
@@ -218,11 +196,13 @@ def main() -> None:
     if args.start_run > args.runs:
         print(f"Fehler: --start-run ({args.start_run}) > --runs ({args.runs})")
         sys.exit(1)
-    seeds = list(range(args.start_run, args.runs + 1))
+
+    seeds: list[int] = list(range(args.start_run, args.runs + 1))
     results: list[SimulationResult] = []
     overview_path = log_dir / f"{Path(args.log_dir).name}_overview.log"
 
     print(f"\nStarte {len(seeds)} Monte-Carlo-Läufe (Seeds {seeds[0]}–{seeds[-1]})...\n")
+
     for seed in seeds:
         print(f"  Lauf {seed}/{args.runs} (Seed {seed})...", end=" ", flush=True)
 
@@ -236,72 +216,61 @@ def main() -> None:
 
         charging_points = df_base["Anzahl Ladepunkte"].fillna(1).astype(int).values
         selector = DailyZoneSelector(clusterer, run_cfg, coords, charging_points)
-        policy   = VFAModel(
+
+        policy = VFAModel(
             mats, run_cfg,
             all_coords=coords,
-            node_to_power=node_to_power,
-            n_stations=len(df_base),
-            theta_path=args.theta_path,
+            stations_df=df_base,
+            local_theta_path=args.local_theta,
+            global_theta_path=args.global_theta,
         )
         if run_cfg["planning"].get("zone_selection_mode", "classic") == "value_based":
-            selector.value_fn = policy._station_value
-        sim = MaintenanceSimulator(policy, selector, coords, df_base, mats, run_cfg)
+            selector.value_fn = policy._local_value
 
+        sim = MaintenanceSimulator(policy, selector, coords, df_base, mats, run_cfg)
         result = sim.run(mal_df, max_days=args.max_days)
 
-        cp = policy.cost_params
+        cp       = policy.cost_params
         fail_cfg = run_cfg.get("failure_simulation", {})
+        pl_cfg   = run_cfg.get("planning", {})
+        mt_cfg   = run_cfg.get("maintenance", {})
         model_params = {
-            "seed": seed,
-            "failure_mode": fail_cfg.get("mode", "csv"),
-            "n_zones": run_cfg["planning"]["n_zones"],
-            "n_teams": run_cfg["maintenance"]["n_teams"],
-            "max_stations_per_team": run_cfg["planning"].get("max_stations_per_team"),
-            "zone_selection_mode": run_cfg["planning"].get("zone_selection_mode", "classic"),
-            "theta": policy.theta.tolist(),
-            "intercept": policy.intercept,
-            "feature_names": ["total_urgency", "expected_damage", "mean_dsm",
-                              "max_urgency", "frac_remaining", "n_carryover"],
-            "alpha": policy.alpha,
-            "lambda_per_day": policy.lambda_per_day,
-            "p_failure_per_hour": policy.p_failure_per_hour,
-            "theta_path": str(args.theta_path),
+            "seed":               seed,
+            "failure_mode":       fail_cfg.get("mode", "csv"),
+            "n_zones":            run_cfg["planning"]["n_zones"],
+            "n_teams":            mt_cfg.get("n_teams"),
+            "max_stations_per_team": pl_cfg.get("max_stations_per_team"),
+            "zone_selection_mode":   pl_cfg.get("zone_selection_mode", "classic"),
+            "use_team_assignment":   pl_cfg.get("use_team_assignment", True),
+            "theta_local":           policy.theta_local.tolist(),
+            "theta_global":          policy.theta_global.tolist(),
+            "intercept_global":      policy.intercept_global,
+            "feature_names_global":  STATE_FEATURE_NAMES,
+            "alpha":                 policy._alpha,
+            "beta":                  policy._beta,
+            "lambda_per_day":        policy.lambda_per_day,
+            "local_theta_path":      args.local_theta,
+            "global_theta_path":     args.global_theta,
             "cost_params": {
-                "wage_eur_per_hour": cp.wage_eur_per_hour,
-                "fuel_eur_per_km": cp.fuel_eur_per_km,
+                "wage_eur_per_hour":    cp.wage_eur_per_hour,
+                "fuel_eur_per_km":      cp.fuel_eur_per_km,
                 "downtime_eur_per_kwh": cp.downtime_eur_per_kwh,
             },
-        }
-        pl_cfg = run_cfg.get("planning", {})
-        mt_cfg = run_cfg.get("maintenance", {})
-        _slm   = mt_cfg.get("solver_limit_mode", "time")
-        model_params["zone_selection"] = {
-            "n_zones":                    pl_cfg.get("n_zones"),
-            "n_top_candidates":           pl_cfg.get("n_top_candidates"),
-            "min_team_separation_km":     pl_cfg.get("min_team_separation_km"),
-            "max_stations_per_team":      pl_cfg.get("max_stations_per_team"),
-            "travel_reserve_min":         pl_cfg.get("travel_reserve_min"),
-            "zone_selection_mode": pl_cfg.get("zone_selection_mode", "classic"),
-            "use_team_assignment":        pl_cfg.get("use_team_assignment", True),
-            "priority_weights":           pl_cfg.get("priority_weights", {}),
-        }
-        model_params["solver"] = {
-            "n_teams":                       mt_cfg.get("n_teams"),
-            "workday_start_hour":            mt_cfg.get("workday_start_hour", 8),
-            "workday_end_hour":              mt_cfg.get("workday_end_hour", 16),
-            "mean_service_time":             mt_cfg.get("mean_service_time"),
-            "global_span_cost_coefficient":  mt_cfg.get("global_span_cost_coefficient", 0),
-            "lunch_duration_min":            mt_cfg.get("lunch_duration_min", 0),
-            "solver_limit_mode":             _slm,
-            "solver_solution_limit_initial": mt_cfg.get("solver_solution_limit_initial") if _slm == "solution" else None,
-            "solver_solution_limit_replan":  mt_cfg.get("solver_solution_limit_replan")  if _slm == "solution" else None,
-            "solver_time_limit_initial":     mt_cfg.get("solver_time_limit_initial")     if _slm == "time"     else None,
-            "solver_time_limit_replan":      mt_cfg.get("solver_time_limit_replan")      if _slm == "time"     else None,
+            "zone_selection": {
+                "n_zones":               pl_cfg.get("n_zones"),
+                "n_top_candidates":      pl_cfg.get("n_top_candidates"),
+                "min_team_separation_km": pl_cfg.get("min_team_separation_km"),
+                "max_stations_per_team": pl_cfg.get("max_stations_per_team"),
+                "travel_reserve_min":    pl_cfg.get("travel_reserve_min"),
+                "zone_selection_mode":   pl_cfg.get("zone_selection_mode", "classic"),
+                "use_team_assignment":   pl_cfg.get("use_team_assignment", True),
+                "priority_weights":      pl_cfg.get("priority_weights", {}),
+            },
         }
         if fail_cfg.get("mode") == "stochastic":
             model_params["failure_simulation"] = {
-                "p1_per_hour": fail_cfg.get("p1_per_hour"),
-                "p2_per_hour": fail_cfg.get("p2_per_hour"),
+                "p1_per_hour":   fail_cfg.get("p1_per_hour"),
+                "p2_per_hour":   fail_cfg.get("p2_per_hour"),
                 "recovery_days": fail_cfg.get("recovery_days"),
                 "initial_factor": fail_cfg.get("initial_factor"),
             }
@@ -315,17 +284,18 @@ def main() -> None:
 
         results.append(result)
         days = result.days_to_complete or "?"
-        print(f"fertig ({days} Tage, {result.total_cost_eur:,.0f} €)")
+        #print(f"fertig ({days} Tage, {result.total_cost_eur:,.0f} €)")
 
         cost_params_dict = {
             "wage_eur_per_hour":    cp.wage_eur_per_hour,
             "fuel_eur_per_km":      cp.fuel_eur_per_km,
             "downtime_eur_per_kwh": cp.downtime_eur_per_kwh,
         }
-        overview_text = analyse(results, seeds[:len(results)], cfg=cfg, cost_params=cost_params_dict)
+        overview_text = analyse(results, seeds[:len(results)], cfg=cfg,
+                                cost_params=cost_params_dict)
         overview_path.write_text(overview_text, encoding="utf-8")
 
-    print(f"\nOverview gespeichert: {overview_path.resolve()}")
+    #print(f"\nOverview gespeichert: {overview_path.resolve()}")
 
 
 if __name__ == "__main__":

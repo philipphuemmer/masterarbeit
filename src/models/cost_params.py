@@ -34,7 +34,7 @@ class CostParams:
     """
 
     # Stundenlohn in Bayern https://www.jobvector.de/gehalt/elektroinstallateur/bayern/
-    wage_eur_per_hour: float = 30.0
+    wage_eur_per_hour: float = 35.0
     # gesetzliche Kilometerpauschale für Dienstreisen
     fuel_eur_per_km: float = 0.30
     downtime_eur_per_kwh: float = 0.50

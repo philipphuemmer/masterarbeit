@@ -1,28 +1,26 @@
 """
-Value Function Approximation (VFA) Modell.
+Hybrid-VFA – greedy Routing mit lokalem CFA-Future-Term und globalem Zustandswert.
 
-Approximiert den zukünftigen Wert eines Zustands durch eine gelernte
-lineare Wertfunktion:
+Score(s,a) = α × L(a) + β × ΔV̂_global(s')
 
-    V̂(s) = θᵀ φ(s) + intercept
+    L(a)           = θ_local^T × φ_scaled_local(k)     lokale Drop-Kosten (aus cfa_future)
+    V̂_global(s)   = θ_global^T × φ_scaled_state(s)    globaler Zustandswert (neu gelernt)
+    ΔV̂_global(k)  = V̂_global(s) − V̂_global(s ohne k)  Marginalwert einer Station
 
-Feature-Vektor φ(s) (6 globale Zustandsmerkmale, identisch zu train_vfa.py):
-    f0: Σ_k power_kW[k] × dsm[k]           – Gesamtdringlichkeit
-    f1: Σ_k failure_risk[k] × power_kW[k]  – Erwarteter Schadenwert
-    f2: mean(dsm[k])                         – Mittlere Überfälligkeit
-    f3: max(power_kW[k] × dsm[k])           – Größte Einzeldringlichkeit
-    f4: n_remaining / n_stations             – Auslastungsgrad
-    f5: n_carryover                          – Offene Störungsrückstände
+Lokale Features φ_local(k) (4, identisch zu cfa_future):
+    [power_kW, age_years, recovery_curve, mean_dist_to_others]
 
-Integration in OR-Tools:
-    Für jeden Routine-Task k wird V̂(s') nach Entnahme von k aus der
-    verbleibenden Menge berechnet. Die Reduktion ΔV̂ = V̂(s) − V̂(s') ist
-    der zukünftige Wert der Wartung, der als negativer Bonus (= Kostensenkung)
-    an OR-Tools übergeben wird. Stations mit hohem ΔV̂ werden bevorzugt
-    früh eingeplant.
+Globale State-Features φ_state(s) (15):
+    Demand:      frac_remaining, carryover_ratio, total_urgency, expected_damage,
+                 mean_dsm, max_urgency, overdue_frac, critical_frac
+    Spatial:     mean_depot_dist_km, std_depot_dist_km
+    Team:        mean_slack_ratio, slack_imbalance, time_remaining_ratio
+    Anticipation: recovery_weighted_power, risk_weighted_urgency
 
-θ wird offline trainiert (scripts/train_vfa.py) und aus
-data/training/vfa/theta.json geladen.
+θ_local  → data/training/cfa_future/theta.json  (kein separates Training)
+θ_global → data/training/vfa/theta.json         (train_vfa.py)
+
+α, β konfigurierbar in config.yaml unter vfa.alpha / vfa.beta (Default: 1.0 / 1.0).
 """
 from __future__ import annotations
 
@@ -32,43 +30,67 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 
 from src.models.cost_params import CostParams
+from src.planning.clustering import _approx_km
 from src.models.simulator import (
     DisruptionEvent,
     HourLog,
     SimRoute,
-    plan_to_sim_routes,
 )
-from src.planning.vrp_solver import DailyPlan, MaintenanceTask, TeamState, VRPSolver
+from src.planning.greedy_routing import greedy_initial_plan, handle_disruptions_greedy
+from src.planning.vrp_solver import DailyPlan, MaintenanceTask, VRPSolver
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_THETA_PATH = Path("data/training/vfa/theta.json")
+_DEFAULT_LOCAL_THETA_PATH  = Path("data/training/cfa_future/theta.json")
+_DEFAULT_GLOBAL_THETA_PATH = Path("data/training/vfa/theta.json")
+
+N_STATE_FEATURES = 15
+STATE_FEATURE_NAMES = [
+    "frac_remaining",          # f0
+    "carryover_ratio",         # f1
+    "total_urgency",           # f2
+    "expected_damage",         # f3
+    "mean_dsm",                # f4
+    "max_urgency",             # f5
+    "overdue_frac",            # f6
+    "critical_frac",           # f7
+    "mean_depot_dist_km",      # f8
+    "std_depot_dist_km",       # f9
+    "mean_slack_ratio",        # f10
+    "slack_imbalance",         # f11
+    "time_remaining_ratio",    # f12
+    "recovery_weighted_power", # f13
+    "risk_weighted_urgency",   # f14
+]
 
 
 class VFAModel:
     """
-    Value Function Approximation Modell mit gelerntem θ-Vektor.
+    Hybrid-VFA: lokaler CFA-Future-Term + globaler Zustandswert, greedy Routing.
 
     Parameters
     ----------
-    traffic_matrices : Stündliche Reisezeitmatrizen in Sekunden.
-    config : Konfigurationsdict.
+    traffic_matrices : dict[int, np.ndarray]
+        Stündliche Reisezeitmatrizen in Sekunden.
+    config : dict
+        Konfigurationsdict aus config.yaml.
     all_coords : np.ndarray, shape (n_stations + 1, 2)
         Koordinaten aller Knoten inkl. Depot (Index 0).
-    node_to_power : dict[int, float]
-        Mapping node_idx → Nennleistung [kW].
-    n_stations : int
-        Gesamtzahl der Stationen (ohne Depot).
-    cost_params : Kostenparameter (None → Standardwerte).
-    theta_path : Pfad zu data/training/vfa/theta.json. None → Standardpfad.
-    theta_override : np.ndarray | list | None
-        Direkt übergebener θ-Vektor (überschreibt theta_path). Wird für
-        iteratives Policy-Training verwendet, um θ ohne Datei-I/O zu setzen.
-    intercept_override : float | None
-        Direkt übergebener Intercept-Wert. Wird zusammen mit theta_override
-        verwendet; None → 0.0.
+    stations_df : pd.DataFrame | None
+        Stationsdaten mit Nennleistung, Alter und Ladetyp-Spalten.
+    cost_params : CostParams | None
+        Kostenparameter (None → Standardwerte).
+    local_theta_path : Path | str | None
+        Pfad zu θ_local (Default: data/training/cfa_future/theta.json).
+    global_theta_path : Path | str | None
+        Pfad zu θ_global (Default: data/training/vfa/theta.json).
+    global_theta_override : np.ndarray | None
+        Für iteratives Training: θ_global direkt übergeben (überschreibt Datei).
+    global_intercept_override : float | None
+        Direkt übergebener Intercept (nur mit global_theta_override).
     """
 
     def __init__(
@@ -76,173 +98,273 @@ class VFAModel:
         traffic_matrices: dict[int, np.ndarray],
         config: dict,
         all_coords: Optional[np.ndarray] = None,
-        node_to_power: Optional[dict[int, float]] = None,
-        n_stations: int = 397,
+        stations_df: Optional[pd.DataFrame] = None,
         cost_params: Optional[CostParams] = None,
-        theta_path: Optional[Path | str] = None,
-        theta_override: Optional[np.ndarray] = None,
-        intercept_override: Optional[float] = None,
+        local_theta_path: Optional[Path | str] = None,
+        global_theta_path: Optional[Path | str] = None,
+        global_theta_override: Optional[np.ndarray] = None,
+        global_intercept_override: Optional[float] = None,
     ) -> None:
         self.solver = VRPSolver(traffic_matrices, config, all_coords=all_coords)
         self.config = config
         self.all_coords = all_coords
-        self.node_to_power: dict[int, float] = node_to_power or {}
-        self.n_stations = n_stations
         self.cost_params = cost_params or CostParams()
-        self.n_teams: int = config["maintenance"]["n_teams"]
+
+        maint = config["maintenance"]
+        self.WORKDAY_MINUTES: int = (
+            maint["workday_end_hour"] - maint["workday_start_hour"]
+        ) * 60
+        self._workday_start_hour: int = maint["workday_start_hour"]
+        self._lunch_earliest_min: int = maint.get("lunch_earliest_min", 240)
+        self._lunch_duration_min: int = maint.get("lunch_duration_min", 0)
 
         fail_cfg = config.get("failure_simulation", {})
         self.lambda_per_day: float = (
             fail_cfg.get("p1_per_hour", 0.00084)
             + fail_cfg.get("p2_per_hour", 0.00028)
         ) * 24.0
+        self._recovery_days: float = float(fail_cfg.get("recovery_days", 365))
+        self._initial_factor: float = float(fail_cfg.get("initial_factor", 0.1))
 
-        # Parameter für Disruption-Deadline-Penalty (analog CFA)
-        cfa_cfg = config.get("cfa", {})
-        self.alpha: float = float(cfa_cfg.get("alpha", 10.0))
-        self.p_failure_per_hour: float = (
-            fail_cfg.get("p1_per_hour", 0.00084)
-            + fail_cfg.get("p2_per_hour", 0.00028)
-        )
-        self._wage_per_min: float = self.cost_params.wage_eur_per_hour / 60.0
+        vfa_cfg = config.get("vfa", {})
+        self._alpha: float = float(vfa_cfg.get("alpha", 1.0))
+        self._beta:  float = float(vfa_cfg.get("beta",  1.0))
 
-        if theta_override is not None:
-            self.theta     = np.array(theta_override, dtype=np.float64)
-            self.intercept = float(intercept_override) if intercept_override is not None else 0.0
-            logger.info(f"VFA: θ direkt übergeben (iteratives Training)")
+        cp = self.cost_params
+        self._wage_per_min: float = cp.wage_eur_per_hour / 60.0
+
+        # Stationslookups
+        pwr_col  = "Nennleistung Ladeeinrichtung [kW]"
+        date_col = "Inbetriebnahmedatum"
+        ref      = pd.Timestamp("2026-01-01")
+
+        if stations_df is not None:
+            self.node_to_power: dict[int, float] = {
+                i + 1: (float(row[pwr_col]) if pd.notna(row.get(pwr_col)) else 22.0)
+                for i, (_, row) in enumerate(stations_df.iterrows())
+            }
+            self._node_to_age: dict[int, float] = {}
+            for i, (_, row) in enumerate(stations_df.iterrows()):
+                if date_col in stations_df.columns and pd.notna(row.get(date_col)):
+                    age = max(0.0, (ref - pd.Timestamp(row[date_col])).days / 365.25)
+                else:
+                    age = 5.0
+                self._node_to_age[i + 1] = age
+            self.n_stations: int = len(stations_df)
         else:
-            path = Path(theta_path) if theta_path else _DEFAULT_THETA_PATH
-            if not path.exists():
-                raise FileNotFoundError(
-                    f"VFA-Gewichte nicht gefunden: {path}\n"
-                    f"Bitte zuerst 'python scripts/train_vfa.py' ausführen."
-                )
-            with open(path) as f:
-                data = json.load(f)
-            self.theta     = np.array(data["theta"], dtype=np.float64)
-            self.intercept = float(data["intercept"])
-            logger.info(
-                f"VFA: θ geladen aus {path} "
-                f"(R²={data.get('r2', '?'):.4f}, {data.get('n_runs', '?')} Läufe)"
+            self.node_to_power = {}
+            self._node_to_age  = {}
+            self.n_stations    = 397
+
+        # Mittlere Distanz jeder Station zu allen anderen
+        if all_coords is not None and len(all_coords) > 2:
+            n = len(all_coords)
+            self._node_to_mean_dist: dict[int, float] = {
+                i: float(np.mean([
+                    _approx_km(all_coords[i], all_coords[j])
+                    for j in range(1, n) if j != i
+                ]))
+                for i in range(1, n)
+            }
+        else:
+            self._node_to_mean_dist = {}
+
+        # --- θ_local aus cfa_future laden ---
+        lpath = Path(local_theta_path) if local_theta_path else _DEFAULT_LOCAL_THETA_PATH
+        if not lpath.exists():
+            raise FileNotFoundError(
+                f"θ_local nicht gefunden: {lpath}\n"
+                "Bitte zuerst 'python scripts/train/train_cfa_future.py' ausführen."
             )
+        with open(lpath) as f:
+            local_data = json.load(f)
+        self.theta_local             = np.array(local_data["theta"], dtype=float)
+        self._local_feature_means    = np.array(
+            local_data.get("feature_means", np.zeros(len(self.theta_local)))
+        )
+        self._local_feature_stds     = np.array(
+            local_data.get("feature_stds",  np.ones(len(self.theta_local)))
+        )
+        logger.info(
+            f"VFA: θ_local geladen aus {lpath} "
+            f"(R²={local_data.get('r2', '?'):.4f})"
+        )
 
-        # Stationsindividuellen Features für ΔV̂: nur die Features die sich
-        # beim Entfernen einer einzelnen Station tatsächlich ändern.
-        # f4 (frac_remaining) ändert sich für jede Station gleich → konstant,
-        # kein Differenzierungssignal. f5 (n_carryover) gehört nicht zu Stationen.
-        # Für extra_costs nur f0-f3 verwenden (stations-spezifische Features).
-        self._station_feature_mask = np.array([True, True, True, True, False, False])
+        # --- θ_global laden oder Override ---
+        if global_theta_override is not None:
+            self.theta_global            = np.array(global_theta_override, dtype=float)
+            self.intercept_global        = float(global_intercept_override or 0.0)
+            self._global_feature_means   = np.zeros(N_STATE_FEATURES)
+            self._global_feature_stds    = np.ones(N_STATE_FEATURES)
+            logger.info("VFA: θ_global direkt übergeben (iteratives Training)")
+        else:
+            gpath = Path(global_theta_path) if global_theta_path else _DEFAULT_GLOBAL_THETA_PATH
+            if not gpath.exists():
+                self.theta_global          = np.zeros(N_STATE_FEATURES)
+                self.intercept_global      = 0.0
+                self._global_feature_means = np.zeros(N_STATE_FEATURES)
+                self._global_feature_stds  = np.ones(N_STATE_FEATURES)
+                logger.info(
+                    f"VFA: θ_global nicht gefunden ({gpath}), β-Term inaktiv. "
+                    "Bitte 'python scripts/train/train_vfa.py' ausführen."
+                )
+            else:
+                with open(gpath) as f:
+                    global_data = json.load(f)
+                self.theta_global          = np.array(global_data["theta"], dtype=float)
+                self.intercept_global      = float(global_data.get("intercept", 0.0))
+                self._global_feature_means = np.array(
+                    global_data.get("feature_means", np.zeros(N_STATE_FEATURES))
+                )
+                self._global_feature_stds  = np.array(
+                    global_data.get("feature_stds",  np.ones(N_STATE_FEATURES))
+                )
+                logger.info(
+                    f"VFA: θ_global geladen aus {gpath} "
+                    f"(R²={global_data.get('r2', '?'):.4f})"
+                )
 
     # ------------------------------------------------------------------
-    # Wertfunktion
+    # Lokale Wertfunktion (identisch zu cfa_future._value)
     # ------------------------------------------------------------------
 
-    def _phi(
+    def _phi_local(self, node_idx: int, dsm: float) -> np.ndarray:
+        """φ_local(k) = [power, age, recovery_curve, mean_dist]."""
+        dsm_c = min(dsm, self._recovery_days)
+        rc    = self._initial_factor + (1.0 - self._initial_factor) * dsm_c / self._recovery_days
+        return np.array([
+            self.node_to_power.get(node_idx, 22.0),
+            self._node_to_age.get(node_idx, 5.0),
+            rc,
+            self._node_to_mean_dist.get(node_idx, 5.0),
+        ])
+
+    def _local_value(self, node_idx: int, dsm: float) -> float:
+        """C̃(drop k) = θ_local^T × φ_scaled_local(k)."""
+        phi = self._phi_local(node_idx, dsm)
+        phi_scaled = (phi - self._local_feature_means) / np.maximum(
+            self._local_feature_stds, 1e-8
+        )
+        return float(self.theta_local @ phi_scaled)
+
+    # ------------------------------------------------------------------
+    # Globale Wertfunktion
+    # ------------------------------------------------------------------
+
+    def _phi_state(
         self,
         tasks: list[MaintenanceTask],
         n_carryover: int = 0,
+        team_current_times: Optional[list[float]] = None,
+        time_min: float = 0.0,
         exclude_node: Optional[int] = None,
     ) -> np.ndarray:
         """
-        Berechnet den Feature-Vektor φ(s) für eine gegebene Task-Menge.
+        15 globale Zustandsfeatures.
 
-        Parameters
-        ----------
-        tasks : Verbleibende Routine-Tasks (mit days_since_maintenance).
-        n_carryover : Anzahl offener Carryover-Störungen.
-        exclude_node : Falls gesetzt, wird dieser node_idx vor der
-                       Berechnung aus der Task-Menge entfernt (für ΔV̂).
+        Demand-Block (f0–f7): aus offenen Routine-Tasks.
+        Spatial-Block (f8–f9): Depot-Distanzen der offenen Stationen.
+        Team-Block (f10–f12): verbleibende Teamzeit, Imbalance, Tagesfortschritt.
+            Defaults (1.0, 0.0, 1.0) falls keine Teaminfo verfügbar (Initialplan).
+        Anticipation-Block (f13–f14): zukunftsgewichtete Risikosignale.
         """
-        routine = [t for t in tasks if t.task_type == "routine"
-                   and t.node_idx != exclude_node]
+        routine = [
+            t for t in tasks
+            if t.task_type == "routine" and t.node_idx != exclude_node
+        ]
+        n_remaining = len(routine)
 
         if routine:
             dsm_vals = np.array([t.days_since_maintenance for t in routine], dtype=np.float64)
-            pow_vals = np.array([
-                self.node_to_power.get(t.node_idx, 22.0) for t in routine
-            ], dtype=np.float64)
+            pow_vals = np.array(
+                [self.node_to_power.get(t.node_idx, 22.0) for t in routine],
+                dtype=np.float64,
+            )
             urgency      = pow_vals * dsm_vals
             failure_risk = 1.0 - np.exp(-self.lambda_per_day * dsm_vals)
+            rc_vals      = (
+                self._initial_factor
+                + (1.0 - self._initial_factor)
+                * np.minimum(dsm_vals, self._recovery_days) / self._recovery_days
+            )
 
-            f0 = float(np.sum(urgency))
-            f1 = float(np.sum(failure_risk * pow_vals))
-            f2 = float(np.mean(dsm_vals))
-            f3 = float(np.max(urgency))
+            f2  = float(np.sum(urgency))
+            f3  = float(np.sum(failure_risk * pow_vals))
+            f4  = float(np.mean(dsm_vals))
+            f5  = float(np.max(urgency))
+            f6  = float(np.mean(dsm_vals > 90))
+            f7  = float(np.mean(dsm_vals > 180))
+            f13 = float(np.sum(pow_vals * rc_vals))
+            f14 = float(np.sum(failure_risk * urgency))
+
+            if self.all_coords is not None:
+                depot = self.all_coords[0]
+                dists = np.array(
+                    [_approx_km(self.all_coords[t.node_idx], depot) for t in routine],
+                    dtype=np.float64,
+                )
+                f8 = float(np.mean(dists))
+                f9 = float(np.std(dists)) if len(dists) > 1 else 0.0
+            else:
+                f8 = f9 = 0.0
         else:
-            f0 = f1 = f2 = f3 = 0.0
+            f2 = f3 = f4 = f5 = f6 = f7 = f8 = f9 = f13 = f14 = 0.0
 
-        n_remaining = len(routine)
-        f4 = n_remaining / max(1, self.n_stations)
-        f5 = float(n_carryover)
+        f0 = n_remaining / max(1, self.n_stations)
+        f1 = n_carryover / 10.0
 
-        return np.array([f0, f1, f2, f3, f4, f5], dtype=np.float64)
+        if team_current_times:
+            rem = np.array(
+                [max(0.0, self.WORKDAY_MINUTES - t) for t in team_current_times],
+                dtype=np.float64,
+            )
+            f10 = float(np.mean(rem)) / max(1.0, self.WORKDAY_MINUTES)
+            f11 = (
+                float(np.std(rem)) / max(1.0, self.WORKDAY_MINUTES)
+                if len(rem) > 1 else 0.0
+            )
+            f12 = max(0.0, 1.0 - time_min / max(1.0, self.WORKDAY_MINUTES))
+        else:
+            f10, f11, f12 = 1.0, 0.0, 1.0
 
-    def _value(self, phi: np.ndarray) -> float:
-        """V̂(s) = θᵀ φ + intercept."""
-        return float(self.theta @ phi) + self.intercept
+        return np.array(
+            [f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14],
+            dtype=np.float64,
+        )
 
-    def _station_value(self, node_idx: int, dsm: float) -> float:
-        """
-        Stationsindividuelle Näherung von ΔV̂ für die V̂-basierte Zonenauswahl.
+    def _global_value(self, phi_raw: np.ndarray) -> float:
+        """V̂_global(s) = θ_global^T × φ_scaled(s) + intercept."""
+        phi_scaled = (phi_raw - self._global_feature_means) / np.maximum(
+            self._global_feature_stds, 1e-8
+        )
+        return float(self.theta_global @ phi_scaled) + self.intercept_global
 
-        Berechnet den marginalen Wertbeitrag einer einzelnen Station, ohne den
-        globalen Zustand zu kennen. Verwendet nur die stationsindividuellen
-        Features f0 (power × dsm) und f1 (failure_risk × power), da f2 (mean dsm)
-        und f3 (max urgency) globalen Kontext erfordern.
-        """
-        power = self.node_to_power.get(node_idx, 22.0)
-        urgency = power * dsm
-        failure_risk = 1.0 - np.exp(-self.lambda_per_day * dsm)
-        return float(self.theta[0] * urgency + self.theta[1] * failure_risk * power)
-
-    def _disruption_deadline_penalty(self, power_kw: float) -> int:
-        """Deadline-Penalty für Störungen in Minuten/Minute.
-
-        Station ist definitiv ausgefallen — direkte Ausfallkosten pro Minute:
-        power × downtime_eur_per_kwh / 60 / wage_per_min.
-        """
-        cost_per_min = power_kw * self.cost_params.downtime_eur_per_kwh / 60.0
-        return max(1, int(round(cost_per_min / self._wage_per_min)))
-
-    def _compute_extra_costs(
+    def _compute_delta_global(
         self,
         tasks: list[MaintenanceTask],
         n_carryover: int = 0,
-    ) -> dict[int, int]:
-        """
-        Berechnet stationsabhängige Zusatzkosten aus der Wertfunktion.
-
-        OR-Tools erwartet ausschließlich nicht-negative Arc Costs.
-        Daher wird die ΔV̂-Skala verschoben:
-
-            extra_cost[k] = max_bonus − bonus[k]  ≥ 0
-
-        Nur stationsindividuelle Features (f0-f3) werden für ΔV̂ verwendet.
-        f4 (frac_remaining) und f5 (n_carryover) ändern sich für alle Stationen
-        gleich und liefern kein Differenzierungssignal für die Reihenfolge.
-        """
+        team_current_times: Optional[list[float]] = None,
+        time_min: float = 0.0,
+    ) -> dict[int, float]:
+        """ΔV̂_global(k) = V̂(s) − V̂(s ohne k) für alle Routine-Stationen."""
         routine_tasks = [t for t in tasks if t.task_type == "routine"]
         if not routine_tasks:
             return {}
-
-        # Theta nur mit stationsindividuellen Features
-        theta_station = self.theta * self._station_feature_mask
-
-        phi_s = self._phi(tasks, n_carryover=n_carryover)
-        v_s   = float(theta_station @ phi_s)
-
-        raw: dict[int, float] = {}
-        for task in routine_tasks:
-            phi_prime = self._phi(tasks, n_carryover=n_carryover, exclude_node=task.node_idx)
-            delta_v   = v_s - float(theta_station @ phi_prime)
-            raw[task.node_idx] = delta_v
-
-        # Verschieben auf ≥ 0, skalieren in Minuten-Einheiten für OR-Tools
-        max_v = max(raw.values())
+        phi_s = self._phi_state(tasks, n_carryover, team_current_times, time_min)
+        v_s   = self._global_value(phi_s)
         return {
-            node_idx: int(round((max_v - dv) / self._wage_per_min))
-            for node_idx, dv in raw.items()
+            t.node_idx: v_s - self._global_value(
+                self._phi_state(
+                    tasks, n_carryover, team_current_times, time_min,
+                    exclude_node=t.node_idx,
+                )
+            )
+            for t in routine_tasks
         }
+
+    def _disruption_deadline_penalty(self, power_kw: float) -> int:
+        cost_per_min = power_kw * self.cost_params.downtime_eur_per_kwh / 60.0
+        return max(1, int(round(cost_per_min / self._wage_per_min)))
 
     # ------------------------------------------------------------------
     # Policy-Schnittstelle
@@ -254,14 +376,45 @@ class VFAModel:
         team_assignment: Optional[dict[int, list[int]]] = None,
     ) -> DailyPlan:
         """
-        Erstellt den Tagesplan mit VFA-basierten Zusatzkosten für OR-Tools.
+        Greedy Initialplan mit kombiniertem lokalem + globalem Score.
 
-        Stations mit hohem zukünftigen Ersparnispotenzial (ΔV̂) erhalten
-        einen Bonus → werden bevorzugt früh eingeplant.
+        route_score_fn = (α × (L(k) + shift) + β × max(0, ΔV̂_global(k))) / dist
         """
-        extra_costs = self._compute_extra_costs(tasks)
-        return self.solver.create_initial_plan(
-            tasks, extra_costs=extra_costs, team_assignment=team_assignment
+        routine_tasks = [t for t in tasks if t.task_type == "routine"]
+        n_carryover   = sum(1 for t in tasks if t.task_type != "routine")
+
+        delta_global = self._compute_delta_global(tasks, n_carryover=n_carryover)
+
+        if routine_tasks:
+            min_local = min(
+                self._local_value(t.node_idx, t.days_since_maintenance)
+                for t in routine_tasks
+            )
+            shift = max(0.0, -min_local) + 1.0
+        else:
+            shift = 1.0
+
+        def route_score_fn(node: int, dsm: float, cur: int) -> float:
+            local_v = self._local_value(node, dsm) + shift
+            global_delta = max(0.0, delta_global.get(node, 0.0))
+            combined = self._alpha * local_v + self._beta * global_delta
+            return combined / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
+
+        logger.info(
+            f"VFA Greedy-Initialplan: {len(tasks)} Tasks, {len(routine_tasks)} Routine "
+            f"(α={self._alpha}, β={self._beta})."
+        )
+        return greedy_initial_plan(
+            tasks=tasks,
+            team_assignment=team_assignment,
+            all_coords=self.all_coords,
+            traffic_matrices=self.solver.traffic_matrices,
+            workday_start_hour=self._workday_start_hour,
+            workday_minutes=self.WORKDAY_MINUTES,
+            lunch_earliest_min=self._lunch_earliest_min,
+            lunch_duration_min=self._lunch_duration_min,
+            n_teams=self.solver.n_teams,
+            route_score_fn=route_score_fn,
         )
 
     def handle_disruptions(
@@ -273,24 +426,19 @@ class VFAModel:
         log: HourLog,
     ) -> tuple[int, list[DisruptionEvent], float]:
         """
-        Replant den Tag mit allen offenen + neuen Aufgaben via OR-Tools + VFA.
+        Greedy Replan mit kombiniertem Drop-Score.
 
-        1. Vollständiges VRP-Replanning (wie CFA, nicht greedy).
-        2. Falls infeasible: Routine-Stops nach aufsteigendem ΔV̂ droppen
-           (niedrigstes Ersparnispotenzial zuerst).
+        drop_score_fn = α × L(k) + β × ΔV̂_global(k) − wage × detour_min
+        Höherer Score → Station wird behalten (wichtiger).
         """
-        team_states = [
-            TeamState(
-                team_id=r.team_id,
-                current_node=r.current_node_at(time_min),
-                current_time=int(r.lunch_end_min) if (
-                    r.lunch_end_min is not None and time_min < r.lunch_end_min
-                ) else int(r.current_departure_at(time_min)),
-                completed_nodes=r.completed_nodes_at(time_min),
-            )
+        team_current_times = [
+            float(r.lunch_end_min)
+            if (r.lunch_end_min is not None and time_min < r.lunch_end_min)
+            else float(r.current_departure_at(time_min))
             for r in sim_routes
         ]
 
+        # Verbleibende Tasks für Zustandsberechnung (inkl. neue Disruptions)
         remaining_tasks = [
             MaintenanceTask(
                 node_idx=s.node_idx,
@@ -302,88 +450,44 @@ class VFAModel:
             for r in sim_routes
             for s in r.remaining_stops_at(time_min)
         ]
-
-        disruption_tasks = [
+        n_existing_disruptions = sum(
+            1 for t in remaining_tasks if t.task_type != "routine"
+        )
+        disruption_stubs = [
             MaintenanceTask(
                 node_idx=d.node_idx,
                 task_type="disruption",
                 priority=1,
                 service_time=int(round(d.service_min)),
-                soft_deadline_min=int(time_min),
-                deadline_penalty=self._disruption_deadline_penalty(d.power_kw),
+                days_since_maintenance=0.0,
             )
             for d in disruptions
         ]
+        all_tasks    = remaining_tasks + disruption_stubs
+        n_carryover  = n_existing_disruptions + len(disruptions)
 
-        all_tasks = remaining_tasks + disruption_tasks
-        if not all_tasks:
-            return 0, [], 0.0
-
-        extra_costs = self._compute_extra_costs(all_tasks)
-        new_plan = self.solver.replan(all_tasks, team_states, extra_costs=extra_costs)
-
-        if new_plan.solver_status in ("INFEASIBLE", "NO_SOLUTION"):
-            # VFA-Kern: Routine-Stops nach aufsteigendem ΔV̂ droppen
-            routine_tasks = [t for t in remaining_tasks if t.task_type == "routine"]
-            mandatory = [t for t in remaining_tasks if t.task_type != "routine"] + disruption_tasks
-
-            # ΔV̂ pro Station berechnen: niedrigstes Ersparnispotenzial zuerst
-            phi_s = self._phi(all_tasks)
-            v_s   = self._value(phi_s)
-
-            def delta_v(task: MaintenanceTask) -> float:
-                phi_prime = self._phi(all_tasks, exclude_node=task.node_idx)
-                return v_s - self._value(phi_prime)
-
-            routine_tasks.sort(key=delta_v)
-
-            solved = False
-            for n_drop in range(1, len(routine_tasks) + 1):
-                retry_tasks = mandatory + routine_tasks[n_drop:]
-                if not retry_tasks:
-                    break
-                retry_extra = self._compute_extra_costs(retry_tasks)
-                new_plan = self.solver.replan(retry_tasks, team_states, extra_costs=retry_extra)
-                if new_plan.solver_status not in ("INFEASIBLE", "NO_SOLUTION"):
-                    dropped = [t.node_idx for t in routine_tasks[:n_drop]]
-                    log.notes.append(
-                        f"VFA-Replan Retry: {n_drop} Routine-Stop(s) nach ΔV̂ ausgebaut "
-                        f"{dropped}, Status: {new_plan.solver_status}"
-                    )
-                    solved = True
-                    all_tasks = retry_tasks
-                    break
-
-            if not solved:
-                log.notes.append(
-                    f"VFA-Replan fehlgeschlagen ({new_plan.solver_status}): "
-                    f"{len(disruptions)} Störung(en) als Carryover."
-                )
-                return 0, list(disruptions), 0.0
-
-        new_routes = plan_to_sim_routes(new_plan, all_tasks, self.n_teams)
-        for i, route in enumerate(sim_routes):
-            completed = [s for s in route.stops if s.arrival_min <= time_min]
-            route.stops = completed + (new_routes[i].stops if i < len(new_routes) else [])
-
-        disruption_nodes = {d.node_idx: d for d in disruptions}
-        downtime_cost = 0.0
-        cp = self.cost_params
-        for route in sim_routes:
-            for stop in route.stops:
-                if stop.node_idx in disruption_nodes:
-                    d = disruption_nodes[stop.node_idx]
-                    report_min = float((hour - 8) * 60)
-                    wait_h = max(0.0, (stop.departure_min - report_min) / 60.0)
-                    d_cost = wait_h * d.power_kw * cp.downtime_eur_per_kwh
-                    downtime_cost += d_cost
-                    if d_cost > 0:
-                        log.notes.append(
-                            f"  Ausfall {d_cost:.2f} EUR ({wait_h:.2f} h Wartezeit)"
-                        )
-
-        log.notes.append(
-            f"VFA-Replan: {len(disruptions)} Störung(en) eingearbeitet, "
-            f"Status: {new_plan.solver_status}"
+        delta_global = self._compute_delta_global(
+            all_tasks,
+            n_carryover=n_carryover,
+            team_current_times=team_current_times,
+            time_min=time_min,
         )
-        return len(disruptions), [], downtime_cost
+
+        def drop_score_fn(node: int, dsm: float, rem_h: float, cur: int, det: float) -> float:
+            local_v      = self._local_value(node, dsm)
+            global_delta = delta_global.get(node, 0.0)
+            return self._alpha * local_v + self._beta * global_delta - self._wage_per_min * det
+
+        return handle_disruptions_greedy(
+            disruptions=disruptions,
+            sim_routes=sim_routes,
+            time_min=time_min,
+            hour=hour,
+            all_coords=self.all_coords,
+            traffic_matrices=self.solver.traffic_matrices,
+            workday_start_hour=self._workday_start_hour,
+            workday_minutes=self.WORKDAY_MINUTES,
+            cost_params=self.cost_params,
+            log=log,
+            drop_score_fn=drop_score_fn,
+        )

@@ -131,6 +131,7 @@ def main() -> None:
                         help="Kein Modell laden — festes δ verwenden")
     parser.add_argument("--model-path", type=str,   default="data/training/db_base/model.pkl")
     parser.add_argument("--theta-path", type=str,   default="data/training/cfa_future/theta.json")
+    parser.add_argument("--log-dir",    type=str,   default="logs/db_base")
     parser.add_argument("--verbose",    action="store_true")
     args = parser.parse_args()
 
@@ -170,11 +171,11 @@ def main() -> None:
         model_trained = db_model.clf is not None
 
     label = "DB-BASE (dynamisch)" if model_trained else f"DB-BASE (δ={args.delta:.1f} statisch)"
-    log_dir  = Path("logs/db_base/log")
-    json_dir = Path("logs/db_base/json")
+    log_dir  = Path(args.log_dir) / "log"
+    json_dir = Path(args.log_dir) / "json"
     log_dir.mkdir(parents=True, exist_ok=True)
     json_dir.mkdir(parents=True, exist_ok=True)
-    overview_path = log_dir / "db_base_overview.log"
+    overview_path = log_dir / f"{Path(args.log_dir).name}_overview.log"
 
     print(f"{label} — {args.runs} Läufe, max. {args.max_days} Tage")
 

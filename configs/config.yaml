@@ -106,6 +106,13 @@ cfa:
   # Nur Routine-Tasks, nur im Initialplan (Replan läuft ohne Penalty).
   alpha: 10.0                # Skalierungsfaktor (10 → ~23 min für 300 kW am Tagesende)
 
+vfa:
+  # Hybrid-VFA: Score = α × L(k) + β × ΔV̂_global(k)
+  # L(k)          = θ_local^T × φ_scaled_local(k)   (aus cfa_future θ)
+  # ΔV̂_global(k) = V̂(s) − V̂(s ohne k)             (aus train_vfa.py θ)
+  alpha: 1.0                 # Gewicht lokaler CFA-Future-Term
+  beta:  1.0                 # Gewicht globaler Zustandswert-Term
+
 maintenance:
   # Failure-Wahrscheinlichkeit pro Zeitschritt (wird später durch Daten kalibriert)
   failure_rate: 0.02
