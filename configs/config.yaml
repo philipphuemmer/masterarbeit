@@ -2,6 +2,32 @@ project:
   name: "Wartungsoptimierung E-Ladesäulen Würzburg"
   seed: 42
 
+rolling_horizon:
+  # false → exakt dasselbe Verhalten wie bisher (MaintenanceSimulator, kein RH)
+  # true  → RollingHorizonRunner aktiv: Drop-Entscheidungen bei Störungen werden
+  #          über einen kurzen Horizont bewertet und ggf. von der Basis-Policy überschrieben.
+  enabled: true
+
+  # Anzahl Tage, über die jeder Drop-Kandidat simuliert wird
+  horizon_days: 7
+
+  # Anzahl stochastischer Szenarien pro Kandidat (Erwartungswert-Approximation)
+  n_scenarios: 25
+
+  # Top-k Routine-Stops die als alternative Drop-Kandidaten bewertet werden
+  # (nach aufsteigendem drop_score der Basis-Policy)
+  top_k_candidates: 3
+
+  # true  → RH greift nur bei Drop-Entscheidungen bei Störungen ein
+  # false → zukünftige Erweiterung: auch bei Initialplanung eingreifen
+  improve_on_events_only: true
+
+  # Bei Überschreitung des Zeitbudgets: Fallback auf Basis-Policy-Entscheidung
+  fallback_to_legacy_on_timeout: true
+
+  # Maximale Bewertungszeit pro Störungsereignis in Sekunden
+  time_budget_sec: 5.0
+
 solver:
   # true  → OR-Tools für Initialplan und Replan (bisheriges Verhalten aller Modelle)
   # false → Greedy Routing (kein OR-Tools):

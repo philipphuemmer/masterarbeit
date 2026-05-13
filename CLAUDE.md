@@ -4,17 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Master's thesis on **maintenance route optimization for EV charging stations in Würzburg**. Optimizes daily routes for 2 maintenance teams servicing 397 charging stations using OR-Tools VRP solving, K-Means geographic clustering, and a Gymnasium RL environment.
+Master's thesis on **maintenance route optimization for EV charging stations in Würzburg**. Optimizes daily routes for 2 maintenance teams servicing 397 charging stations using greedy cheapest-insertion routing, K-Means geographic clustering, and a Gymnasium RL environment.
 
 **Key numbers**: 397 stations, 2 teams, 8:00–16:00 workday, 40 zones (configurable), 20 stations/team/day max.
 
 **Active policy tiers** (all in `src/models/`):
-1. **Myopic** — OR-Tools initial plan, greedy cheapest-insertion replan; no learned components
-2. **MyopicPlus** — OR-Tools everywhere; depot-distance sorted soft-deadlines, penalty ∝ `power_kW`; AddDisjunction replan
-3. **CFA** — OR-Tools everywhere; V̂/depot-distance sorted soft-deadlines, penalty ∝ V̂; manual V̂-drop loop replan; θ ∈ ℝ⁴ learned via OLS
-4. **VFA** — OR-Tools with ΔV̂ as `extra_costs`; manual V̂-drop loop replan; θ learned via OLS
-5. **DB** — greedy cheapest-insertion initial plan; OR-Tools replan; MLP α modulates soft-deadline penalties; trained via PPO
+1. **Myopic** — greedy cheapest-insertion everywhere; no learned components
+2. **MyopicPlus** — greedy everywhere; depot-distance sorted soft-deadlines, penalty ∝ `power_kW`
+3. **CFA** — greedy everywhere; V̂/depot-distance sorted soft-deadlines, penalty ∝ V̂; manual V̂-drop loop replan; θ ∈ ℝ⁴ learned via OLS
+4. **VFA** — greedy everywhere; ΔV̂ used for station prioritization; manual V̂-drop loop replan; θ learned via OLS
+5. **DB** — greedy everywhere; MLP α modulates soft-deadline penalties; trained via PPO
 6. **CFA-DB** — CFA-style U(k) soft-deadlines + DB's MLP α for drop-score; trained via PPO
+
+> **Note:** OR-Tools (`src/planning/vrp_solver.py`) is legacy code — no longer used by any active model but kept for reference.
 
 **Deprecated** (in `src/models/alt/`, scripts in `scripts/alt/`): CFA-Light, CFA-Real, DB-Alt.
 
@@ -81,13 +83,13 @@ No formal test suite exists (tests/ is empty).
 - `src/planning/selector.py` — `DailyZoneSelector` ranks open zones by score, assigns one start zone per team (≥1 km separation), expands to station list via nearest-neighbor. Two scoring modes via `planning.value_based_zone_selection`:
   - `false` (default): `w_depot × depot_dist + w_area × convex_hull_area`
   - `true`: `w_value × Σ zone_value(station) + w_depot × depot_dist`; requires `selector.value_fn` to be set after construction (see run scripts)
-- `src/planning/vrp_solver.py` — OR-Tools with time windows (0–workday_minutes), makespan balancing, intra-day replanning; selects correct hourly traffic matrix per departure time; supports `extra_costs` (node_idx → penalty minutes), `soft_deadline_min` / `deadline_penalty`, and `skip_penalty` (AddDisjunction) on `MaintenanceTask`
+- `src/planning/vrp_solver.py` — **legacy, unused** OR-Tools solver (time windows, makespan balancing, `extra_costs`, `soft_deadline_min`/`deadline_penalty`, AddDisjunction); kept for reference but not called by any active model
 
 ### Models
 
 **Common interface:** all models implement `create_initial_plan(tasks)` + `handle_disruptions(disruptions, sim_routes, time_min, hour, log)`.
 
-**Initialplan — carryover disruptions:** MyopicPlus, CFA, CFA-DB all set `soft_deadline_min=0` + penalty ∝ `power_kW` for carryover disruption tasks so OR-Tools schedules them early. Myopic and VFA do not (no deadline mechanism / extra_costs instead).
+**Initialplan — carryover disruptions:** MyopicPlus, CFA, CFA-DB all set `soft_deadline_min=0` + penalty ∝ `power_kW` for carryover disruption tasks so they are prioritized early in greedy insertion. Myopic and VFA do not use this mechanism.
 
 **Zone selection value functions** (set in run scripts when `value_based_zone_selection: true`):
 
@@ -109,19 +111,19 @@ No formal test suite exists (tests/ is empty).
 
 **VFA details** (`src/models/vfa.py`):
 - `φ(s) = [Σ(power×dsm), Σ(failure_risk×power), mean(dsm), max(power×dsm), n_remaining/n_stations, n_carryover]`
-- `V̂(s) = θᵀφ(s) + intercept`; `ΔV̂(k) = V̂(s) − V̂(s\k)` used as OR-Tools `extra_costs`
+- `V̂(s) = θᵀφ(s) + intercept`; `ΔV̂(k) = V̂(s) − V̂(s\k)` used for station prioritization in greedy insertion
 - `_station_value(node_idx, dsm)` uses only f0, f1 (no global context needed for zone scoring)
 
 **DB details** (`src/models/db.py`):
 - `φ(S) = [n_remaining/n_stations, frac(dsm>90), mean(dsm)/365, Σ(power×dsm)/norm, max(power×dsm)/norm, mean(dist_depot)/30km, std(dist_depot)/30km, n_carryover/10]`
 - `α = σ(MLP(φ(S)))` ∈ (0,1); `penalty = max(1, round((1−α) × MAX_ROUTINE_PENALTY))`
-- Initial plan: greedy cheapest-insertion (no OR-Tools); Replan: OR-Tools
+- Initial plan: greedy cheapest-insertion; Replan: greedy cheapest-insertion
 
 ### Simulation Loop (`MaintenanceSimulator`)
 `sim.run(mal_df, max_days)` drives the full year:
 - Tracks `remaining` stations, `carryover_tasks`, and `_days_since_maintenance[node_idx]` (stochastic mode only)
 - Calls `selector.select_for_day(remaining, team_states, carryover, dsm_array=...)` → task lists per team
-- Passes task lists to `policy.create_initial_plan()` → `VRPSolver`
+- Passes task lists to `policy.create_initial_plan()` → greedy cheapest-insertion
 - Each hour: generates disruptions, calls `policy.handle_disruptions()`
 
 ### Simulation Output (JSON)
@@ -135,7 +137,7 @@ Two modes via `failure_simulation.mode`:
 ### Configuration
 All parameters in `configs/config.yaml`. Key sections:
 - `planning`: `n_zones`, `max_stations_per_team`, `value_based_zone_selection`, `priority_weights`
-- `maintenance`: `n_teams`, `workday_start/end_hour`, `mean_service_time`, OR-Tools time limits
+- `maintenance`: `n_teams`, `workday_start/end_hour`, `mean_service_time`
 - `failure_simulation`: `mode`, `p1_per_hour`, `p2_per_hour`, `recovery_days`, `initial_factor`
 
 ## Important Notes
@@ -145,4 +147,4 @@ All parameters in `configs/config.yaml`. Key sections:
 - `value_based_zone_selection` only has effect when `failure_simulation.mode: stochastic` (requires `_days_since_maintenance`); in `csv` mode it silently falls back to classical scoring
 - DB/CFA-DB MLP α **requires `failure_simulation.mode: stochastic`** (csv mode makes state features trivial)
 - CFA θ is trained on Myopic policy rollouts via OLS — no retraining needed when changing zone scoring only
-- `VRPSolver._solve_teams_independently()` solves each team in isolation (1-vehicle model per team); OR-Tools drops from one team are **not** offered to the other team
+- `VRPSolver` is legacy — active models use greedy cheapest-insertion directly; drops from one team are never offered to the other team

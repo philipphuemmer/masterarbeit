@@ -69,6 +69,8 @@ DISCOUNT = 0.995          # γ pro Tag
 SAMPLE_EVERY_N_DAYS = 5   # Tage zwischen Snapshot-Punkten
 K_STATIONS = 3            # Stationen pro gesampeltem Tag (stratifiziert)
 N_FEATURES = 4
+N_REPS_PER_LABEL = 3      # CRN-Replikationen pro Trainingspunkt (Varianzreduktion)
+RIDGE_LAMBDA = 0.1        # Ridge-Regularisierungsparameter
 
 logger = logging.getLogger(__name__)
 
@@ -535,18 +537,19 @@ def run_contrastive_round(
     node_to_power: dict[int, float],
     node_to_age: dict[int, float],
     node_to_mean_dist: dict[int, float],
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Führt N Baseline-Simulationen durch und sammelt kontrastive Datenpunkte.
 
     Pro gesampelten Tag t und K stratifizierten Stationen k:
         1. Vorab-Szenario für H Tage sampeln (Common Random Numbers für j≠k)
-        2. serve_k Suffix: k besucht → dsm[k] = 0
-        3. drop_k Suffix:  k nicht besucht → dsm[k] steigt weiter
-        4. label_k = cost_drop_k − cost_serve_k
+        2. N_REPS_PER_LABEL unabhängige serve_k/drop_k Replikationen
+        3. label_mean_k = Ø(cost_drop − cost_serve) über Replikationen
+        4. label_std_k  = std(cost_drop − cost_serve)  → WLS-Gewicht
     """
     X_all: list[np.ndarray] = []
     y_all: list[float] = []
+    w_all: list[float] = []
     use_value_based = cfg["planning"].get("zone_selection_mode", "classic") == "value_based"
 
     label = "Myopic" if round_idx == 1 else "CFA-Future(θ_prev)"
@@ -632,35 +635,42 @@ def run_contrastive_round(
                     terminal_sigma=station_sigma,
                 )
 
-                # serve_k: k wurde gewartet, dsm[k] = 0 in dsm_after
-                serve_sim = SuffixSim(policy, selector, coords, df_base, mats, run_cfg)
-                serve_sim.configure(scenario=scenario, endogen_node=node_idx, rng_seed=seed)
-                cost_serve = serve_sim.run_from_state(
-                    initial_remaining=set(snap.remaining_after),
-                    initial_dsm=snap.dsm_after.copy(),
-                    **suffix_kwargs,
-                )
-
-                # drop_k: k nicht gewartet — k bleibt in remaining, dsm[k] = dsm_k + 1
                 dsm_drop = snap.dsm_after.copy()
                 dsm_drop[node_idx] = dsm_k + 1.0
                 remaining_drop = set(snap.remaining_after) | {station_idx}
 
-                drop_sim = SuffixSim(policy, selector, coords, df_base, mats, run_cfg)
-                drop_sim.configure(scenario=scenario, endogen_node=node_idx, rng_seed=seed)
-                cost_drop = drop_sim.run_from_state(
-                    initial_remaining=remaining_drop,
-                    initial_dsm=dsm_drop,
-                    **suffix_kwargs,
-                )
+                # N_REPS_PER_LABEL unabhängige CRN-Replikationen für Varianzreduktion
+                diffs: list[float] = []
+                for rep in range(N_REPS_PER_LABEL):
+                    rep_seed = seed + (rep + 1) * 100_000
 
-                label_k = cost_drop - cost_serve
+                    serve_sim = SuffixSim(policy, selector, coords, df_base, mats, run_cfg)
+                    serve_sim.configure(scenario=scenario, endogen_node=node_idx, rng_seed=rep_seed)
+                    cost_serve = serve_sim.run_from_state(
+                        initial_remaining=set(snap.remaining_after),
+                        initial_dsm=snap.dsm_after.copy(),
+                        **suffix_kwargs,
+                    )
+
+                    drop_sim = SuffixSim(policy, selector, coords, df_base, mats, run_cfg)
+                    drop_sim.configure(scenario=scenario, endogen_node=node_idx, rng_seed=rep_seed)
+                    cost_drop = drop_sim.run_from_state(
+                        initial_remaining=remaining_drop,
+                        initial_dsm=dsm_drop.copy(),
+                        **suffix_kwargs,
+                    )
+
+                    diffs.append(cost_drop - cost_serve)
+
+                label_mean = float(np.mean(diffs))
+                label_std = float(np.std(diffs)) if len(diffs) > 1 else 0.0
 
                 phi = _compute_phi(node_idx, dsm_k, run_cfg, node_to_power, node_to_age, node_to_mean_dist)
                 phi_scaled = (phi - station_mu) / np.maximum(station_sigma, 1e-8)
 
                 X_all.append(phi_scaled)
-                y_all.append(label_k)
+                y_all.append(label_mean)
+                w_all.append(label_std)
                 n_contrastive += 1
 
         elapsed = time.time() - t0
@@ -670,24 +680,61 @@ def run_contrastive_round(
             f"{len(snap_sim.snapshots)} Snapshots, {n_contrastive} Punkte, {elapsed:.0f}s)"
         )
 
-    return np.array(X_all), np.array(y_all)
+    return np.array(X_all), np.array(y_all), np.array(w_all)
 
 
 # ---------------------------------------------------------------------------
-# OLS-Regression
+# WLS-Ridge-Regression
 # ---------------------------------------------------------------------------
 
-def fit_theta(X: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, float, float]:
-    """OLS: drop_cost ≈ θᵀ φ_scaled(k) + intercept."""
+def fit_theta_wls_ridge(
+    X: np.ndarray,
+    y: np.ndarray,
+    label_stds: np.ndarray,
+    lam: float = RIDGE_LAMBDA,
+    use_wls: bool = False,
+) -> tuple[np.ndarray, float, float]:
+    """Ridge-Regression auf label_mean; optional WLS mit Invervarianz-Gewichten.
+
+    use_wls=False (default): gleichmäßige Gewichte → ungewichtete Ridge.
+    use_wls=True:            w_k = 1 / (label_std_k² + ε), ε = max(median(std²), 1.0).
+    Ridge λ regularisiert nur die Feature-Koeffizienten, nicht den Intercept.
+    """
+    # NaN/Inf-Punkte filtern
+    valid = np.isfinite(y) & np.isfinite(label_stds)
+    if not valid.all():
+        logger.warning("fit_theta_wls_ridge: %d NaN/Inf-Datenpunkte gefiltert.", int((~valid).sum()))
+        X, y, label_stds = X[valid], y[valid], label_stds[valid]
+    if len(X) == 0:
+        raise ValueError("Keine gültigen Datenpunkte für WLS-Ridge übrig.")
+
+    if use_wls:
+        eps = max(float(np.median(label_stds ** 2)), 1.0)
+        w = 1.0 / (label_stds ** 2 + eps)
+    else:
+        w = np.ones(len(y))
+
+    # [X | 1] — Intercept-Spalte wird nicht regularisiert
     A = np.column_stack([X, np.ones(len(X))])
-    coeffs, _, _, _ = np.linalg.lstsq(A, y, rcond=None)
+
+    # Ridge-Matrix: λ auf Feature-Block, 0 auf Intercept
+    reg = lam * np.eye(A.shape[1])
+    reg[-1, -1] = 0.0
+
+    # Effiziente WLS-Ridge: (AᵀWA + λI)⁻¹ AᵀW y  (kein N×N-Matrixprodukt)
+    Aw = A * w[:, None]
+    lhs = Aw.T @ A + reg
+    rhs = Aw.T @ y
+    coeffs = np.linalg.solve(lhs, rhs)
 
     theta_vec     = coeffs[:-1]
     intercept_val = float(coeffs[-1])
 
     y_pred = X @ theta_vec + intercept_val
-    ss_res = np.sum((y - y_pred) ** 2)
-    ss_tot = np.sum((y - np.mean(y)) ** 2)
+    # Gewichtetes R²
+    ss_res = float(np.sum(w * (y - y_pred) ** 2))
+    y_mean_w = float(np.sum(w * y) / np.sum(w))
+    ss_tot = float(np.sum(w * (y - y_mean_w) ** 2))
     r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
 
     return theta_vec, intercept_val, r2
@@ -787,9 +834,10 @@ def main() -> None:
     t0_total = time.time()
     X = np.zeros((0, N_FEATURES))
     y = np.zeros(0)
+    w = np.zeros(0)
 
     for round_idx in range(start_round, args.rounds + 1):
-        X, y = run_contrastive_round(
+        X, y, w = run_contrastive_round(
             round_idx=round_idx,
             cfg=cfg,
             coords=coords,
@@ -809,12 +857,12 @@ def main() -> None:
             print("  WARNUNG: Keine Datenpunkte gesammelt — Runde übersprungen.")
             continue
 
-        print(f"\n  OLS auf {len(X)} Datenpunkten ({X.shape[1]} Features)...")
-        theta_new, intercept_new, r2 = fit_theta(X, y)
+        print(f"\n  Ridge (λ={RIDGE_LAMBDA}) auf {len(X)} Datenpunkten ({X.shape[1]} Features)...")
+        theta_new, intercept_new, r2 = fit_theta_wls_ridge(X, y, w)
 
-        print(f"    R²         = {r2:.4f}")
-        print(f"    intercept  = {intercept_new:+.4f} EUR")
-        print(f"    ȳ (label)  = {np.mean(y):.2f} EUR  (σ = {np.std(y):.2f})")
+        print(f"    R² (gewichtet) = {r2:.4f}")
+        print(f"    intercept      = {intercept_new:+.4f} EUR")
+        print(f"    ȳ (label_mean) = {np.mean(y):.2f} EUR  (σ_labels = {np.std(w):.2f})")
         for name, t in zip(feature_names, theta_new):
             print(f"    θ[{name}] = {t:+.6e}")
 
@@ -823,7 +871,7 @@ def main() -> None:
             "intercept": intercept_new, "r2": r2,
             "n_samples": len(X),
             "label_mean": float(np.mean(y)),
-            "label_std": float(np.std(y)),
+            "label_std_mean": float(np.mean(w)),
         })
         theta = theta_new
         intercept_val = intercept_new
