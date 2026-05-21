@@ -16,7 +16,10 @@ Aktivierung via config.yaml:
       horizon_days: 7
       n_scenarios: 8
       top_k_candidates: 3
-      improve_on_events_only: true
+      enable_replan: true       # RH für Drop-Entscheidungen bei Störungen
+      enable_initial: false     # RH für Initialplanung (Seed-Rollout)
+      top_k_initial: 3
+      initial_seed_block_size: 2
       fallback_to_legacy_on_timeout: true
       time_budget_sec: 5.0
 
@@ -52,14 +55,16 @@ from src.models.simulator import (
 )
 from src.planning.clustering import _approx_km
 from src.planning.greedy_routing import (
+    _extend_route_greedily,
     _find_best_drop_and_insert,
     _find_best_insertion,
     _get_matrix,
     _insert_stop,
     _insertion_cost,
     _remove_stop_and_recompute,
+    complete_route_from_partial,
 )
-from src.planning.vrp_solver import DailyPlan, MaintenanceTask, TeamState
+from src.planning.vrp_solver import DailyPlan, MaintenanceTask, PlannedRoute, TeamState
 
 logger = logging.getLogger(__name__)
 
@@ -135,14 +140,45 @@ class PolicyAdapter:
         Gibt die drop_score_fn des zugrunde liegenden Modells zurück.
 
         Niedrigerer Score = zuerst droppen (konsistent mit handle_disruptions_greedy).
-        Fallback für Modelle ohne _value: negativer dsm-Wert.
+        Priorität: _drop_score_fn (exakte Policy-Logik) > _value/_wage_per_min > Fallback.
         """
         m = self.model
+        if hasattr(m, "_drop_score_fn"):
+            return m._drop_score_fn
         if hasattr(m, "_value") and hasattr(m, "_wage_per_min"):
             return lambda node, dsm, rem_h, cur, det: (
                 m._value(node, dsm) - m._wage_per_min * det
             )
         return lambda node, dsm, rem_h, cur, det: -float(dsm)
+
+    def get_value_fn(self) -> Optional[Callable[[int, float], float]]:
+        """C̃(node_idx, dsm) → float; None wenn Modell keine _value-Methode hat."""
+        m = self.model
+        return m._value if hasattr(m, "_value") else None
+
+    def get_route_score_fn_for_tasks(
+        self, tasks: list[MaintenanceTask]
+    ) -> Callable[[int, float, int], float]:
+        """
+        route_score_fn(node_idx, dsm, current_node) → float für greedy_initial_plan.
+
+        Repliziert die Logik aus CFAFutureModel.create_initial_plan (Greedy-Pfad):
+        score = (C̃(k) + shift) / dist(cur, k).
+        Fallback für Modelle ohne _value: 1.0 (Nearest-Neighbor).
+        """
+        m = self.model
+        if hasattr(m, "_value") and hasattr(m, "all_coords"):
+            from src.planning.clustering import _approx_km
+            min_val = min(
+                (m._value(t.node_idx, t.days_since_maintenance) for t in tasks),
+                default=0.0,
+            )
+            shift = max(0.0, -min_val) + 1.0
+            return lambda node, dsm, cur: (
+                (m._value(node, dsm) + shift)
+                / max(0.1, _approx_km(m.all_coords[cur], m.all_coords[node]))
+            )
+        return lambda node, dsm, cur: 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -297,18 +333,69 @@ class HorizonEvaluator:
             costs.append(total)
         return float(np.mean(costs))
 
-    def _run_day_fast(self, state: SystemState) -> _FastDayResult:
-        """Schnelle Tagessimulation ohne Logging für Horizont-Rollouts."""
+    def evaluate_with_forced_day0_plan(
+        self,
+        state: SystemState,
+        forced_plan: DailyPlan,
+        forced_tasks: list[MaintenanceTask],
+        horizon_days: int,
+        scenario_seeds: list[int],
+    ) -> float:
+        """
+        Rollout-Bewertung mit festem Initialplan für Tag 0.
+
+        Tag 0: forced_plan wird direkt simuliert (kein Neuplan durch Policy).
+        Tag 1..H-1: Standard-Rollout via evaluate().
+
+        Entspricht dem Rollout-Prinzip: erste Aktion explizit vorgegeben,
+        Rest von der Basisheuristik approximiert.
+        """
+        if not scenario_seeds:
+            return 0.0
+
+        costs: list[float] = []
+        for seed in scenario_seeds:
+            rng = np.random.default_rng(seed)
+            s = deepcopy(state)
+            s.rng = rng
+            total = 0.0
+            # Tag 0: forced plan
+            result = self._run_day_fast(s, forced_plan=forced_plan, forced_tasks=forced_tasks)
+            total += result.cost
+            s = self._update_state_fast(s, result)
+            # Tage 1..H-1: Standard-Rollout
+            for _ in range(horizon_days - 1):
+                if not s.remaining and not s.carryover_tasks:
+                    break
+                result = self._run_day_fast(s)
+                total += result.cost
+                s = self._update_state_fast(s, result)
+            costs.append(total)
+        return float(np.mean(costs))
+
+    def _run_day_fast(
+        self,
+        state: SystemState,
+        forced_plan: Optional[DailyPlan] = None,
+        forced_tasks: Optional[list[MaintenanceTask]] = None,
+    ) -> _FastDayResult:
+        """
+        Schnelle Tagessimulation ohne Logging für Horizont-Rollouts.
+
+        forced_plan / forced_tasks: wenn gesetzt, wird der Tagesplan nicht
+        von der Policy gebaut, sondern direkt verwendet (Initial-RH Day-0-Injection).
+        """
         team_states = [
             TeamState(team_id=i, current_node=0, current_time=0)
             for i in range(self.n_teams)
         ]
-        _, all_tasks, team_assignment = self.task_gen.build_daily_tasks(state, team_states)
 
-        if all_tasks:
-            daily_plan = self.policy.create_initial_plan(all_tasks, team_assignment)
+        if forced_plan is not None:
+            all_tasks = forced_tasks or []
+            daily_plan = forced_plan
         else:
-            daily_plan = None
+            _, all_tasks, team_assignment = self.task_gen.build_daily_tasks(state, team_states)
+            daily_plan = self.policy.create_initial_plan(all_tasks, team_assignment) if all_tasks else None
 
         sim_routes = plan_to_sim_routes(daily_plan, all_tasks, self.n_teams)
 
@@ -652,6 +739,298 @@ class RollingHorizonRunner:
         return result, state.rh_overrides
 
     # ------------------------------------------------------------------
+    # Initial-RH: Seed-Rollout für Initialplanung
+    # ------------------------------------------------------------------
+
+    def _extract_base_seed(
+        self,
+        route_stops: list[int],
+        zone_node_set: set[int],
+        block_size: int,
+    ) -> list[int]:
+        """
+        Längster Präfix von route_stops der in zone_node_set liegt, max. block_size Stops.
+
+        Besser als stumpfes stops[:block_size], weil Stops die bereits aus der
+        Startzone herausgelaufen sind nicht als Seed interpretiert werden.
+        """
+        seed = []
+        for node in route_stops:
+            if node not in zone_node_set or len(seed) >= block_size:
+                break
+            seed.append(node)
+        return seed
+
+    def _seed_prescore(
+        self,
+        block_nodes: list[int],
+        task_by_node: dict[int, MaintenanceTask],
+        value_fn: Optional[Callable[[int, float], float]],
+        mat8: np.ndarray,
+    ) -> float:
+        """
+        Heuristischer Prescore für einen Seed-Block (1 oder 2 Stops).
+
+        1-Stop:  C̃(k)        - wage_per_min × travel(depot→k)
+        2-Stop:  C̃(k1)+C̃(k2) - wage_per_min × (travel(depot→k1) + travel(k1→k2))
+
+        Niedrigere Anfahrtszeit und höherer C̃ → höherer Score → bevorzugt.
+        """
+        wage = self.cost_params.wage_eur_per_hour / 60.0
+        if value_fn is None:
+            val_fn = lambda node, dsm: 0.0  # noqa: E731
+        else:
+            val_fn = value_fn
+
+        if not block_nodes:
+            return -np.inf
+
+        score = 0.0
+        prev = 0  # Depot
+        for node in block_nodes:
+            t = task_by_node.get(node)
+            dsm = t.days_since_maintenance if t else 0.0
+            score += val_fn(node, dsm) - wage * mat8[prev, node] / 60.0
+            prev = node
+        return score
+
+    def _generate_seed_candidates_for_team(
+        self,
+        team_id: int,
+        base_plan: DailyPlan,
+        all_tasks: list[MaintenanceTask],
+        team_assignment: dict[int, list[int]],
+        block_size: int,
+        max_candidates: int,
+        value_fn: Optional[Callable[[int, float], float]],
+    ) -> list[list[int]]:
+        """
+        Erzeugt Seed-Kandidaten für ein Team.
+
+        Kandidat 0: Basis-Seed (aus base_plan).
+        Kandidaten 1..(max_candidates-1): Top-Alternativen nach Prescore.
+
+        Alternativ-Seeds:
+          - 1-Stop-Blöcke: alle Zone-Stationen mit Prescore
+          - 2-Stop-Blöcke (nur wenn block_size >= 2): beste Zone-Station + nächste Nachbarin
+
+        Diversitätsfilter: kein alternativer Seed mit identischer erster Station
+        wie ein bereits gewählter Kandidat.
+        """
+        mat8 = self._get_matrix(0.0)  # 8:00-Matrix für Prescore-Berechnung
+        zone_nodes: list[int] = team_assignment.get(team_id, [])
+        zone_node_set = set(zone_nodes)
+        task_by_node: dict[int, MaintenanceTask] = {t.node_idx: t for t in all_tasks}
+
+        # Basis-Seed aus base_plan extrahieren
+        base_route_stops: list[int] = []
+        for r in base_plan.routes:
+            if r.team_id == team_id:
+                base_route_stops = list(r.stops)
+                break
+        base_seed = self._extract_base_seed(base_route_stops, zone_node_set, block_size)
+
+        candidates: list[list[int]] = [base_seed]
+        chosen_first_nodes: set[int] = {base_seed[0]} if base_seed else set()
+
+        # Alle Zone-Stationen als potenzielle Seed-Startpunkte bewerten
+        scored: list[tuple[float, list[int]]] = []
+        for n1 in zone_nodes:
+            if n1 not in task_by_node:
+                continue
+            t1 = task_by_node[n1]
+            if t1.task_type == "carryover":
+                continue  # Carryover ist immer mandatory, kein Seed-Kandidat
+
+            if block_size >= 2:
+                # 2-Stop-Block: n1 + nächste Zone-Nachbarin n2
+                best_n2 = None
+                best_n2_dist = np.inf
+                for n2 in zone_nodes:
+                    if n2 == n1 or n2 not in task_by_node:
+                        continue
+                    t2 = task_by_node[n2]
+                    if t2.task_type == "carryover":
+                        continue
+                    d = mat8[n1, n2]
+                    if d < best_n2_dist:
+                        best_n2_dist = d
+                        best_n2 = n2
+                if best_n2 is not None:
+                    block = [n1, best_n2]
+                    s = self._seed_prescore(block, task_by_node, value_fn, mat8)
+                    scored.append((s, block))
+            else:
+                block = [n1]
+                s = self._seed_prescore(block, task_by_node, value_fn, mat8)
+                scored.append((s, block))
+
+        # Absteigend nach Prescore, Diversitätsfilter (unterschiedliche erste Station)
+        scored.sort(key=lambda x: x[0], reverse=True)
+        for _, block in scored:
+            if len(candidates) >= max_candidates:
+                break
+            first = block[0]
+            if first in chosen_first_nodes:
+                continue
+            candidates.append(block)
+            chosen_first_nodes.add(first)
+
+        return candidates
+
+    def _build_plan_with_team_seed(
+        self,
+        target_team_id: int,
+        seed_nodes: list[int],
+        all_tasks: list[MaintenanceTask],
+        team_assignment: dict[int, list[int]],
+        reference_plan: DailyPlan,
+        route_score_fn: Callable[[int, float, int], float],
+    ) -> DailyPlan:
+        """
+        Baut einen DailyPlan in dem ein Team einen festen Seed-Präfix hat.
+
+        target_team: seed_nodes → complete_route_from_partial → neue Route.
+        Andere Teams: Routen aus reference_plan übernehmen.
+        """
+        node_to_task = {t.node_idx: t for t in all_tasks}
+        team_tasks = [
+            node_to_task[n]
+            for n in team_assignment.get(target_team_id, [])
+            if n in node_to_task
+        ]
+
+        new_stops, new_arr, new_dep, team_travel = complete_route_from_partial(
+            seed_prefix_nodes=seed_nodes,
+            all_team_tasks=team_tasks,
+            traffic_matrices=self.traffic_matrices,
+            workday_start_hour=self.workday_start_hour,
+            workday_minutes=self.WORKDAY_MINUTES,
+            lunch_earliest_min=self._lunch_earliest,
+            lunch_duration_min=self._lunch_duration,
+            route_score_fn=route_score_fn,
+        )
+
+        routes: list[PlannedRoute] = []
+        total_travel = team_travel
+        for r in reference_plan.routes:
+            if r.team_id == target_team_id:
+                routes.append(PlannedRoute(
+                    team_id=target_team_id,
+                    stops=new_stops,
+                    arrival_times=new_arr,
+                    departure_times=new_dep,
+                ))
+            else:
+                routes.append(r)
+                total_travel += sum(
+                    int(round(self._get_matrix(dep)[fr, to] / 60.0))
+                    for fr, to, dep in zip(
+                        [0] + list(r.stops[:-1]),
+                        r.stops,
+                        [0.0] + list(r.departure_times[:-1]),
+                    )
+                ) if r.stops else 0
+
+        # Sicherstellen dass alle Teams vertreten sind
+        existing = {r.team_id for r in routes}
+        for i in range(self.n_teams):
+            if i not in existing:
+                routes.append(PlannedRoute(team_id=i, stops=[], arrival_times=[], departure_times=[]))
+
+        routes.sort(key=lambda r: r.team_id)
+        return DailyPlan(routes=routes, total_travel_time=total_travel, solver_status="OPTIMAL")
+
+    def create_initial_plan_rh(
+        self,
+        all_tasks: list[MaintenanceTask],
+        team_assignment: dict[int, list[int]],
+        state: SystemState,
+        rh_config: dict,
+    ) -> DailyPlan:
+        """
+        Initialplanung mit Seed-Rollout (Initial-RH).
+
+        Pro Team:
+          1. Basis-Seed aus base_plan + top-(top_k_initial-1) Alternativen nach Prescore.
+          2. Jeden Kandidaten per evaluate_with_forced_day0_plan bewerten (CRN).
+          3. Bestes Seed für dieses Team wählen.
+
+        Teams werden sequenziell optimiert:
+          Team 0: alle Kandidaten gegen Team 1 = Basis-Plan.
+          Team 1: alle Kandidaten gegen Team 0 = bester gewählter Seed von Team 0.
+
+        Falls kein brauchbarer Seed gefunden (leere Zone): Basis-Plan für dieses Team.
+        """
+        top_k = rh_config.get("top_k_initial", 3)
+        block_size = rh_config.get("initial_seed_block_size", 2)
+        horizon = rh_config.get("horizon_days", 7)
+        n_sc = rh_config.get("n_scenarios", 8)
+
+        base_plan = self.policy.create_initial_plan(all_tasks, team_assignment)
+        value_fn = self.policy.get_value_fn()
+        route_score_fn = self.policy.get_route_score_fn_for_tasks(all_tasks)
+
+        scenario_seeds = self.evaluator.draw_scenario_seeds(n_sc)
+
+        best_plan = base_plan
+        team_ids = sorted(team_assignment.keys())
+
+        for team_id in team_ids:
+            candidates = self._generate_seed_candidates_for_team(
+                team_id=team_id,
+                base_plan=best_plan,
+                all_tasks=all_tasks,
+                team_assignment=team_assignment,
+                block_size=block_size,
+                max_candidates=top_k,
+                value_fn=value_fn,
+            )
+
+            best_team_cost = np.inf
+            best_team_plan = best_plan
+            base_seed = candidates[0] if candidates else []
+            chosen_seed = base_seed
+
+            for seed in candidates:
+                if not seed:
+                    continue
+                candidate_plan = self._build_plan_with_team_seed(
+                    target_team_id=team_id,
+                    seed_nodes=seed,
+                    all_tasks=all_tasks,
+                    team_assignment=team_assignment,
+                    reference_plan=best_plan,
+                    route_score_fn=route_score_fn,
+                )
+                h_cost = self.evaluator.evaluate_with_forced_day0_plan(
+                    state=state,
+                    forced_plan=candidate_plan,
+                    forced_tasks=all_tasks,
+                    horizon_days=horizon,
+                    scenario_seeds=scenario_seeds,
+                )
+                if h_cost < best_team_cost:
+                    best_team_cost = h_cost
+                    best_team_plan = candidate_plan
+                    chosen_seed = seed
+
+            if chosen_seed != base_seed:
+                logger.info(
+                    f"Initial-RH Team {team_id}: Seed {chosen_seed} statt {base_seed} "
+                    f"(Horizont {best_team_cost:.2f} EUR)"
+                )
+            else:
+                logger.info(
+                    f"Initial-RH Team {team_id}: Basis-Seed bestätigt {base_seed} "
+                    f"(Horizont {best_team_cost:.2f} EUR)"
+                )
+
+            best_plan = best_team_plan
+
+        return best_plan
+
+    # ------------------------------------------------------------------
     # Tages-Simulation mit RH-Eingriff
     # ------------------------------------------------------------------
 
@@ -675,8 +1054,17 @@ class RollingHorizonRunner:
         )
         n_routine = sum(1 for t in all_tasks if t.task_type == "routine")
 
+        rh_enabled = rh_config.get("enabled", False)
+        enable_replan = rh_config.get("enable_replan", True)
+        enable_initial = rh_config.get("enable_initial", False)
+
         if all_tasks:
-            daily_plan = self.policy.create_initial_plan(all_tasks, team_assignment)
+            if rh_enabled and enable_initial:
+                daily_plan = self.create_initial_plan_rh(
+                    all_tasks, team_assignment, state, rh_config
+                )
+            else:
+                daily_plan = self.policy.create_initial_plan(all_tasks, team_assignment)
             logger.info(
                 f"RH Tag {day:>3d}: {len(all_tasks)} Aufgaben ({n_routine} Routine, "
                 f"{len(all_tasks) - n_routine} Carryover)"
@@ -760,10 +1148,15 @@ class RollingHorizonRunner:
                     for r in sim_routes
                 }
 
-                handled, carried, h_downtime = self._handle_disruptions_rh(
-                    h_disruptions, sim_routes, state, all_tasks,
-                    time_min, hour, hour_log, rh_config, drop_score_fn
-                )
+                if rh_enabled and enable_replan:
+                    handled, carried, h_downtime = self._handle_disruptions_rh(
+                        h_disruptions, sim_routes, state, all_tasks,
+                        time_min, hour, hour_log, rh_config, drop_score_fn
+                    )
+                else:
+                    handled, carried, h_downtime = self.policy.handle_disruptions(
+                        h_disruptions, sim_routes, time_min, hour, hour_log
+                    )
                 disruptions_handled += handled
                 carried_disruptions.extend(carried)
                 downtime_cost += h_downtime
@@ -1360,6 +1753,19 @@ class RollingHorizonRunner:
         return self.traffic_matrices[hour]
 
     # ------------------------------------------------------------------
+    # Log-Output (kompatibel mit MaintenanceSimulator.write_log)
+    # ------------------------------------------------------------------
+
+    def write_log(
+        self,
+        result: SimulationResult,
+        path: str,
+        label: str = "SIMULATION",
+    ) -> None:
+        from src.models.simulator import MaintenanceSimulator
+        MaintenanceSimulator.write_log(self, result, path, label)
+
+    # ------------------------------------------------------------------
     # JSON-Output (kompatibel mit MaintenanceSimulator.write_json)
     # ------------------------------------------------------------------
 
@@ -1442,10 +1848,14 @@ class RollingHorizonRunner:
 
         if rh_config:
             payload["rolling_horizon_meta"] = {
-                "enabled": True,
+                "enabled": rh_config.get("enabled", True),
+                "enable_replan": rh_config.get("enable_replan", True),
+                "enable_initial": rh_config.get("enable_initial", False),
                 "horizon_days": rh_config.get("horizon_days"),
                 "n_scenarios": rh_config.get("n_scenarios"),
                 "top_k_candidates": rh_config.get("top_k_candidates"),
+                "top_k_initial": rh_config.get("top_k_initial"),
+                "initial_seed_block_size": rh_config.get("initial_seed_block_size"),
                 "time_budget_sec": rh_config.get("time_budget_sec"),
                 "rh_overrides": rh_overrides,
             }

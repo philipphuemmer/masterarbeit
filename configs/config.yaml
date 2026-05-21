@@ -18,15 +18,25 @@ rolling_horizon:
   # (nach aufsteigendem drop_score der Basis-Policy)
   top_k_candidates: 3
 
-  # true  → RH greift nur bei Drop-Entscheidungen bei Störungen ein
-  # false → zukünftige Erweiterung: auch bei Initialplanung eingreifen
-  improve_on_events_only: true
+  # RH bei Störungs-Drop-Entscheidungen: top_k_candidates Routine-Stops
+  # werden per Horizont-Rollout verglichen; bester Drop gewinnt.
+  enable_replan: false
+
+  # RH bei Initialplanung: Seed-Rollout pro Team innerhalb fixer Startzone.
+  # top_k_initial Seed-Blöcke (Größe initial_seed_block_size) werden bewertet.
+  enable_initial: true
+
+  # Anzahl Seed-Kandidaten pro Team bei Initial-RH (Kandidat 0 = Basis-Policy)
+  top_k_initial: 3
+
+  # Größe des Seed-Blocks: 1 = einzelne Startstation, 2 = Zweier-Block
+  initial_seed_block_size: 1
 
   # Bei Überschreitung des Zeitbudgets: Fallback auf Basis-Policy-Entscheidung
   fallback_to_legacy_on_timeout: true
 
   # Maximale Bewertungszeit pro Störungsereignis in Sekunden
-  time_budget_sec: 5.0
+  time_budget_sec: 100.0
 
 solver:
   # true  → OR-Tools für Initialplan und Replan (bisheriges Verhalten aller Modelle)
@@ -77,11 +87,11 @@ planning:
   n_zones: 120
   # Tägliche Zonenauswahl
   n_top_candidates: 20       # Aus allen offenen Zonen: Top-N nach Prioritätsscore für Startzone
-  min_team_separation_km: 1.0  # Mindestabstand zwischen Team-Zonen
+  min_team_separation_km: 0.0  # Mindestabstand zwischen Team-Zonen
   max_stations_per_team: 20  # Max. Routine-Kandidaten pro Team; OR-Tools löst innerhalb Zeitfenster
   travel_reserve_min: 20     # Zeitpuffer für An-/Abfahrt zum Depot [min]
   # Zonenauswahlmodus:
-  #   "classic"        → depot_distance + convex_hull_area (Myopic-Verhalten)
+  #   "classic"        → depot_distance + convex_hull_area
   #   "centrality"     → Zonen mit geringster mittlerer Distanz zu anderen Zonen zuerst
   #   "depot_distance" → nur mittlere Depot-Entfernung (nächste Zonen zuerst)
   #   "value_based"    → modellspezifische Wertfunktion (CFA/VFA/...)

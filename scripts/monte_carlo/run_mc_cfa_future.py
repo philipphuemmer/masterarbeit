@@ -408,6 +408,9 @@ def main() -> None:
                               label="CFA-FUTURE SIMULATION [Rolling Horizon]",
                               run_id=seed, model_params=model_params,
                               rh_config=rh_cfg, rh_overrides=rh_ov)
+            log_path = log_dir / f"run_{seed}.log"
+            runner.write_log(result, str(log_path),
+                             label="CFA-FUTURE SIMULATION [Rolling Horizon]")
 
             results.append(result)
             rh_overrides_list.append(rh_ov)

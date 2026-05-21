@@ -83,6 +83,66 @@ def _arrive(departure: int, travel_min: int, lunch_start: int, lunch_end: int) -
     return arrival
 
 
+def _extend_route_greedily(
+    remaining_tasks: list[MaintenanceTask],
+    current_node: int,
+    current_time: int,
+    traffic_matrices: dict[int, np.ndarray],
+    workday_start_hour: int,
+    workday_minutes: int,
+    lunch_earliest_min: int,
+    lunch_end: int,
+    route_score_fn: Callable[[int, float, int], float],
+) -> tuple[list[int], list[int], list[int], int]:
+    """
+    Greedy-Erweiterung einer Route ab einem gegebenen Startzustand.
+
+    Kerns-Loop von greedy_initial_plan — wird von greedy_initial_plan und
+    complete_route_from_partial gemeinsam genutzt.
+
+    Returns
+    -------
+    (stops, arrivals, departures, total_travel_added)
+    """
+    stops: list[int] = []
+    arrivals: list[int] = []
+    departures: list[int] = []
+    total_travel = 0
+    remaining = list(remaining_tasks)
+
+    while remaining:
+        matrix = _get_matrix(traffic_matrices, current_time, workday_start_hour)
+        cur = current_node
+        order = sorted(
+            range(len(remaining)),
+            key=lambda i: route_score_fn(
+                remaining[i].node_idx, remaining[i].days_since_maintenance, cur
+            ),
+            reverse=True,
+        )
+        placed = False
+        for idx in order:
+            task = remaining[idx]
+            travel = int(round(matrix[cur, task.node_idx] / 60.0))
+            arrival = _arrive(current_time, travel, lunch_earliest_min, lunch_end)
+            departure = arrival + task.service_time
+            return_travel = int(round(matrix[task.node_idx, 0] / 60.0))
+            if departure + return_travel <= workday_minutes:
+                remaining.pop(idx)
+                total_travel += travel
+                stops.append(task.node_idx)
+                arrivals.append(arrival)
+                departures.append(departure)
+                current_node = task.node_idx
+                current_time = departure
+                placed = True
+                break
+        if not placed:
+            break
+
+    return stops, arrivals, departures, total_travel
+
+
 def greedy_initial_plan(
     tasks: list[MaintenanceTask],
     team_assignment: Optional[dict[int, list[int]]],
@@ -140,10 +200,10 @@ def greedy_initial_plan(
         stops: list[int]       = []
         arrivals: list[int]    = []
         departures: list[int]  = []
-        current_node = 0   # Depot
-        current_time = 0   # Minuten ab 8:00
+        current_node = 0
+        current_time = 0
 
-        # 1. Carryover: Nearest-Neighbor (mandatory, Mittagspause berücksichtigt)
+        # 1. Carryover: Nearest-Neighbor (mandatory)
         remaining = list(carryover)
         while remaining:
             matrix = _get_matrix(traffic_matrices, current_time, workday_start_hour)
@@ -159,42 +219,22 @@ def greedy_initial_plan(
             current_node = task.node_idx
             current_time = departure
 
-        # 2. Routine: greedy nach route_score_fn
-        #    Mittagspause beachten + Depot-Rückkehr vor Arbeitstagesende prüfen
-        remaining = list(routine)
-        while remaining:
-            matrix = _get_matrix(traffic_matrices, current_time, workday_start_hour)
-            cur = current_node
-
-            # Stationen absteigend nach Score sortieren, erste feasible nehmen
-            order = sorted(
-                range(len(remaining)),
-                key=lambda i: route_score_fn(
-                    remaining[i].node_idx, remaining[i].days_since_maintenance, cur
-                ),
-                reverse=True,
-            )
-
-            placed = False
-            for idx in order:
-                task = remaining[idx]
-                travel = int(round(matrix[cur, task.node_idx] / 60.0))
-                arrival = _arrive(current_time, travel, lunch_earliest_min, lunch_end)
-                departure = arrival + task.service_time
-                return_travel = int(round(matrix[task.node_idx, 0] / 60.0))
-                if departure + return_travel <= workday_minutes:
-                    remaining.pop(idx)
-                    total_travel += travel
-                    stops.append(task.node_idx)
-                    arrivals.append(arrival)
-                    departures.append(departure)
-                    current_node = task.node_idx
-                    current_time = departure
-                    placed = True
-                    break
-
-            if not placed:
-                break  # Keine Station passt mehr ins Zeitfenster
+        # 2. Routine: greedy via _extend_route_greedily
+        ext_stops, ext_arr, ext_dep, ext_travel = _extend_route_greedily(
+            remaining_tasks=routine,
+            current_node=current_node,
+            current_time=current_time,
+            traffic_matrices=traffic_matrices,
+            workday_start_hour=workday_start_hour,
+            workday_minutes=workday_minutes,
+            lunch_earliest_min=lunch_earliest_min,
+            lunch_end=lunch_end,
+            route_score_fn=route_score_fn,
+        )
+        stops += ext_stops
+        arrivals += ext_arr
+        departures += ext_dep
+        total_travel += ext_travel
 
         routes.append(PlannedRoute(
             team_id=tid,
@@ -204,6 +244,105 @@ def greedy_initial_plan(
         ))
 
     return DailyPlan(routes=routes, total_travel_time=total_travel, solver_status="OPTIMAL")
+
+
+def complete_route_from_partial(
+    seed_prefix_nodes: list[int],
+    all_team_tasks: list[MaintenanceTask],
+    traffic_matrices: dict[int, np.ndarray],
+    workday_start_hour: int,
+    workday_minutes: int,
+    lunch_earliest_min: int,
+    lunch_duration_min: int,
+    route_score_fn: Callable[[int, float, int], float],
+) -> tuple[list[int], list[int], list[int], int]:
+    """
+    Vervollständigt eine Team-Route ab einem fixierten Seed-Präfix.
+
+    Ablauf:
+      1. Carryover-Tasks: Nearest-Neighbor (mandatory, identisch zu greedy_initial_plan)
+      2. Seed-Präfix:     fest eingeplant in gegebener Reihenfolge
+      3. Rest:            greedy via _extend_route_greedily
+
+    Parameters
+    ----------
+    seed_prefix_nodes
+        Geordnete node_idx-Liste der fest eingeplanten Startstops (Routine).
+        Müssen in all_team_tasks enthalten sein.
+    all_team_tasks
+        Alle Tasks dieses Teams (Carryover + Routine).
+
+    Returns
+    -------
+    (stops, arrivals, departures, total_travel)
+    """
+    lunch_end = lunch_earliest_min + lunch_duration_min
+    node_to_task: dict[int, MaintenanceTask] = {t.node_idx: t for t in all_team_tasks}
+
+    stops: list[int] = []
+    arrivals: list[int] = []
+    departures: list[int] = []
+    total_travel = 0
+    current_node = 0
+    current_time = 0
+
+    # 1. Carryover: Nearest-Neighbor
+    carryover = [t for t in all_team_tasks if t.task_type == "carryover"]
+    remaining_co = list(carryover)
+    while remaining_co:
+        matrix = _get_matrix(traffic_matrices, current_time, workday_start_hour)
+        best = int(np.argmin([matrix[current_node, t.node_idx] for t in remaining_co]))
+        task = remaining_co.pop(best)
+        travel = int(round(matrix[current_node, task.node_idx] / 60.0))
+        total_travel += travel
+        arrival = _arrive(current_time, travel, lunch_earliest_min, lunch_end)
+        departure = arrival + task.service_time
+        stops.append(task.node_idx)
+        arrivals.append(arrival)
+        departures.append(departure)
+        current_node = task.node_idx
+        current_time = departure
+
+    # 2. Seed-Präfix: fest einfügen
+    seed_set = set(seed_prefix_nodes)
+    for node_idx in seed_prefix_nodes:
+        task = node_to_task.get(node_idx)
+        if task is None:
+            continue
+        matrix = _get_matrix(traffic_matrices, current_time, workday_start_hour)
+        travel = int(round(matrix[current_node, node_idx] / 60.0))
+        total_travel += travel
+        arrival = _arrive(current_time, travel, lunch_earliest_min, lunch_end)
+        departure = arrival + task.service_time
+        stops.append(node_idx)
+        arrivals.append(arrival)
+        departures.append(departure)
+        current_node = node_idx
+        current_time = departure
+
+    # 3. Restliche Routine-Tasks greedy erweitern
+    remaining_routine = [
+        t for t in all_team_tasks
+        if t.task_type != "carryover" and t.node_idx not in seed_set
+    ]
+    ext_stops, ext_arr, ext_dep, ext_travel = _extend_route_greedily(
+        remaining_tasks=remaining_routine,
+        current_node=current_node,
+        current_time=current_time,
+        traffic_matrices=traffic_matrices,
+        workday_start_hour=workday_start_hour,
+        workday_minutes=workday_minutes,
+        lunch_earliest_min=lunch_earliest_min,
+        lunch_end=lunch_end,
+        route_score_fn=route_score_fn,
+    )
+
+    return (
+        stops + ext_stops,
+        arrivals + ext_arr,
+        departures + ext_dep,
+        total_travel + ext_travel,
+    )
 
 
 # ---------------------------------------------------------------------------

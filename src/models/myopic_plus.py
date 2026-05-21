@@ -107,10 +107,23 @@ class MyopicPlusModel:
         self._workday_start_hour: int = maint["workday_start_hour"]
         self._lunch_earliest_min: int = maint.get("lunch_earliest_min", 240)
         self._lunch_duration_min: int = maint.get("lunch_duration_min", 0)
+        self._wage_per_min: float = self.cost_params.wage_eur_per_hour / 60.0
+
+        # Exakte Drop-Score-Funktion für PolicyAdapter (RH-Kontext).
+        # Muss identisch zur greedy-Pfad-Logik in handle_disruptions sein,
+        # damit _find_best_drop_and_insert denselben Basiskandidaten wählt.
+        self._drop_score_fn = lambda node, dsm, rem_h, cur, det: (
+            self.node_to_power.get(node, 22.0)
+            / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
+        )
 
     # ------------------------------------------------------------------
     # Hilfsmethoden
     # ------------------------------------------------------------------
+
+    def _value(self, node_idx: int, days_since_maintenance: float) -> float:
+        """Stationswert für PolicyAdapter (RH-Drop-Scoring): aliasiert _zone_value."""
+        return self._zone_value(node_idx, days_since_maintenance)
 
     def _zone_value(self, node_idx: int, days_since_maintenance: float) -> float:
         """Heuristischer Stationswert für V̂-basierte Zonenauswahl.
