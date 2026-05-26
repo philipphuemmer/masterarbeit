@@ -408,6 +408,33 @@ class HorizonEvaluator:
             costs.append(total)
         return float(np.mean(costs))
 
+    def evaluate_with_forced_day0_plan_scenarios(
+        self,
+        state: SystemState,
+        forced_plan: DailyPlan,
+        forced_tasks: list[MaintenanceTask],
+        horizon_days: int,
+        scenario_seeds: list[int],
+    ) -> list[float]:
+        """Wie evaluate_with_forced_day0_plan, aber gibt Szenario-Einzelkosten zurück (für Win-Rate-Vergleich)."""
+        costs: list[float] = []
+        for seed in scenario_seeds:
+            rng = np.random.default_rng(seed)
+            s = deepcopy(state)
+            s.rng = rng
+            total = 0.0
+            result = self._run_day_fast(s, forced_plan=forced_plan, forced_tasks=forced_tasks)
+            total += result.cost
+            s = self._update_state_fast(s, result)
+            for _ in range(horizon_days - 1):
+                if not s.remaining and not s.carryover_tasks:
+                    break
+                result = self._run_day_fast(s)
+                total += result.cost
+                s = self._update_state_fast(s, result)
+            costs.append(total)
+        return costs
+
     def _run_day_fast(
         self,
         state: SystemState,
@@ -1171,6 +1198,8 @@ class RollingHorizonRunner:
         block_size = rh_config.get("initial_seed_block_size", 2)
         horizon = rh_config.get("horizon_days", 7)
         n_sc = rh_config.get("n_scenarios", 8)
+        selection_mode: str = rh_config.get("candidate_selection_mode", "expected_value")
+        win_rate_threshold: float = rh_config.get("win_rate_threshold", 0.8)
 
         base_plan = self.policy.create_initial_plan(all_tasks, team_assignment)
         value_fn = self.policy.get_value_fn()
@@ -1193,33 +1222,84 @@ class RollingHorizonRunner:
                 value_fn=value_fn,
             )
 
-            best_team_cost = np.inf
             best_team_plan = best_plan
             base_seed = candidates[0] if candidates else []
             chosen_seed = base_seed
 
-            for seed in candidates:
-                if not seed:
-                    continue
-                candidate_plan = self._build_plan_with_team_seed(
+            if selection_mode == "win_rate":
+                # Basis-Plan einmal bewerten; Kandidaten nur wechseln wenn
+                # win_rate ≥ Schwelle UND mittlerer Gewinn am höchsten.
+                base_plan_for_team = self._build_plan_with_team_seed(
                     target_team_id=team_id,
-                    seed_nodes=seed,
+                    seed_nodes=base_seed,
                     all_tasks=all_tasks,
                     team_assignment=team_assignment,
                     reference_plan=best_plan,
                     route_score_fn=route_score_fn,
-                )
-                h_cost = self.evaluator.evaluate_with_forced_day0_plan(
+                ) if base_seed else best_plan
+                base_costs = self.evaluator.evaluate_with_forced_day0_plan_scenarios(
                     state=state,
-                    forced_plan=candidate_plan,
+                    forced_plan=base_plan_for_team,
                     forced_tasks=all_tasks,
                     horizon_days=horizon,
                     scenario_seeds=scenario_seeds,
                 )
-                if h_cost < best_team_cost:
-                    best_team_cost = h_cost
-                    best_team_plan = candidate_plan
-                    chosen_seed = seed
+                best_team_cost = float(np.mean(base_costs)) if base_costs else np.inf
+                best_gain = 0.0
+
+                for seed in candidates[1:]:  # Kandidat 0 ist der Basis-Seed
+                    if not seed:
+                        continue
+                    candidate_plan = self._build_plan_with_team_seed(
+                        target_team_id=team_id,
+                        seed_nodes=seed,
+                        all_tasks=all_tasks,
+                        team_assignment=team_assignment,
+                        reference_plan=best_plan,
+                        route_score_fn=route_score_fn,
+                    )
+                    cand_costs = self.evaluator.evaluate_with_forced_day0_plan_scenarios(
+                        state=state,
+                        forced_plan=candidate_plan,
+                        forced_tasks=all_tasks,
+                        horizon_days=horizon,
+                        scenario_seeds=scenario_seeds,
+                    )
+                    if not cand_costs or not base_costs:
+                        continue
+                    deltas = [c - b for c, b in zip(cand_costs, base_costs)]
+                    win_rate = sum(1 for d in deltas if d < 0) / len(deltas)
+                    avg_gain = -float(np.mean(deltas))
+                    if win_rate >= win_rate_threshold and avg_gain > best_gain:
+                        best_gain = avg_gain
+                        best_team_cost = float(np.mean(cand_costs))
+                        best_team_plan = candidate_plan
+                        chosen_seed = seed
+            else:
+                # expected_value: Kandidat mit niedrigstem Erwartungswert gewinnt.
+                best_team_cost = np.inf
+                for seed in candidates:
+                    if not seed:
+                        continue
+                    candidate_plan = self._build_plan_with_team_seed(
+                        target_team_id=team_id,
+                        seed_nodes=seed,
+                        all_tasks=all_tasks,
+                        team_assignment=team_assignment,
+                        reference_plan=best_plan,
+                        route_score_fn=route_score_fn,
+                    )
+                    h_cost = self.evaluator.evaluate_with_forced_day0_plan(
+                        state=state,
+                        forced_plan=candidate_plan,
+                        forced_tasks=all_tasks,
+                        horizon_days=horizon,
+                        scenario_seeds=scenario_seeds,
+                    )
+                    if h_cost < best_team_cost:
+                        best_team_cost = h_cost
+                        best_team_plan = candidate_plan
+                        chosen_seed = seed
 
             if chosen_seed != base_seed:
                 state.initial_overrides += 1

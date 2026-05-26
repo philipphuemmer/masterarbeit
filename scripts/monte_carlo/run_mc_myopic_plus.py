@@ -415,7 +415,7 @@ def main() -> None:
             sim.write_log(result, str(log_path), label="MYOPIC PLUS SIMULATION")
 
             completed[seed] = result
-            completed_rh[seed] = 0
+            completed_rh[seed] = (0, 0)
 
         else:
             # ------------------------------------------------------------------
