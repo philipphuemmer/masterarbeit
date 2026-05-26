@@ -84,6 +84,9 @@ class SimRoute:
     stops: list[SimStop] = field(default_factory=list)
     lunch_start_min: Optional[float] = None
     lunch_end_min: Optional[float] = None
+    end_time_realized: float = float("nan")
+    deadline_violated: bool = False
+    overtime_min: float = 0.0
 
     def current_node_at(self, time_min: float) -> int:
         arrived = [s for s in self.stops if s.arrival_min <= time_min]
@@ -250,6 +253,8 @@ class DayResult:
     fuel_cost_eur: float
     downtime_cost_eur: float
     hourly_logs: list[HourLog]
+    stochastic_metrics: list[dict] = field(default_factory=list)
+    realized_travel_metrics: list[dict] = field(default_factory=list)
 
     @property
     def total_cost_eur(self) -> float:
@@ -466,6 +471,21 @@ class MaintenanceSimulator:
                 )
             seed = config.get("project", {}).get("seed", 42)
             self._rng = np.random.default_rng(seed)
+
+        # Stochastische Fahrtzeiten (unabhängig vom Störungsmodus)
+        stoch_cfg = config.get("stochastic_travel_times", {})
+        self._stochastic_travel_enabled: bool = bool(stoch_cfg.get("enabled", False))
+        _raw_cv = stoch_cfg.get("cv_by_hour", {})
+        self._stoch_cv_by_hour: dict[int, float] = {
+            int(k): float(v) for k, v in _raw_cv.items()
+        }
+        self._stoch_n_runs: int = int(stoch_cfg.get("n_mc_runs", 200))
+        self._stoch_alpha: float = float(stoch_cfg.get("feasibility_alpha", 0.95))
+        _stoch_seed = config.get("project", {}).get("seed", 42)
+        self._stoch_rng = np.random.default_rng(_stoch_seed + 1)
+        # Separater RNG nur für MC-Routenbewertung (KPI-Reporting) — damit der Eval
+        # den _stoch_rng-Zustand nicht verschiebt und Realisierungssamples reproduzierbar bleiben.
+        self._stoch_eval_rng = np.random.default_rng(_stoch_seed + 2)
 
     # ------------------------------------------------------------------
     # Öffentliche API
@@ -749,6 +769,49 @@ class MaintenanceSimulator:
         fuel_total = sum(r.fuel_cost_eur for r in result.day_results)
         dt_total = sum(r.downtime_cost_eur for r in result.day_results)
 
+        # Stochastische Zusammenfassung (nur wenn mindestens ein Tag MC-Metriken hat)
+        _all_stoch = [m for r in result.day_results for m in r.stochastic_metrics]
+        if _all_stoch:
+            _stoch_summary: dict | None = {
+                "n_mc_runs": _all_stoch[0]["n_runs"],
+                "feasibility_alpha": self._stoch_alpha,
+                "mean_overtime_prob": round(
+                    sum(m["overtime_prob"] for m in _all_stoch) / len(_all_stoch), 4
+                ),
+                "mean_p95_end_min": round(
+                    sum(m["p95_end_min"] for m in _all_stoch) / len(_all_stoch), 2
+                ),
+                "mean_overtime_min": round(
+                    sum(m["mean_overtime_min"] for m in _all_stoch) / len(_all_stoch), 2
+                ),
+                "frac_feasible_routes": round(
+                    sum(1 for m in _all_stoch if m["overtime_prob"] <= 1 - self._stoch_alpha)
+                    / len(_all_stoch),
+                    4,
+                ),
+            }
+        else:
+            _stoch_summary = None
+
+        # Zusammenfassung realisierter Trajektorien (Einzelzug pro Tag)
+        _all_realized = [m for r in result.day_results for m in r.realized_travel_metrics]
+        if _all_realized:
+            _n = len(_all_realized)
+            _realized_summary: dict | None = {
+                "n_team_days": _n,
+                "deadline_violation_prob": round(
+                    sum(1 for m in _all_realized if m["deadline_violated"]) / _n, 4
+                ),
+                "mean_end_time_realized": round(
+                    sum(m["end_time_realized"] for m in _all_realized) / _n, 2
+                ),
+                "mean_overtime_min": round(
+                    sum(m["overtime_min"] for m in _all_realized) / _n, 2
+                ),
+            }
+        else:
+            _realized_summary = None
+
         meta: dict = {
             "label": label,
             "run_id": run_id,
@@ -772,6 +835,8 @@ class MaintenanceSimulator:
                 "wage_cost_eur": round(wage_total, 4),
                 "fuel_cost_eur": round(fuel_total, 4),
                 "downtime_cost_eur": round(dt_total, 4),
+                **({"stochastic_travel_times": _stoch_summary} if _stoch_summary else {}),
+                **({"realized_travel_times": _realized_summary} if _realized_summary else {}),
             },
             "days": [
                 {
@@ -785,6 +850,8 @@ class MaintenanceSimulator:
                     "fuel_cost_eur": round(r.fuel_cost_eur, 4),
                     "downtime_cost_eur": round(r.downtime_cost_eur, 4),
                     "total_cost_eur": round(r.total_cost_eur, 4),
+                    **({"stochastic_metrics": r.stochastic_metrics} if r.stochastic_metrics else {}),
+                    **({"realized_travel_metrics": r.realized_travel_metrics} if r.realized_travel_metrics else {}),
                 }
                 for r in result.day_results
             ],
@@ -820,6 +887,48 @@ class MaintenanceSimulator:
             json.dump(payload, f, ensure_ascii=False, indent=2, default=_np_default)
 
         print(f"JSON-Protokoll gespeichert: {out.resolve()}")
+
+    # ------------------------------------------------------------------
+    # Stochastische Routenbewertung
+    # ------------------------------------------------------------------
+
+    def _evaluate_routes_stochastic(self, sim_routes: list[SimRoute]) -> list[dict]:
+        """
+        Bewertet alle Teamrouten via Monte Carlo unter stochastischen Fahrtzeiten.
+
+        Wird nur aufgerufen wenn stochastic_travel_times.enabled: true.
+        Gibt eine Liste von Dicts zurück (ein Eintrag je Team mit Stops).
+        """
+        from src.models.stochastic_travel import evaluate_route
+
+        maint = self.config.get("maintenance", {})
+        lunch_min = float(maint.get("lunch_duration_min", 0))
+        lunch_early = int(maint.get("lunch_earliest_min", 240))
+
+        results: list[dict] = []
+        for route in sim_routes:
+            if not route.stops:
+                continue
+            node_seq = [s.node_idx for s in route.stops]
+            svc_mins = [s.service_min for s in route.stops]
+            last = route.stops[-1]
+            mat = self._get_matrix(last.departure_min)
+            det_end = last.departure_min + mat[last.node_idx, 0] / 60.0
+            metrics = evaluate_route(
+                node_sequence=node_seq,
+                service_mins=svc_mins,
+                matrices=self.traffic_matrices,
+                cv_by_hour=self._stoch_cv_by_hour,
+                n_runs=self._stoch_n_runs,
+                workday_min=self.WORKDAY_MINUTES,
+                rng=self._stoch_eval_rng,
+                team_id=route.team_id,
+                det_end_min=det_end,
+                lunch_duration_min=lunch_min,
+                lunch_earliest_min=lunch_early,
+            )
+            results.append(metrics.to_dict())
+        return results
 
     # ------------------------------------------------------------------
     # Tages-Simulation
@@ -879,6 +988,61 @@ class MaintenanceSimulator:
 
         sim_routes = plan_to_sim_routes(daily_plan, all_tasks, self.n_teams)
 
+        # Initialplan-Log aus deterministischem Plan vorberechnen (vor stochastischer Überschreibung)
+        _mat8 = self._get_matrix(0.0)
+        _ip_entries: list[dict] = []
+        for _r in sim_routes:
+            _prev = 0
+            _rdicts: list[dict] = []
+            _lunch_ins = False
+            for _stop in _r.stops:
+                if not _lunch_ins and _stop.arrival_min >= _LUNCH_START_MIN:
+                    _rdicts.append({
+                        "task_type": "lunch",
+                        "arrival_time": "12:00",
+                        "departure_time": "13:00",
+                        "service_min": _LUNCH_DURATION,
+                    })
+                    _lunch_ins = True
+                _t_min = _mat8[_prev, _stop.node_idx] / 60.0
+                _km = _approx_km(self.all_coords[_prev], self.all_coords[_stop.node_idx])
+                _rdicts.append({
+                    "node_idx": _stop.node_idx,
+                    "task_type": _stop.task_type,
+                    "days_since_maintenance": round(float(_stop.days_since_maintenance), 2),
+                    "from_node": _prev,
+                    "from_label": "Depot" if _prev == 0 else f"Node {_prev}",
+                    "travel_time_min": round(_t_min, 1),
+                    "travel_km": round(_km, 2),
+                    "arrival_time": _fmt(_stop.arrival_min),
+                    "service_min": int(_stop.service_min),
+                    "departure_time": _fmt(_stop.departure_min),
+                })
+                _prev = _stop.node_idx
+            if _r.stops:
+                _last = _r.stops[-1]
+                _t_back = _mat8[_last.node_idx, 0] / 60.0
+                _km_back = _approx_km(self.all_coords[_last.node_idx], self.all_coords[0])
+                _depot_rt = _fmt(_last.departure_min + _t_back)
+                _depot_travel = round(_t_back, 1)
+                _depot_km = round(_km_back, 2)
+            else:
+                _depot_rt = _depot_travel = _depot_km = None
+            _ip_entries.append({
+                "team_id": _r.team_id,
+                "n_stops": len(_r.stops),
+                "route": _rdicts,
+                "depot_return_time": _depot_rt,
+                "depot_return_travel_min": _depot_travel,
+                "depot_return_km": _depot_km,
+            })
+
+        # Stochastische MC-Routenbewertung auf deterministischem Plan (für Robustheits-KPIs)
+        _stoch_metrics: list[dict] = (
+            self._evaluate_routes_stochastic(sim_routes)
+            if self._stochastic_travel_enabled else []
+        )
+
         # Solver-Debug: Input und Output für den 8:00-HourLog aufzeichnen
         _input_nodes_by_team: dict[int, set[int]] = {
             tid: {t.node_idx for t in tasks if t.task_type == "routine"}
@@ -936,6 +1100,12 @@ class MaintenanceSimulator:
                 f"ausgebaut (erster Status: {daily_plan.status_before_retry}, "
                 f"Ergebnis: {daily_plan.solver_status})"
             )
+
+        # Realisierte Fahrtzeiten einsetzen — überschreibt arrival_min/departure_min vor dem Tagesablauf.
+        # Alle nachgelagerte Logik (Störungshandling, Kosten, remaining.discard) nutzt realisierte Zeiten.
+        if self._stochastic_travel_enabled:
+            self._apply_realized_travel_times(sim_routes)
+
         maint_cfg = self.config["maintenance"]
         _lunch_dur = maint_cfg.get("lunch_duration_min", 0)
         _lunch_early = maint_cfg.get("lunch_earliest_min", 240)
@@ -958,56 +1128,11 @@ class MaintenanceSimulator:
             if hour == 12:
                 hour_log.notes.append("Mittagspause 12:00–13:00")
 
-            # 8:00: Strukturierter Initialplan
+            # 8:00: Strukturierter Initialplan (deterministisch vorberechnet)
             if hour == 8:
                 hour_log.solver_debug = _solver_debug
                 hour_log.notes.extend(_initial_plan_notes)
-                mat8 = self._get_matrix(0.0)
-                for r in sim_routes:
-                    prev_node = 0
-                    route_dicts = []
-                    lunch_inserted = False
-                    for stop in r.stops:
-                        if not lunch_inserted and stop.arrival_min >= _LUNCH_START_MIN:
-                            route_dicts.append({
-                                "task_type": "lunch",
-                                "arrival_time": "12:00",
-                                "departure_time": "13:00",
-                                "service_min": _LUNCH_DURATION,
-                            })
-                            lunch_inserted = True
-                        t_min = mat8[prev_node, stop.node_idx] / 60.0
-                        km = _approx_km(self.all_coords[prev_node], self.all_coords[stop.node_idx])
-                        route_dicts.append({
-                            "node_idx": stop.node_idx,
-                            "task_type": stop.task_type,
-                            "days_since_maintenance": round(float(stop.days_since_maintenance), 2),
-                            "from_node": prev_node,
-                            "from_label": "Depot" if prev_node == 0 else f"Node {prev_node}",
-                            "travel_time_min": round(t_min, 1),
-                            "travel_km": round(km, 2),
-                            "arrival_time": _fmt(stop.arrival_min),
-                            "service_min": int(stop.service_min),
-                            "departure_time": _fmt(stop.departure_min),
-                        })
-                        prev_node = stop.node_idx
-                    if r.stops:
-                        last = r.stops[-1]
-                        t_back = mat8[last.node_idx, 0] / 60.0
-                        km_back = _approx_km(self.all_coords[last.node_idx], self.all_coords[0])
-                        depot_rt = _fmt(last.departure_min + t_back)
-                        depot_travel = round(t_back, 1)
-                        depot_km = round(km_back, 2)
-                    else:
-                        depot_rt = depot_travel = depot_km = None
-                    hour_log.initial_plan.append({
-                        "team_id": r.team_id,
-                        "n_stops": len(r.stops),
-                        "route": route_dicts,
-                        "depot_return_time": depot_rt,
-                        "depot_return_travel_min": depot_travel,
-                        "depot_return_km": depot_km,
-                    })
+                hour_log.initial_plan = _ip_entries
 
             # Störungen via Policy behandeln
             if hour in by_hour:
@@ -1200,6 +1325,17 @@ class MaintenanceSimulator:
             if stop.task_type == "routine" and stop.departure_min <= self.WORKDAY_MINUTES
         )
 
+        _realized_metrics: list[dict] = []
+        if self._stochastic_travel_enabled:
+            for _r in sim_routes:
+                if not np.isnan(_r.end_time_realized):
+                    _realized_metrics.append({
+                        "team_id": _r.team_id,
+                        "end_time_realized": round(_r.end_time_realized, 2),
+                        "deadline_violated": bool(_r.deadline_violated),
+                        "overtime_min": round(_r.overtime_min, 2),
+                    })
+
         result = DayResult(
             day=day,
             n_routine_tasks=n_routine,
@@ -1211,6 +1347,8 @@ class MaintenanceSimulator:
             fuel_cost_eur=fuel_cost,
             downtime_cost_eur=downtime_cost,
             hourly_logs=hourly_logs,
+            stochastic_metrics=_stoch_metrics,
+            realized_travel_metrics=_realized_metrics,
         )
         return result, sim_routes, carried_disruptions
 
@@ -1390,3 +1528,44 @@ class MaintenanceSimulator:
         available = sorted(self.traffic_matrices.keys())
         hour = max(available[0], min(hour, available[-1]))
         return self.traffic_matrices[hour]
+
+    def _sample_travel_min(self, mean_sec: float, hour: int) -> float:
+        """Sampelt eine realisierte Fahrzeit [min] aus Lognormal(mean=mean_sec, cv=cv_h)."""
+        cv = self._stoch_cv_by_hour.get(hour, 0.15)
+        if mean_sec <= 0.0 or cv <= 0.0:
+            return mean_sec / 60.0
+        sigma_log = float(np.sqrt(np.log(1.0 + cv ** 2)))
+        mu_log = float(np.log(mean_sec) - sigma_log ** 2 / 2.0)
+        return float(self._stoch_rng.lognormal(mu_log, sigma_log)) / 60.0
+
+    def _apply_realized_travel_times(self, sim_routes: list[SimRoute]) -> None:
+        """
+        Überschreibt arrival_min/departure_min aller Stops mit realisierten Fahrtzeiten.
+
+        Sampelt jede Fahrtzeit als Lognormal(mean=m_ij,h, cv=cv_h) und akkumuliert
+        die Zeiten sequenziell. Setzt end_time_realized, deadline_violated und overtime_min
+        auf dem SimRoute-Objekt. Muss vor _inject_lunch und dem Stunden-Loop aufgerufen werden,
+        damit alle nachgelagerte Logik (Störungshandling, remaining.discard, Kosten) die
+        realisierten Zeiten nutzt.
+        """
+        available = sorted(self.traffic_matrices.keys())
+        for route in sim_routes:
+            if not route.stops:
+                continue
+            current_time = 0.0
+            prev_node = 0
+            for stop in route.stops:
+                hour = max(available[0], min(8 + int(max(0.0, current_time)) // 60, available[-1]))
+                mean_sec = float(self.traffic_matrices[hour][prev_node, stop.node_idx])
+                travel_min = self._sample_travel_min(mean_sec, hour)
+                current_time += travel_min
+                stop.arrival_min = current_time
+                current_time += stop.service_min
+                prev_node = stop.node_idx
+            last = route.stops[-1]
+            hour = max(available[0], min(8 + int(max(0.0, last.departure_min)) // 60, available[-1]))
+            mean_sec = float(self.traffic_matrices[hour][last.node_idx, 0])
+            depot_travel = self._sample_travel_min(mean_sec, hour)
+            route.end_time_realized = last.departure_min + depot_travel
+            route.deadline_violated = route.end_time_realized > self.WORKDAY_MINUTES
+            route.overtime_min = max(0.0, route.end_time_realized - self.WORKDAY_MINUTES)

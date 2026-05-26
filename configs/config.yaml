@@ -6,10 +6,10 @@ rolling_horizon:
   # false → exakt dasselbe Verhalten wie bisher (MaintenanceSimulator, kein RH)
   # true  → RollingHorizonRunner aktiv: Drop-Entscheidungen bei Störungen werden
   #          über einen kurzen Horizont bewertet und ggf. von der Basis-Policy überschrieben.
-  enabled: true
+  enabled: false
 
   # Anzahl Tage, über die jeder Drop-Kandidat simuliert wird
-  horizon_days: 7
+  horizon_days: 21
 
   # Anzahl stochastischer Szenarien pro Kandidat (Erwartungswert-Approximation)
   n_scenarios: 25
@@ -20,11 +20,11 @@ rolling_horizon:
 
   # RH bei Störungs-Drop-Entscheidungen: top_k_candidates Routine-Stops
   # werden per Horizont-Rollout verglichen; bester Drop gewinnt.
-  enable_replan: false
+  enable_replan: true
 
   # RH bei Initialplanung: Seed-Rollout pro Team innerhalb fixer Startzone.
   # top_k_initial Seed-Blöcke (Größe initial_seed_block_size) werden bewertet.
-  enable_initial: true
+  enable_initial: false
 
   # Anzahl Seed-Kandidaten pro Team bei Initial-RH (Kandidat 0 = Basis-Policy)
   top_k_initial: 3
@@ -37,6 +37,23 @@ rolling_horizon:
 
   # Maximale Bewertungszeit pro Störungsereignis in Sekunden
   time_budget_sec: 100.0
+
+  # Post-Decision-Rollout:
+  #   false (Standard) → bisheriges Verhalten: _build_candidate_state approximiert End-of-Day,
+  #                       Rollout startet ab dem nächsten Tag.
+  #   true             → echtes Post-Decision: Aktion deterministisch anwenden (Drop+Insert),
+  #                       dann verbleibende Stunden des heutigen Tags mit Basis-Policy simulieren,
+  #                       danach H-1 Tage Rollout. Sofortkosten (Downtime-Wartezeit) explizit getrennt.
+  use_post_decision_rollout: true
+
+  # Kandidaten-Auswahlmodus bei Drop-Entscheidungen:
+  #   "expected_value" → Kandidat mit niedrigstem Erwartungswert (bisheriges Verhalten)
+  #   "win_rate"       → Kandidat muss Basisaktion in ≥ win_rate_threshold Szenarien schlagen;
+  #                       kein Wechsel wenn kein Kandidat die Schwelle erfüllt
+  candidate_selection_mode: "win_rate"
+
+  # Mindest-Gewinnquote für win_rate-Modus (0.0–1.0)
+  win_rate_threshold: 0.7
 
 solver:
   # true  → OR-Tools für Initialplan und Replan (bisheriges Verhalten aller Modelle)
@@ -116,6 +133,33 @@ environment:
     travel_time_penalty: 0.1   # Strafe pro Minute Fahrzeit
     revisit_penalty: -5.0      # Strafe für doppelten Besuch
     completion_bonus: 50.0     # Bonus für Abschluss aller Aufgaben
+
+stochastic_travel_times:
+  # false → bisheriges Verhalten: Fahrtzeiten deterministisch aus Stundenmatrix
+  # true  → Fahrtzeiten je Abschnitt als Lognormal(mean=m_ij,h, cv=cv_h) gesampelt;
+  #          nur in der Simulation aktiv, Planer bleibt deterministisch.
+  enabled: true
+
+  # Variationskoeffizient cv = σ/μ je Arbeitsstunde.
+  # Kleiner Wert = geringe Streuung (ruhiger Verkehr), großer Wert = hohe Streuung.
+  # Startparametrisierung: Morgen/Nachmittag höher (Rush hour), Mittag niedriger.
+  cv_by_hour:
+    8:  0.20
+    9:  0.18
+    10: 0.10
+    11: 0.10
+    12: 0.10
+    13: 0.10
+    14: 0.10
+    15: 0.15
+    16: 0.15
+
+  # Anzahl Monte-Carlo-Läufe pro Teamroute und Tag für die KPI-Berechnung.
+  n_mc_runs: 200
+
+  # Service-Level-Schwelle α: P(Endzeit ≤ Arbeitszeitende) ≥ α
+  # Wird aktuell nur für KPI-Reporting genutzt (keine aktive Routenablehnung).
+  feasibility_alpha: 0.95
 
 failure_simulation:
   # "csv"       → Störungen aus data/malfunction.csv laden (bisheriges Verhalten)

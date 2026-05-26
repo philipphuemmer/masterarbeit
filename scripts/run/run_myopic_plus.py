@@ -210,7 +210,7 @@ def main() -> None:
             randomize_initial_dsm=fail_cfg_dict.get("randomize_initial_dsm", False),
         )
 
-        result, rh_overrides = runner.run(
+        result, initial_overrides, replan_overrides = runner.run(
             initial_state=initial_state,
             rh_config=rh_cfg,
             disruptions_df=mal_df,
@@ -231,7 +231,7 @@ def main() -> None:
         print(f"  Störungen gesamt        : {result.total_disruptions}")
         print(f"    Gleichen Tag erledigt : {result.same_day_handled} ({result.same_day_rate:.1%})")
         print(f"    Carryover             : {result.total_carryover}")
-        print(f"  RH-Overrides            : {rh_overrides}")
+        print(f"  Rollout-Overrides       : {initial_overrides + replan_overrides} (Initial: {initial_overrides}, Replan: {replan_overrides})")
         print(f"  Gesamtkosten            : {result.total_cost_eur:>10,.2f} €")
         print(sep)
 
@@ -249,7 +249,8 @@ def main() -> None:
             run_id=args.run_id,
             model_params=model_params,
             rh_config=rh_cfg,
-            rh_overrides=rh_overrides,
+            replan_overrides=replan_overrides,
+            initial_overrides=initial_overrides,
         )
 
 

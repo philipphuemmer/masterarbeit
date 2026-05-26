@@ -29,9 +29,39 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.data.loader import load_stations, get_coordinates, load_traffic_matrices
 from src.models.cfa_db import CFADBMaintenanceSimulator, CFADBModel
-from src.models.simulator import SimulationResult
+from src.models.simulator import SimulationResult, DayResult
 from src.planning.clustering import ZoneClusterer
 from src.planning.selector import DailyZoneSelector
+
+
+def _load_result_from_json(path: Path) -> SimulationResult:
+    """Rekonstruiert SimulationResult aus gespeicherter JSON-Datei (für --resume)."""
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    s = data["summary"]
+    day_results = [
+        DayResult(
+            day=d["day"],
+            n_routine_tasks=d["n_routine_tasks"],
+            n_routine_completed=d["n_routine_completed"],
+            disruptions_handled=d["disruptions_handled"],
+            disruptions_carryover=d["disruptions_carryover"],
+            operational_cost_eur=d["operational_cost_eur"],
+            wage_cost_eur=d["wage_cost_eur"],
+            fuel_cost_eur=d["fuel_cost_eur"],
+            downtime_cost_eur=d["downtime_cost_eur"],
+            hourly_logs=[],
+        )
+        for d in data["days"]
+    ]
+    return SimulationResult(
+        day_results=day_results,
+        total_disruptions=s["total_disruptions"],
+        same_day_handled=s["same_day_handled"],
+        total_carryover=s["total_carryover"],
+        days_to_complete=s["days_to_complete"],
+        remaining_stations_at_end=s["remaining_stations_at_end"],
+    )
 
 
 def analyse(results: list[SimulationResult], seeds: list[int], cfg: dict | None = None, cost_params: dict | None = None) -> str:
@@ -174,6 +204,8 @@ def main() -> None:
                         help="Pfad zur policy.json (Standard: data/training/cfa_db/policy.json)")
     parser.add_argument("--log-dir",     type=str, default="logs/cfa_db",
                         help="Basisordner für JSON- und Log-Ausgaben (Standard: logs/cfa_db)")
+    parser.add_argument("--resume", action="store_true",
+                        help="Vorhandene run_N.json laden und fehlende Läufe fortsetzen")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -218,11 +250,33 @@ def main() -> None:
         print(f"Fehler: --start-run ({args.start_run}) > --runs ({args.runs})")
         sys.exit(1)
     seeds = list(range(args.start_run, args.runs + 1))
-    results: list[SimulationResult] = []
+    completed: dict[int, SimulationResult] = {}
     overview_path = log_dir / f"{Path(args.log_dir).name}_overview.log"
 
-    print(f"\nStarte {len(seeds)} Monte-Carlo-Läufe (Seeds {seeds[0]}–{seeds[-1]})...\n")
-    for seed in seeds:
+    if args.resume:
+        for s in seeds:
+            p = json_dir / f"run_{s}.json"
+            if p.exists():
+                try:
+                    completed[s] = _load_result_from_json(p)
+                    print(f"  Lauf {s} geladen ({p.name}).")
+                except Exception as e:
+                    print(f"  Warnung: Lauf {s} übersprungen ({e}).")
+        if completed:
+            print(f"  {len(completed)} Läufe aus JSON geladen.")
+
+    seeds_to_run = [s for s in seeds if s not in completed]
+    if not seeds_to_run:
+        print("Alle Läufe bereits vorhanden. Overview wird neu geschrieben.")
+        sorted_seeds = sorted(completed.keys())
+        overview_path.write_text(
+            analyse([completed[s] for s in sorted_seeds], sorted_seeds, cfg=cfg),
+            encoding="utf-8",
+        )
+        return
+
+    print(f"\nStarte {len(seeds_to_run)} Monte-Carlo-Läufe (Seeds {seeds_to_run[0]}–{seeds_to_run[-1]})...\n")
+    for seed in seeds_to_run:
         print(f"  Lauf {seed}/{args.runs} (Seed {seed})...", end=" ", flush=True)
 
         run_cfg = {**cfg, "project": {**cfg.get("project", {}), "seed": seed}}
@@ -307,7 +361,7 @@ def main() -> None:
         log_path = log_dir / f"run_{seed}.log"
         sim.write_log(result, str(log_path), label="CFA-DB SIMULATION")
 
-        results.append(result)
+        completed[seed] = result
         days = result.days_to_complete or "?"
         print(f"fertig ({days} Tage, {result.total_cost_eur:,.0f} €)")
 
@@ -316,7 +370,11 @@ def main() -> None:
             "fuel_eur_per_km":      cp.fuel_eur_per_km,
             "downtime_eur_per_kwh": cp.downtime_eur_per_kwh,
         }
-        overview_text = analyse(results, seeds[:len(results)], cfg=cfg, cost_params=cost_params_dict)
+        sorted_seeds = sorted(completed.keys())
+        overview_text = analyse(
+            [completed[s] for s in sorted_seeds], sorted_seeds,
+            cfg=cfg, cost_params=cost_params_dict,
+        )
         overview_path.write_text(overview_text, encoding="utf-8")
 
     print(f"\nOverview gespeichert: {overview_path.resolve()}")

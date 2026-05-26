@@ -38,9 +38,52 @@ from src.models.rolling_horizon import (
     PolicyAdapter,
     RollingHorizonRunner,
 )
-from src.models.simulator import MaintenanceSimulator, SimulationResult
+from src.models.simulator import MaintenanceSimulator, SimulationResult, DayResult
 from src.planning.clustering import ZoneClusterer
 from src.planning.selector import DailyZoneSelector
+
+
+def _load_result_from_json(path: Path) -> SimulationResult:
+    """Rekonstruiert SimulationResult aus gespeicherter JSON-Datei (für --resume)."""
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    s = data["summary"]
+    day_results = [
+        DayResult(
+            day=d["day"],
+            n_routine_tasks=d["n_routine_tasks"],
+            n_routine_completed=d["n_routine_completed"],
+            disruptions_handled=d["disruptions_handled"],
+            disruptions_carryover=d["disruptions_carryover"],
+            operational_cost_eur=d["operational_cost_eur"],
+            wage_cost_eur=d["wage_cost_eur"],
+            fuel_cost_eur=d["fuel_cost_eur"],
+            downtime_cost_eur=d["downtime_cost_eur"],
+            hourly_logs=[],
+        )
+        for d in data["days"]
+    ]
+    return SimulationResult(
+        day_results=day_results,
+        total_disruptions=s["total_disruptions"],
+        same_day_handled=s["same_day_handled"],
+        total_carryover=s["total_carryover"],
+        days_to_complete=s["days_to_complete"],
+        remaining_stations_at_end=s["remaining_stations_at_end"],
+    )
+
+
+def _load_rh_overrides_from_json(path: Path) -> int:
+    """Liest Rollout-Overrides (Initial + Replan) aus rolling_horizon_meta."""
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    meta = data.get("rolling_horizon_meta", {})
+    # Neues Format: getrennte Zähler; altes Format: rh_overrides als Fallback
+    return (
+        meta.get("replan_overrides", 0)
+        + meta.get("initial_overrides", 0)
+        + meta.get("rh_overrides", 0)  # Rückwärtskompatibilität mit alten JSONs
+    )
 
 
 def analyse(
@@ -97,7 +140,7 @@ def analyse(
     row("Gesamtstörungen",            total_disrupt)
     row("Gesamtcarryover",            carryovers)
     if rh_overrides is not None:
-        row("RH-Overrides",           np.array(rh_overrides, dtype=float))
+        row("Rollout-Overrides",      np.array(rh_overrides, dtype=float))
 
     out(sep)
 
@@ -105,15 +148,15 @@ def analyse(
     out(f"\n  {'Seed':>5}  {'Tage':>5}  {'Gesamt (€)':>12}  "
         f"{'Lohn (€)':>10}  {'Fahrt (€)':>10}  {'Ausfall (€)':>11}  "
         f"{'Same-Day %':>10}  {'Störungen':>9}  {'Carryover':>9}"
-        + (f"  {'RH-Overr.':>9}" if rh_col else ""))
+        + (f"  {'Rollout-Ov':>10}" if rh_col else ""))
     out(f"  {'-'*5}  {'-'*5}  {'-'*12}  {'-'*10}  {'-'*10}  {'-'*11}  {'-'*10}  {'-'*9}  {'-'*9}"
-        + (f"  {'-'*9}" if rh_col else ""))
+        + (f"  {'-'*10}" if rh_col else ""))
     for i, r in enumerate(results):
         wage = sum(d.wage_cost_eur for d in r.day_results)
         fuel = sum(d.fuel_cost_eur for d in r.day_results)
         dt   = sum(d.downtime_cost_eur for d in r.day_results)
         d_   = r.days_to_complete if r.days_to_complete is not None else "-"
-        rh_str = f"  {rh_overrides[i]:>9}" if rh_col else ""
+        rh_str = f"  {rh_overrides[i]:>10}" if rh_col else ""
         out(
             f"  {seeds[i]:>5}  {str(d_):>5}  {r.total_cost_eur:>12,.2f}  "
             f"{wage:>10,.2f}  {fuel:>10,.2f}  {dt:>11,.2f}  "
@@ -197,6 +240,8 @@ def main() -> None:
     parser.add_argument("--log-dir",    type=str, default=None,
                         help="Basisordner für JSON- und Log-Ausgaben "
                              "(Standard: logs/cfa_future bzw. logs/cfa_future_rh)")
+    parser.add_argument("--resume", action="store_true",
+                        help="Vorhandene run_N.json laden und fehlende Läufe fortsetzen")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -245,9 +290,36 @@ def main() -> None:
         print(f"Fehler: --start-run ({args.start_run}) > --runs ({args.runs})")
         sys.exit(1)
     seeds = list(range(args.start_run, args.runs + 1))
-    results: list[SimulationResult] = []
-    rh_overrides_list: list[int] = []
+    completed: dict[int, SimulationResult] = {}
+    completed_rh: dict[int, int] = {}
     overview_path = log_dir / f"{Path(args.log_dir).name}_overview.log"
+
+    if args.resume:
+        for s in seeds:
+            p = json_dir / f"run_{s}.json"
+            if p.exists():
+                try:
+                    completed[s] = _load_result_from_json(p)
+                    completed_rh[s] = _load_rh_overrides_from_json(p)
+                    print(f"  Lauf {s} geladen ({p.name}).")
+                except Exception as e:
+                    print(f"  Warnung: Lauf {s} übersprungen ({e}).")
+        if completed:
+            print(f"  {len(completed)} Läufe aus JSON geladen.")
+
+    seeds_to_run = [s for s in seeds if s not in completed]
+    if not seeds_to_run:
+        print("Alle Läufe bereits vorhanden. Overview wird neu geschrieben.")
+        sorted_seeds = sorted(completed.keys())
+        sorted_rh = [completed_rh[s] for s in sorted_seeds]
+        overview_path.write_text(
+            analyse(
+                [completed[s] for s in sorted_seeds], sorted_seeds, cfg=cfg,
+                rh_overrides=sorted_rh if rh_enabled else None,
+            ),
+            encoding="utf-8",
+        )
+        return
 
     # Störungswahrscheinlichkeitsfaktoren für RH-Evaluator (einmal laden)
     if rh_enabled:
@@ -260,9 +332,9 @@ def main() -> None:
         }
 
     mode_label = "[Rolling Horizon]" if rh_enabled else "[Legacy]"
-    print(f"\nStarte {len(seeds)} Monte-Carlo-Läufe {mode_label} (Seeds {seeds[0]}–{seeds[-1]})...\n")
+    print(f"\nStarte {len(seeds_to_run)} Monte-Carlo-Läufe {mode_label} (Seeds {seeds_to_run[0]}–{seeds_to_run[-1]})...\n")
 
-    for seed in seeds:
+    for seed in seeds_to_run:
         print(f"  Lauf {seed}/{args.runs} (Seed {seed})...", end=" ", flush=True)
 
         run_cfg = {**cfg, "project": {**cfg.get("project", {}), "seed": seed}}
@@ -353,8 +425,8 @@ def main() -> None:
             log_path = log_dir / f"run_{seed}.log"
             sim.write_log(result, str(log_path), label="CFA-FUTURE SIMULATION")
 
-            results.append(result)
-            rh_overrides_list.append(0)
+            completed[seed] = result
+            completed_rh[seed] = 0
 
         else:
             # ------------------------------------------------------------------
@@ -412,18 +484,20 @@ def main() -> None:
             runner.write_log(result, str(log_path),
                              label="CFA-FUTURE SIMULATION [Rolling Horizon]")
 
-            results.append(result)
-            rh_overrides_list.append(rh_ov)
+            completed[seed] = result
+            completed_rh[seed] = rh_ov
 
         cost_params_dict = {
             "wage_eur_per_hour":    cp.wage_eur_per_hour,
             "fuel_eur_per_km":      cp.fuel_eur_per_km,
             "downtime_eur_per_kwh": cp.downtime_eur_per_kwh,
         }
+        sorted_seeds = sorted(completed.keys())
+        sorted_rh = [completed_rh[s] for s in sorted_seeds]
         overview_text = analyse(
-            results, seeds[:len(results)], cfg=run_cfg,
+            [completed[s] for s in sorted_seeds], sorted_seeds, cfg=run_cfg,
             cost_params=cost_params_dict,
-            rh_overrides=rh_overrides_list if rh_enabled else None,
+            rh_overrides=sorted_rh if rh_enabled else None,
         )
         overview_path.write_text(overview_text, encoding="utf-8")
 

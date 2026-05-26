@@ -88,7 +88,33 @@ class SystemState:
     carryover_tasks: list[MaintenanceTask]
     rng: np.random.Generator
     cumulative_cost: float = 0.0
-    rh_overrides: int = 0              # Anzahl der von RH überschriebenen Basis-Policy-Entscheidungen
+    replan_overrides: int = 0          # Replan-Rollout-Overrides (Störungshandling)
+    initial_overrides: int = 0         # Initialplan-Rollout-Overrides (Initialplanung)
+
+
+# ---------------------------------------------------------------------------
+# Post-Decision-Zustand (Ulmer-Analogie: s_x)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PostDecisionState:
+    """
+    Systemzustand direkt nach Anwendung einer deterministischen Aktion,
+    vor künftiger Zufälligkeit.
+
+    Entspricht s_x in der Ulmer-Notation:
+        x*(s) = argmin_x { c(s,x) + V̂(s_x) }
+
+    pre_state (SystemState) + action (Drop/Insert) → PostDecisionState
+
+    sim_routes: Routen mit bereits angewendeter Aktion (deepcopy).
+    pre_decision_state: unveränderter Tagesanfangszustand (dsm, remaining, …).
+    hour: Entscheidungsstunde (action wurde am Beginn dieser Stunde getroffen).
+    """
+
+    sim_routes: list[SimRoute]
+    pre_decision_state: SystemState
+    hour: int
 
 
 # ---------------------------------------------------------------------------
@@ -306,14 +332,14 @@ class HorizonEvaluator:
         """
         return [int(self._eval_rng.integers(0, 2**31)) for _ in range(n_scenarios)]
 
-    def evaluate(
+    def evaluate_scenarios(
         self,
         state: SystemState,
         horizon_days: int,
         scenario_seeds: list[int],
-    ) -> float:
+    ) -> list[float]:
         """
-        Gibt die mittleren H-Tage-Kosten über die gegebenen Szenario-Seeds zurück.
+        Gibt H-Tage-Kosten pro Szenario zurück (Common-Random-Numbers).
 
         scenario_seeds muss für alle Kandidaten einer Entscheidung identisch sein
         (via draw_scenario_seeds() erzeugt), damit der Vergleich fair bleibt.
@@ -331,7 +357,16 @@ class HorizonEvaluator:
                 if not s.remaining and not s.carryover_tasks:
                     break
             costs.append(total)
-        return float(np.mean(costs))
+        return costs
+
+    def evaluate(
+        self,
+        state: SystemState,
+        horizon_days: int,
+        scenario_seeds: list[int],
+    ) -> float:
+        """Gibt die mittleren H-Tage-Kosten zurück (Erwartungswert über evaluate_scenarios)."""
+        return float(np.mean(self.evaluate_scenarios(state, horizon_days, scenario_seeds)))
 
     def evaluate_with_forced_day0_plan(
         self,
@@ -469,6 +504,168 @@ class HorizonEvaluator:
         s.cumulative_cost += result.cost
         return s
 
+    def _generate_disruptions_from_hour(
+        self,
+        state: SystemState,
+        start_hour: int,
+        exclude_nodes: Optional[set[int]] = None,
+    ) -> list[DisruptionEvent]:
+        """
+        Störungsgenerierung nur für Stunden start_hour..16.
+
+        exclude_nodes: Stationen die heute bereits gestört wurden (z.B. aus sim_routes);
+        diese werden übersprungen um Doppelstörungen zu vermeiden.
+        """
+        disrupted_today: set[int] = set(exclude_nodes or ())
+        events: list[DisruptionEvent] = []
+
+        for hour in range(start_hour, 17):
+            for node_idx in range(1, self.n_stations + 1):
+                if node_idx in disrupted_today:
+                    continue
+                t = min(state.days_since_maintenance[node_idx], self._recovery_days)
+                factor = self._initial_factor + (1.0 - self._initial_factor) * t / self._recovery_days
+                sf = self.node_to_failure_factor.get(node_idx, 1.0)
+                power_kw = self.node_to_power.get(node_idx, 22.0)
+
+                if state.rng.random() < self._p1_base * factor * sf:
+                    events.append(DisruptionEvent(
+                        day=state.day, hour=hour, node_idx=node_idx,
+                        disruption_type="Typ 1", power_kw=power_kw,
+                        service_min=float(self._typ1_service_min),
+                    ))
+                    disrupted_today.add(node_idx)
+                    continue
+
+                if state.rng.random() < self._p2_base * factor * sf:
+                    mat = self.traffic_matrices.get(hour, list(self.traffic_matrices.values())[0])
+                    rt = (mat[node_idx, 0] + mat[0, node_idx]) / 60.0
+                    svc = self._typ2_dismount_min + rt + self._typ2_handling_min + self._typ2_remount_min
+                    events.append(DisruptionEvent(
+                        day=state.day, hour=hour, node_idx=node_idx,
+                        disruption_type="Typ 2", power_kw=power_kw,
+                        service_min=svc,
+                    ))
+                    disrupted_today.add(node_idx)
+
+        return events
+
+    def _run_remaining_day_fast(
+        self,
+        sim_routes: list[SimRoute],
+        state: SystemState,
+        from_hour: int,
+    ) -> _FastDayResult:
+        """
+        Simuliert die verbleibenden Arbeitsstunden (from_hour+1..16) mit der Basis-Policy.
+
+        sim_routes muss ein deepcopy sein, in dem die Post-Decision-Aktion bereits angewendet wurde.
+        Alle bereits abgeschlossenen und geplanten Stops sind in sim_routes enthalten.
+        """
+        # Bereits heute gestörte Stationen aus sim_routes ableiten
+        already_disrupted: set[int] = {
+            stop.node_idx
+            for route in sim_routes
+            for stop in route.stops
+            if stop.task_type == "disruption"
+        }
+
+        disruptions = self._generate_disruptions_from_hour(
+            state, from_hour + 1, exclude_nodes=already_disrupted
+        )
+        by_hour: dict[int, list[DisruptionEvent]] = {}
+        for d in disruptions:
+            by_hour.setdefault(d.hour, []).append(d)
+
+        downtime_cost = 0.0
+        carried: list[DisruptionEvent] = []
+
+        for hour in range(from_hour + 1, 17):
+            time_min = float((hour - 8) * 60)
+            if hour not in by_hour:
+                continue
+            log = HourLog(day=state.day, hour=hour)
+            n_handled, hour_carried, h_cost = self.policy.handle_disruptions(
+                by_hour[hour], sim_routes, time_min, hour, log
+            )
+            downtime_cost += h_cost
+            carried.extend(hour_carried)
+
+            report_min = float((hour - 8) * 60)
+            remaining_wday_h = (self.WORKDAY_MINUTES - report_min) / 60.0
+            for d in hour_carried:
+                downtime_cost += remaining_wday_h * d.power_kw * self.cost_params.downtime_eur_per_kwh
+
+        completed_nodes = {
+            stop.node_idx
+            for route in sim_routes
+            for stop in route.stops
+            if stop.task_type == "routine" and stop.departure_min <= self.WORKDAY_MINUTES
+        }
+        serviced_nodes = {
+            stop.node_idx
+            for route in sim_routes
+            for stop in route.stops
+            if stop.departure_min <= self.WORKDAY_MINUTES
+        }
+
+        op_cost = self._compute_op_cost_fast(sim_routes)
+        return _FastDayResult(
+            cost=op_cost + downtime_cost,
+            completed_nodes=completed_nodes,
+            serviced_nodes=serviced_nodes,
+            carried_disruptions=carried,
+        )
+
+    def evaluate_post_decision_scenarios(
+        self,
+        post_state: PostDecisionState,
+        horizon_days: int,
+        scenario_seeds: list[int],
+    ) -> list[float]:
+        """
+        V̂(s_x) pro Szenario: Folgekosten ab dem Post-Decision-Zustand.
+
+        post_state.sim_routes enthält die bereits angewendete Aktion (deterministisch).
+        Ab post_state.hour+1 wird die restliche Tageszufälligkeit mit der Basis-Policy simuliert,
+        danach folgen horizon_days-1 vollständige Rollout-Tage.
+
+        Aufrufer trägt c(s,x) separat — nur V̂(s_x) wird hier zurückgegeben.
+        """
+        if not scenario_seeds:
+            return []
+
+        costs: list[float] = []
+        for seed in scenario_seeds:
+            rng = np.random.default_rng(seed)
+            s = deepcopy(post_state.pre_decision_state)
+            s.rng = rng
+
+            routes_copy = deepcopy(post_state.sim_routes)
+            result = self._run_remaining_day_fast(routes_copy, s, post_state.hour)
+            total = result.cost
+            s = self._update_state_fast(s, result)
+
+            for _ in range(horizon_days - 1):
+                if not s.remaining and not s.carryover_tasks:
+                    break
+                result = self._run_day_fast(s)
+                total += result.cost
+                s = self._update_state_fast(s, result)
+
+            costs.append(total)
+        return costs
+
+    def evaluate_post_decision(
+        self,
+        post_state: PostDecisionState,
+        horizon_days: int,
+        scenario_seeds: list[int],
+    ) -> float:
+        """V̂(s_x): erwartete Folgekosten (Erwartungswert über evaluate_post_decision_scenarios)."""
+        sc = self.evaluate_post_decision_scenarios(post_state, horizon_days, scenario_seeds)
+        return float(np.mean(sc)) if sc else 0.0
+
     def _generate_disruptions(self, state: SystemState) -> list[DisruptionEvent]:
         """Stochastische Störungsgenerierung (identisch zu MaintenanceSimulator)."""
         cp = self.cost_params
@@ -598,6 +795,14 @@ class RollingHorizonRunner:
             for i, (_, row) in enumerate(stations_df.iterrows())
         }
 
+        # Stochastische Fahrtzeiten (identisch zu MaintenanceSimulator)
+        stoch_cfg = config.get("stochastic_travel_times", {})
+        self._stochastic_travel_enabled: bool = bool(stoch_cfg.get("enabled", False))
+        _raw_cv = stoch_cfg.get("cv_by_hour", {})
+        self._stoch_cv_by_hour: dict[int, float] = {int(k): float(v) for k, v in _raw_cv.items()}
+        _stoch_seed = config.get("project", {}).get("seed", 42)
+        self._stoch_rng = np.random.default_rng(_stoch_seed + 1)
+
     # ------------------------------------------------------------------
     # Öffentliche API
     # ------------------------------------------------------------------
@@ -635,13 +840,13 @@ class RollingHorizonRunner:
         rh_config: dict,
         disruptions_df: Optional[pd.DataFrame] = None,
         max_days: int = 365,
-    ) -> tuple[SimulationResult, int]:
+    ) -> tuple[SimulationResult, int, int]:
         """
         Führt die RH-Simulation durch.
 
         Returns
         -------
-        (SimulationResult, rh_overrides_total)
+        (SimulationResult, initial_overrides, replan_overrides)
         """
         # Störungsquellen vorbereiten
         if self._failure_mode == "csv":
@@ -736,7 +941,7 @@ class RollingHorizonRunner:
             days_to_complete=days_to_complete,
             remaining_stations_at_end=len(state.remaining),
         )
-        return result, state.rh_overrides
+        return result, state.initial_overrides, state.replan_overrides
 
     # ------------------------------------------------------------------
     # Initial-RH: Seed-Rollout für Initialplanung
@@ -947,7 +1152,7 @@ class RollingHorizonRunner:
         team_assignment: dict[int, list[int]],
         state: SystemState,
         rh_config: dict,
-    ) -> DailyPlan:
+    ) -> tuple[DailyPlan, list[str]]:
         """
         Initialplanung mit Seed-Rollout (Initial-RH).
 
@@ -975,6 +1180,7 @@ class RollingHorizonRunner:
 
         best_plan = base_plan
         team_ids = sorted(team_assignment.keys())
+        override_notes: list[str] = []
 
         for team_id in team_ids:
             candidates = self._generate_seed_candidates_for_team(
@@ -1016,19 +1222,24 @@ class RollingHorizonRunner:
                     chosen_seed = seed
 
             if chosen_seed != base_seed:
-                logger.info(
-                    f"Initial-RH Team {team_id}: Seed {chosen_seed} statt {base_seed} "
+                state.initial_overrides += 1
+                note = (
+                    f"Initialplan-Rollout-Override Team {team_id}: Seed {chosen_seed} statt {base_seed} "
                     f"(Horizont {best_team_cost:.2f} EUR)"
                 )
+                logger.info(note)
+                override_notes.append(note)
             else:
-                logger.info(
-                    f"Initial-RH Team {team_id}: Basis-Seed bestätigt {base_seed} "
+                note = (
+                    f"Rollout bestätigt Initialplan Team {team_id}: Basis-Seed {base_seed} "
                     f"(Horizont {best_team_cost:.2f} EUR)"
                 )
+                logger.info(note)
+                override_notes.append(note)
 
             best_plan = best_team_plan
 
-        return best_plan
+        return best_plan, override_notes
 
     # ------------------------------------------------------------------
     # Tages-Simulation mit RH-Eingriff
@@ -1058,9 +1269,10 @@ class RollingHorizonRunner:
         enable_replan = rh_config.get("enable_replan", True)
         enable_initial = rh_config.get("enable_initial", False)
 
+        _initial_override_notes: list[str] = []
         if all_tasks:
             if rh_enabled and enable_initial:
-                daily_plan = self.create_initial_plan_rh(
+                daily_plan, _initial_override_notes = self.create_initial_plan_rh(
                     all_tasks, team_assignment, state, rh_config
                 )
             else:
@@ -1074,6 +1286,48 @@ class RollingHorizonRunner:
             logger.info(f"RH Tag {day:>3d}: Keine Aufgaben.")
 
         sim_routes = plan_to_sim_routes(daily_plan, all_tasks, self.n_teams)
+
+        # Initialplan-Log aus deterministischem Plan vorberechnen (vor stochastischer Überschreibung)
+        _mat8 = self._get_matrix(0.0)
+        _ip_entries: list[dict] = []
+        for _r in sim_routes:
+            _prev = 0
+            _rdicts: list[dict] = []
+            for _stop in _r.stops:
+                _t_min = _mat8[_prev, _stop.node_idx] / 60.0
+                _km = _approx_km(self.all_coords[_prev], self.all_coords[_stop.node_idx])
+                _rdicts.append({
+                    "node_idx": _stop.node_idx,
+                    "task_type": _stop.task_type,
+                    "days_since_maintenance": round(float(_stop.days_since_maintenance), 2),
+                    "from_node": _prev,
+                    "from_label": "Depot" if _prev == 0 else f"Node {_prev}",
+                    "travel_time_min": round(_t_min, 1),
+                    "travel_km": round(_km, 2),
+                    "arrival_time": _fmt(_stop.arrival_min),
+                    "service_min": int(_stop.service_min),
+                    "departure_time": _fmt(_stop.departure_min),
+                })
+                _prev = _stop.node_idx
+            _depot_rt = _depot_travel = _depot_km = None
+            if _r.stops:
+                _last = _r.stops[-1]
+                _t_back = _mat8[_last.node_idx, 0] / 60.0
+                _depot_rt = _fmt(_last.departure_min + _t_back)
+                _depot_travel = round(_t_back, 1)
+                _depot_km = round(_approx_km(self.all_coords[_last.node_idx], self.all_coords[0]), 2)
+            _ip_entries.append({
+                "team_id": _r.team_id,
+                "n_stops": len(_r.stops),
+                "route": _rdicts,
+                "depot_return_time": _depot_rt,
+                "depot_return_travel_min": _depot_travel,
+                "depot_return_km": _depot_km,
+            })
+
+        # Realisierte Fahrtzeiten einsetzen (überschreibt Stop-Zeiten vor dem Tagesablauf)
+        if self._stochastic_travel_enabled:
+            self._apply_realized_travel_times(sim_routes)
 
         if self._lunch_duration > 0:
             for r in sim_routes:
@@ -1092,43 +1346,11 @@ class RollingHorizonRunner:
             time_min = float((hour - 8) * 60)
             hour_log = HourLog(day=day, hour=hour)
 
-            # 8:00: Initialplan-Log
+            # 8:00: Initialplan-Log (deterministisch vorberechnet)
             if hour == 8:
-                mat8 = self._get_matrix(0.0)
-                for r in sim_routes:
-                    prev_node = 0
-                    route_dicts = []
-                    for stop in r.stops:
-                        t_min = mat8[prev_node, stop.node_idx] / 60.0
-                        km = _approx_km(self.all_coords[prev_node], self.all_coords[stop.node_idx])
-                        route_dicts.append({
-                            "node_idx": stop.node_idx,
-                            "task_type": stop.task_type,
-                            "days_since_maintenance": round(float(stop.days_since_maintenance), 2),
-                            "from_node": prev_node,
-                            "from_label": "Depot" if prev_node == 0 else f"Node {prev_node}",
-                            "travel_time_min": round(t_min, 1),
-                            "travel_km": round(km, 2),
-                            "arrival_time": _fmt(stop.arrival_min),
-                            "service_min": int(stop.service_min),
-                            "departure_time": _fmt(stop.departure_min),
-                        })
-                        prev_node = stop.node_idx
-                    depot_rt = depot_travel = depot_km = None
-                    if r.stops:
-                        last = r.stops[-1]
-                        t_back = mat8[last.node_idx, 0] / 60.0
-                        depot_rt = _fmt(last.departure_min + t_back)
-                        depot_travel = round(t_back, 1)
-                        depot_km = round(_approx_km(self.all_coords[last.node_idx], self.all_coords[0]), 2)
-                    hour_log.initial_plan.append({
-                        "team_id": r.team_id,
-                        "n_stops": len(r.stops),
-                        "route": route_dicts,
-                        "depot_return_time": depot_rt,
-                        "depot_return_travel_min": depot_travel,
-                        "depot_return_km": depot_km,
-                    })
+                hour_log.initial_plan = _ip_entries
+                if _initial_override_notes:
+                    hour_log.notes.extend(_initial_override_notes)
 
             # Störungen
             if hour in by_hour:
@@ -1289,6 +1511,17 @@ class RollingHorizonRunner:
             if stop.task_type == "routine" and stop.departure_min <= self.WORKDAY_MINUTES
         )
 
+        _realized_metrics: list[dict] = []
+        if self._stochastic_travel_enabled:
+            for _r in sim_routes:
+                if not np.isnan(_r.end_time_realized):
+                    _realized_metrics.append({
+                        "team_id": _r.team_id,
+                        "end_time_realized": round(_r.end_time_realized, 2),
+                        "deadline_violated": bool(_r.deadline_violated),
+                        "overtime_min": round(_r.overtime_min, 2),
+                    })
+
         return (
             DayResult(
                 day=day,
@@ -1301,6 +1534,7 @@ class RollingHorizonRunner:
                 fuel_cost_eur=fuel_cost,
                 downtime_cost_eur=downtime_cost,
                 hourly_logs=hourly_logs,
+                realized_travel_metrics=_realized_metrics,
             ),
             sim_routes,
             carried_disruptions,
@@ -1348,6 +1582,9 @@ class RollingHorizonRunner:
         n_sc: int = rh_config.get("n_scenarios", 8)
         budget: float = rh_config.get("time_budget_sec", 5.0)
         fallback: bool = rh_config.get("fallback_to_legacy_on_timeout", True)
+        use_post_decision: bool = rh_config.get("use_post_decision_rollout", False)
+        selection_mode: str = rh_config.get("candidate_selection_mode", "expected_value")
+        win_rate_threshold: float = rh_config.get("win_rate_threshold", 0.8)
 
         # Sortierung: einfach einfügbare Störungen zuerst (identisch zu handle_disruptions_greedy).
         # Wenn 3 Störungen gleichzeitig ankommen, wird die Route-freundlichste zuerst eingebaut —
@@ -1372,7 +1609,7 @@ class RollingHorizonRunner:
                 wait_h = max(0.0, (arrival - report_min) / 60.0)
                 downtime_cost += wait_h * d.power_kw * cp.downtime_eur_per_kwh
                 handled += 1
-                log.notes.append(f"RH-Replan (kein Drop): {d.disruption_type} @ {d.node_idx}")
+                log.notes.append(f"Replan-Rollout (kein Drop): {d.disruption_type} @ {d.node_idx}")
                 continue
 
             # --- Schritt 2: Basis-Policy bestimmt Drop-Entscheidung ---
@@ -1385,37 +1622,28 @@ class RollingHorizonRunner:
             )
             if base_drop is None:
                 carryover.append(d)
-                log.notes.append(f"RH-Replan Carryover: {d.disruption_type} @ {d.node_idx} (kein Platz)")
+                log.notes.append(f"Replan-Rollout Carryover: {d.disruption_type} @ {d.node_idx} (kein Platz)")
                 continue
 
             _, base_ti, base_drop_globals, base_pos, base_arrival = base_drop
 
             # --- Schritt 3a: Multi-Drop → Basis-Policy direkt (kein RH-Eingriff) ---
+            # Identisch zu handle_disruptions_greedy: base_pos und base_arrival
+            # aus _find_best_drop_and_insert verwenden, keine erneute Teamsuche.
             if len(base_drop_globals) > 1:
                 base_dropped = [sim_routes[base_ti].stops[i].node_idx for i in base_drop_globals]
                 for gi in sorted(base_drop_globals, reverse=True):
                     _remove_stop_and_recompute(
                         sim_routes[base_ti], gi, self.traffic_matrices, self.workday_start_hour
                     )
-                result_md = _find_best_insertion(
-                    d, sim_routes, time_min, hour, self._get_matrix(time_min),
-                    self.all_coords, self.WORKDAY_MINUTES, cp,
+                _insert_stop(d, sim_routes[base_ti], base_pos, time_min, self.traffic_matrices, self.workday_start_hour)
+                report_min = float((hour - 8) * 60)
+                wait_h = max(0.0, (base_arrival - report_min) / 60.0)
+                downtime_cost += wait_h * d.power_kw * cp.downtime_eur_per_kwh
+                handled += 1
+                log.notes.append(
+                    f"RH-Legacy (Multi-Drop {base_dropped}): {d.disruption_type} @ {d.node_idx}"
                 )
-                if result_md is not None:
-                    _, ti_md, pos_md, arr_md = result_md
-                    _insert_stop(d, sim_routes[ti_md], pos_md, time_min, self.traffic_matrices, self.workday_start_hour)
-                    report_min = float((hour - 8) * 60)
-                    wait_h = max(0.0, (arr_md - report_min) / 60.0)
-                    downtime_cost += wait_h * d.power_kw * cp.downtime_eur_per_kwh
-                    handled += 1
-                    log.notes.append(
-                        f"RH-Legacy (Multi-Drop {base_dropped}): {d.disruption_type} @ {d.node_idx}"
-                    )
-                else:
-                    carryover.append(d)
-                    log.notes.append(
-                        f"RH-Replan Carryover (nach Multi-Drop): {d.disruption_type} @ {d.node_idx}"
-                    )
                 continue
 
             # --- Schritt 3b: Einzel-Drop ---
@@ -1423,31 +1651,20 @@ class RollingHorizonRunner:
             base_node = sim_routes[base_ti].stops[base_global].node_idx
 
             # top_k=1: RH-Evaluation bringt keinen Nutzen (nur 1 Kandidat) →
-            # direkt Basis-Policy anwenden → identisches Ergebnis wie Legacy.
+            # direkt Basis-Policy anwenden — identisch zu handle_disruptions_greedy.
             if top_k <= 1:
                 _remove_stop_and_recompute(
                     sim_routes[base_ti], base_global,
                     self.traffic_matrices, self.workday_start_hour
                 )
-                result_s = _find_best_insertion(
-                    d, sim_routes, time_min, hour, self._get_matrix(time_min),
-                    self.all_coords, self.WORKDAY_MINUTES, cp,
+                _insert_stop(d, sim_routes[base_ti], base_pos, time_min, self.traffic_matrices, self.workday_start_hour)
+                report_min = float((hour - 8) * 60)
+                wait_h = max(0.0, (base_arrival - report_min) / 60.0)
+                downtime_cost += wait_h * d.power_kw * cp.downtime_eur_per_kwh
+                handled += 1
+                log.notes.append(
+                    f"RH-Legacy (top_k=1, drop {base_node}): {d.disruption_type} @ {d.node_idx}"
                 )
-                if result_s is not None:
-                    _, ti_s, pos_s, arr_s = result_s
-                    _insert_stop(d, sim_routes[ti_s], pos_s, time_min, self.traffic_matrices, self.workday_start_hour)
-                    report_min = float((hour - 8) * 60)
-                    wait_h = max(0.0, (arr_s - report_min) / 60.0)
-                    downtime_cost += wait_h * d.power_kw * cp.downtime_eur_per_kwh
-                    handled += 1
-                    log.notes.append(
-                        f"RH-Legacy (top_k=1, drop {base_node}): {d.disruption_type} @ {d.node_idx}"
-                    )
-                else:
-                    carryover.append(d)
-                    log.notes.append(
-                        f"RH-Replan Carryover (top_k=1): {d.disruption_type} @ {d.node_idx}"
-                    )
                 continue
 
             # --- Schritt 3c: RH-Evaluation (top_k > 1) ---
@@ -1468,29 +1685,100 @@ class RollingHorizonRunner:
             best_ti, best_gi, best_node_chosen, best_arrival = base_ti, base_global, base_node, base_arrival
             best_horizon_cost = np.inf
 
-            for cand_ti, cand_gi, cand_node, cand_arrival in all_candidates:
-                if time.perf_counter() - t_start > budget:
-                    if fallback:
-                        log.notes.append("RH-Timeout: Fallback auf Basis-Policy")
-                    break
-                candidate_state = self._build_candidate_state(
-                    state, sim_routes, cand_node, time_min
-                )
-                h_cost = self.evaluator.evaluate(candidate_state, horizon, scenario_seeds)
-                if h_cost < best_horizon_cost:
-                    best_horizon_cost = h_cost
-                    best_ti, best_gi, best_node_chosen = cand_ti, cand_gi, cand_node
-                    best_arrival = cand_arrival
+            def _get_cand_scenario_costs(
+                cand_ti: int, cand_gi: int, cand_node: int, cand_arrival: float
+            ) -> list[float]:
+                """Per-Szenario-Kosten für einen Drop-Kandidaten (CRN-kompatibel)."""
+                if use_post_decision:
+                    candidate_routes = deepcopy(sim_routes)
+                    _remove_stop_and_recompute(
+                        candidate_routes[cand_ti], cand_gi,
+                        self.traffic_matrices, self.workday_start_hour,
+                    )
+                    # Insertion im selben Team wie der Drop (konsistent mit Ausführung).
+                    ins_result = _find_best_insertion(
+                        d, [candidate_routes[cand_ti]], time_min, hour,
+                        self._get_matrix(time_min), self.all_coords,
+                        self.WORKDAY_MINUTES, cp,
+                    )
+                    if ins_result is None:
+                        return []
+                    _, _, pos_ins, arr_ins = ins_result
+                    _insert_stop(
+                        d, candidate_routes[cand_ti], pos_ins, time_min,
+                        self.traffic_matrices, self.workday_start_hour,
+                    )
+                    post_state = PostDecisionState(
+                        sim_routes=candidate_routes,
+                        pre_decision_state=state,
+                        hour=hour,
+                    )
+                    report_min = float((hour - 8) * 60)
+                    wait_h = max(0.0, (arr_ins - report_min) / 60.0)
+                    immediate_cost = wait_h * d.power_kw * cp.downtime_eur_per_kwh
+                    future_costs = self.evaluator.evaluate_post_decision_scenarios(
+                        post_state, horizon, scenario_seeds
+                    )
+                    return [immediate_cost + fc for fc in future_costs]
+                else:
+                    candidate_state = self._build_candidate_state(
+                        state, sim_routes, cand_node, time_min
+                    )
+                    return self.evaluator.evaluate_scenarios(candidate_state, horizon, scenario_seeds)
+
+            if selection_mode == "win_rate":
+                # CRN-basierte Gewinnquoten-Regel:
+                # Wechsel nur wenn Kandidat in ≥ win_rate_threshold Szenarien billiger ist.
+                base_costs = _get_cand_scenario_costs(base_ti, base_global, base_node, base_arrival)
+                if not base_costs:
+                    # Base-Kandidat nicht bewertbar → Basis-Policy ohne Evaluation
+                    base_costs = []
+                best_horizon_cost = float(np.mean(base_costs)) if base_costs else np.inf
+                best_gain = 0.0
+
+                for cand_ti, cand_gi, cand_node, cand_arrival in alternatives:
+                    if time.perf_counter() - t_start > budget:
+                        if fallback:
+                            log.notes.append("Rollout-Timeout: Fallback auf Basis-Policy")
+                        break
+                    cand_costs = _get_cand_scenario_costs(cand_ti, cand_gi, cand_node, cand_arrival)
+                    if not cand_costs or not base_costs:
+                        continue
+                    deltas = [c - b for c, b in zip(cand_costs, base_costs)]
+                    if not deltas:
+                        continue
+                    win_rate = sum(1 for delta in deltas if delta < 0) / len(deltas)
+                    avg_gain = -float(np.mean(deltas))
+                    if win_rate >= win_rate_threshold and avg_gain > best_gain:
+                        best_gain = avg_gain
+                        best_ti, best_gi, best_node_chosen = cand_ti, cand_gi, cand_node
+                        best_arrival = cand_arrival
+                        best_horizon_cost = float(np.mean(cand_costs))
+            else:
+                # expected_value: Kandidat mit niedrigstem Erwartungswert gewinnt.
+                for cand_ti, cand_gi, cand_node, cand_arrival in all_candidates:
+                    if time.perf_counter() - t_start > budget:
+                        if fallback:
+                            log.notes.append("Rollout-Timeout: Fallback auf Basis-Policy")
+                        break
+                    cand_costs = _get_cand_scenario_costs(cand_ti, cand_gi, cand_node, cand_arrival)
+                    if not cand_costs:
+                        continue
+                    h_cost = float(np.mean(cand_costs))
+                    if h_cost < best_horizon_cost:
+                        best_horizon_cost = h_cost
+                        best_ti, best_gi, best_node_chosen = cand_ti, cand_gi, cand_node
+                        best_arrival = cand_arrival
 
             if best_node_chosen != base_node:
-                state.rh_overrides += 1
+                state.replan_overrides += 1
                 log.notes.append(
-                    f"RH-Override: drop {best_node_chosen} statt {base_node} "
+                    f"Replan-Rollout-Override: drop {best_node_chosen} statt {base_node} "
                     f"(Horizont {best_horizon_cost:.2f} EUR)"
                 )
             else:
                 log.notes.append(
-                    f"RH bestätigt Basis-Policy: drop {base_node} "
+                    f"Rollout bestätigt Basis-Policy: drop {base_node} "
                     f"(Horizont {best_horizon_cost:.2f} EUR)"
                 )
 
@@ -1498,25 +1786,39 @@ class RollingHorizonRunner:
                 sim_routes[best_ti], best_gi,
                 self.traffic_matrices, self.workday_start_hour
             )
-            result2 = _find_best_insertion(
-                d, sim_routes, time_min, hour, self._get_matrix(time_min),
-                self.all_coords, self.WORKDAY_MINUTES, cp,
-            )
-            if result2 is not None:
-                _, ti2, pos2, arrival_at_d = result2
-                _insert_stop(d, sim_routes[ti2], pos2, time_min, self.traffic_matrices, self.workday_start_hour)
+            if best_node_chosen == base_node:
+                # Kein Override: base_pos/base_arrival aus _find_best_drop_and_insert —
+                # identisch zu handle_disruptions_greedy.
+                _insert_stop(d, sim_routes[best_ti], base_pos, time_min, self.traffic_matrices, self.workday_start_hour)
+                arrival_at_d = base_arrival
                 report_min = float((hour - 8) * 60)
                 wait_h = max(0.0, (arrival_at_d - report_min) / 60.0)
                 downtime_cost += wait_h * d.power_kw * cp.downtime_eur_per_kwh
                 handled += 1
                 log.notes.append(
-                    f"RH-Replan (drop {best_node_chosen}): {d.disruption_type} @ {d.node_idx} → Team {sim_routes[ti2].team_id}"
+                    f"Replan-Rollout (drop {best_node_chosen}): {d.disruption_type} @ {d.node_idx} → Team {sim_routes[best_ti].team_id}"
                 )
             else:
-                carryover.append(d)
-                log.notes.append(
-                    f"RH-Replan Carryover (unerwartet): {d.disruption_type} @ {d.node_idx}"
+                # Override: anderer Drop → Einfügeposition neu suchen (nur im gewählten Team).
+                result2 = _find_best_insertion(
+                    d, [sim_routes[best_ti]], time_min, hour, self._get_matrix(time_min),
+                    self.all_coords, self.WORKDAY_MINUTES, cp,
                 )
+                if result2 is not None:
+                    _, _, pos2, arrival_at_d = result2
+                    _insert_stop(d, sim_routes[best_ti], pos2, time_min, self.traffic_matrices, self.workday_start_hour)
+                    report_min = float((hour - 8) * 60)
+                    wait_h = max(0.0, (arrival_at_d - report_min) / 60.0)
+                    downtime_cost += wait_h * d.power_kw * cp.downtime_eur_per_kwh
+                    handled += 1
+                    log.notes.append(
+                        f"Replan-Rollout (drop {best_node_chosen}): {d.disruption_type} @ {d.node_idx} → Team {sim_routes[best_ti].team_id}"
+                    )
+                else:
+                    carryover.append(d)
+                    log.notes.append(
+                        f"Replan-Rollout Carryover (unerwartet): {d.disruption_type} @ {d.node_idx}"
+                    )
 
         return handled, carryover, downtime_cost
 
@@ -1752,6 +2054,39 @@ class RollingHorizonRunner:
         hour = max(available[0], min(hour, available[-1]))
         return self.traffic_matrices[hour]
 
+    def _sample_travel_min(self, mean_sec: float, hour: int) -> float:
+        """Sampelt eine realisierte Fahrzeit [min] aus Lognormal(mean=mean_sec, cv=cv_h)."""
+        cv = self._stoch_cv_by_hour.get(hour, 0.15)
+        if mean_sec <= 0.0 or cv <= 0.0:
+            return mean_sec / 60.0
+        sigma_log = float(np.sqrt(np.log(1.0 + cv ** 2)))
+        mu_log = float(np.log(mean_sec) - sigma_log ** 2 / 2.0)
+        return float(self._stoch_rng.lognormal(mu_log, sigma_log)) / 60.0
+
+    def _apply_realized_travel_times(self, sim_routes: list[SimRoute]) -> None:
+        """Überschreibt arrival_min/departure_min mit realisierten Lognormal-Fahrtzeiten."""
+        available = sorted(self.traffic_matrices.keys())
+        for route in sim_routes:
+            if not route.stops:
+                continue
+            current_time = 0.0
+            prev_node = 0
+            for stop in route.stops:
+                hour = max(available[0], min(self.workday_start_hour + int(max(0.0, current_time)) // 60, available[-1]))
+                mean_sec = float(self.traffic_matrices[hour][prev_node, stop.node_idx])
+                travel_min = self._sample_travel_min(mean_sec, hour)
+                current_time += travel_min
+                stop.arrival_min = current_time
+                current_time += stop.service_min
+                prev_node = stop.node_idx
+            last = route.stops[-1]
+            hour = max(available[0], min(self.workday_start_hour + int(max(0.0, last.departure_min)) // 60, available[-1]))
+            mean_sec = float(self.traffic_matrices[hour][last.node_idx, 0])
+            depot_travel = self._sample_travel_min(mean_sec, hour)
+            route.end_time_realized = last.departure_min + depot_travel
+            route.deadline_violated = route.end_time_realized > self.WORKDAY_MINUTES
+            route.overtime_min = max(0.0, route.end_time_realized - self.WORKDAY_MINUTES)
+
     # ------------------------------------------------------------------
     # Log-Output (kompatibel mit MaintenanceSimulator.write_log)
     # ------------------------------------------------------------------
@@ -1777,7 +2112,8 @@ class RollingHorizonRunner:
         run_id: Optional[int] = None,
         model_params: Optional[dict] = None,
         rh_config: Optional[dict] = None,
-        rh_overrides: int = 0,
+        replan_overrides: int = 0,
+        initial_overrides: int = 0,
     ) -> None:
         """
         Speichert SimulationResult als JSON – identisches Format zu
@@ -1790,6 +2126,24 @@ class RollingHorizonRunner:
         wage_total = sum(r.wage_cost_eur for r in result.day_results)
         fuel_total = sum(r.fuel_cost_eur for r in result.day_results)
         dt_total = sum(r.downtime_cost_eur for r in result.day_results)
+
+        _all_realized = [m for r in result.day_results for m in r.realized_travel_metrics]
+        if _all_realized:
+            _n = len(_all_realized)
+            _realized_summary: dict | None = {
+                "n_team_days": _n,
+                "deadline_violation_prob": round(
+                    sum(1 for m in _all_realized if m["deadline_violated"]) / _n, 4
+                ),
+                "mean_end_time_realized": round(
+                    sum(m["end_time_realized"] for m in _all_realized) / _n, 2
+                ),
+                "mean_overtime_min": round(
+                    sum(m["overtime_min"] for m in _all_realized) / _n, 2
+                ),
+            }
+        else:
+            _realized_summary = None
 
         meta: dict = {
             "label": label,
@@ -1814,6 +2168,7 @@ class RollingHorizonRunner:
                 "wage_cost_eur": round(wage_total, 4),
                 "fuel_cost_eur": round(fuel_total, 4),
                 "downtime_cost_eur": round(dt_total, 4),
+                **({"realized_travel_times": _realized_summary} if _realized_summary else {}),
             },
             "days": [
                 {
@@ -1827,6 +2182,7 @@ class RollingHorizonRunner:
                     "fuel_cost_eur": round(r.fuel_cost_eur, 4),
                     "downtime_cost_eur": round(r.downtime_cost_eur, 4),
                     "total_cost_eur": round(r.total_cost_eur, 4),
+                    **({"realized_travel_metrics": r.realized_travel_metrics} if r.realized_travel_metrics else {}),
                 }
                 for r in result.day_results
             ],
@@ -1857,7 +2213,10 @@ class RollingHorizonRunner:
                 "top_k_initial": rh_config.get("top_k_initial"),
                 "initial_seed_block_size": rh_config.get("initial_seed_block_size"),
                 "time_budget_sec": rh_config.get("time_budget_sec"),
-                "rh_overrides": rh_overrides,
+                "candidate_selection_mode": rh_config.get("candidate_selection_mode", "expected_value"),
+                "win_rate_threshold": rh_config.get("win_rate_threshold", 0.8),
+                "replan_overrides": replan_overrides,
+                "initial_overrides": initial_overrides,
             }
 
         def _np_default(obj):
