@@ -468,7 +468,7 @@ def main() -> None:
                 seed=seed,
                 randomize_initial_dsm=fail_cfg.get("randomize_initial_dsm", False),
             )
-            result, rh_ov = runner.run(
+            result, initial_ov, replan_ov = runner.run(
                 initial_state=initial_state,
                 rh_config=rh_cfg,
                 disruptions_df=mal_df,
@@ -479,13 +479,15 @@ def main() -> None:
             runner.write_json(result, str(out_path),
                               label="CFA-FUTURE SIMULATION [Rolling Horizon]",
                               run_id=seed, model_params=model_params,
-                              rh_config=rh_cfg, rh_overrides=rh_ov)
+                              rh_config=rh_cfg,
+                              replan_overrides=replan_ov,
+                              initial_overrides=initial_ov)
             log_path = log_dir / f"run_{seed}.log"
             runner.write_log(result, str(log_path),
                              label="CFA-FUTURE SIMULATION [Rolling Horizon]")
 
             completed[seed] = result
-            completed_rh[seed] = rh_ov
+            completed_rh[seed] = initial_ov + replan_ov
 
         cost_params_dict = {
             "wage_eur_per_hour":    cp.wage_eur_per_hour,
