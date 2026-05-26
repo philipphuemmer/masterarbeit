@@ -70,15 +70,15 @@ def _load_result_from_json(path: Path) -> SimulationResult:
     )
 
 
-def _load_rh_overrides_from_json(path: Path) -> int:
-    """Liest Rollout-Overrides (Initial + Replan) aus rolling_horizon_meta."""
+def _load_rh_overrides_from_json(path: Path) -> tuple[int, int]:
+    """Gibt (initial_overrides, replan_overrides) aus rolling_horizon_meta zurück."""
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     meta = data.get("rolling_horizon_meta", {})
+    legacy = meta.get("rh_overrides", 0)
     return (
-        meta.get("replan_overrides", 0)
-        + meta.get("initial_overrides", 0)
-        + meta.get("rh_overrides", 0)  # Rückwärtskompatibilität mit alten JSONs
+        meta.get("initial_overrides", 0),
+        meta.get("replan_overrides", legacy),
     )
 
 
@@ -87,7 +87,8 @@ def analyse(
     seeds: list[int],
     cfg: dict | None = None,
     cost_params: dict | None = None,
-    rh_overrides: list[int] | None = None,
+    initial_overrides: list[int] | None = None,
+    replan_overrides: list[int] | None = None,
 ) -> str:
     """Gibt aggregierte Statistiken über alle Läufe aus und gibt den Text zurück."""
     total_costs   = np.array([r.total_cost_eur for r in results])
@@ -134,24 +135,29 @@ def analyse(
     row("Same-Day-Rate",              same_day_rate * 100, "%")
     row("Gesamtstörungen",            total_disrupt)
     row("Gesamtcarryover",            carryovers)
-    if rh_overrides is not None:
-        row("Rollout-Overrides",      np.array(rh_overrides, dtype=float))
+    if replan_overrides is not None:
+        row("  Replan-Rollout-Overrides", np.array(replan_overrides, dtype=float))
+    if initial_overrides is not None:
+        row("  Initialplan-Rollout-Overrides", np.array(initial_overrides, dtype=float))
 
     out(sep)
 
-    rh_col = rh_overrides is not None
+    rh_col = replan_overrides is not None
     out(f"\n  {'Seed':>5}  {'Tage':>5}  {'Gesamt (€)':>12}  "
         f"{'Lohn (€)':>10}  {'Fahrt (€)':>10}  {'Ausfall (€)':>11}  "
         f"{'Same-Day %':>10}  {'Störungen':>9}  {'Carryover':>9}"
-        + (f"  {'Rollout-Ov':>10}" if rh_col else ""))
+        + (f"  {'Ov-R':>5}  {'Ov-I':>5}" if rh_col else ""))
     out(f"  {'-'*5}  {'-'*5}  {'-'*12}  {'-'*10}  {'-'*10}  {'-'*11}  {'-'*10}  {'-'*9}  {'-'*9}"
-        + (f"  {'-'*10}" if rh_col else ""))
+        + (f"  {'-'*5}  {'-'*5}" if rh_col else ""))
     for i, r in enumerate(results):
         wage = sum(d.wage_cost_eur for d in r.day_results)
         fuel = sum(d.fuel_cost_eur for d in r.day_results)
         dt   = sum(d.downtime_cost_eur for d in r.day_results)
         d_   = r.days_to_complete if r.days_to_complete is not None else "-"
-        rh_str = f"  {rh_overrides[i]:>10}" if rh_col else ""
+        rh_str = (
+            f"  {replan_overrides[i]:>5}  {initial_overrides[i]:>5}"
+            if rh_col else ""
+        )
         out(
             f"  {seeds[i]:>5}  {str(d_):>5}  {r.total_cost_eur:>12,.2f}  "
             f"{wage:>10,.2f}  {fuel:>10,.2f}  {dt:>11,.2f}  "
@@ -289,7 +295,7 @@ def main() -> None:
         sys.exit(1)
     seeds = list(range(args.start_run, args.runs + 1))
     completed: dict[int, SimulationResult] = {}
-    completed_rh: dict[int, int] = {}
+    completed_rh: dict[int, tuple[int, int]] = {}  # (initial_ov, replan_ov)
     overview_path = log_dir / f"{Path(args.log_dir).name}_overview.log"
 
     if args.resume:
@@ -309,11 +315,13 @@ def main() -> None:
     if not seeds_to_run:
         print("Alle Läufe bereits vorhanden. Overview wird neu geschrieben.")
         sorted_seeds = sorted(completed.keys())
-        sorted_rh = [completed_rh[s] for s in sorted_seeds]
+        sorted_init = [completed_rh[s][0] for s in sorted_seeds]
+        sorted_replan = [completed_rh[s][1] for s in sorted_seeds]
         overview_path.write_text(
             analyse(
                 [completed[s] for s in sorted_seeds], sorted_seeds, cfg=cfg,
-                rh_overrides=sorted_rh if rh_enabled else None,
+                initial_overrides=sorted_init if rh_enabled else None,
+                replan_overrides=sorted_replan if rh_enabled else None,
             ),
             encoding="utf-8",
         )
@@ -467,7 +475,7 @@ def main() -> None:
                              label="MYOPIC PLUS SIMULATION [Rolling Horizon]")
 
             completed[seed] = result
-            completed_rh[seed] = initial_ov + replan_ov
+            completed_rh[seed] = (initial_ov, replan_ov)
 
         cost_params_dict = {
             "wage_eur_per_hour":    cp.wage_eur_per_hour,
@@ -475,11 +483,13 @@ def main() -> None:
             "downtime_eur_per_kwh": cp.downtime_eur_per_kwh,
         }
         sorted_seeds = sorted(completed.keys())
-        sorted_rh = [completed_rh[s] for s in sorted_seeds]
+        sorted_init = [completed_rh[s][0] for s in sorted_seeds]
+        sorted_replan = [completed_rh[s][1] for s in sorted_seeds]
         overview_text = analyse(
             [completed[s] for s in sorted_seeds], sorted_seeds, cfg=run_cfg,
             cost_params=cost_params_dict,
-            rh_overrides=sorted_rh if rh_enabled else None,
+            initial_overrides=sorted_init if rh_enabled else None,
+            replan_overrides=sorted_replan if rh_enabled else None,
         )
         overview_path.write_text(overview_text, encoding="utf-8")
 
