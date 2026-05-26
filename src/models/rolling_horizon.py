@@ -1199,7 +1199,7 @@ class RollingHorizonRunner:
         horizon = rh_config.get("horizon_days", 7)
         n_sc = rh_config.get("n_scenarios", 8)
         selection_mode: str = rh_config.get("candidate_selection_mode", "expected_value")
-        win_rate_threshold: float = rh_config.get("win_rate_threshold", 0.8)
+        win_rate_threshold: float = rh_config.get("win_rate_threshold_initial", 0.7)
 
         base_plan = self.policy.create_initial_plan(all_tasks, team_assignment)
         value_fn = self.policy.get_value_fn()
@@ -1246,6 +1246,7 @@ class RollingHorizonRunner:
                 )
                 best_team_cost = float(np.mean(base_costs)) if base_costs else np.inf
                 best_gain = 0.0
+                best_initial_win_rate: float | None = None
 
                 for seed in candidates[1:]:  # Kandidat 0 ist der Basis-Seed
                     if not seed:
@@ -1272,6 +1273,7 @@ class RollingHorizonRunner:
                     avg_gain = -float(np.mean(deltas))
                     if win_rate >= win_rate_threshold and avg_gain > best_gain:
                         best_gain = avg_gain
+                        best_initial_win_rate = win_rate
                         best_team_cost = float(np.mean(cand_costs))
                         best_team_plan = candidate_plan
                         chosen_seed = seed
@@ -1303,9 +1305,10 @@ class RollingHorizonRunner:
 
             if chosen_seed != base_seed:
                 state.initial_overrides += 1
+                wr_str = f", Win-Rate {best_initial_win_rate:.0%}" if selection_mode == "win_rate" and best_initial_win_rate is not None else ""
                 note = (
                     f"Initialplan-Rollout-Override Team {team_id}: Seed {chosen_seed} statt {base_seed} "
-                    f"(Horizont {best_team_cost:.2f} EUR)"
+                    f"(Horizont {best_team_cost:.2f} EUR{wr_str})"
                 )
                 logger.info(note)
                 override_notes.append(note)
@@ -1664,7 +1667,7 @@ class RollingHorizonRunner:
         fallback: bool = rh_config.get("fallback_to_legacy_on_timeout", True)
         use_post_decision: bool = rh_config.get("use_post_decision_rollout", False)
         selection_mode: str = rh_config.get("candidate_selection_mode", "expected_value")
-        win_rate_threshold: float = rh_config.get("win_rate_threshold", 0.8)
+        win_rate_threshold: float = rh_config.get("win_rate_threshold_replan", 0.7)
 
         # Sortierung: einfach einfügbare Störungen zuerst (identisch zu handle_disruptions_greedy).
         # Wenn 3 Störungen gleichzeitig ankommen, wird die Route-freundlichste zuerst eingebaut —
@@ -1806,6 +1809,7 @@ class RollingHorizonRunner:
                     )
                     return self.evaluator.evaluate_scenarios(candidate_state, horizon, scenario_seeds)
 
+            best_win_rate: float | None = None
             if selection_mode == "win_rate":
                 # CRN-basierte Gewinnquoten-Regel:
                 # Wechsel nur wenn Kandidat in ≥ win_rate_threshold Szenarien billiger ist.
@@ -1831,6 +1835,7 @@ class RollingHorizonRunner:
                     avg_gain = -float(np.mean(deltas))
                     if win_rate >= win_rate_threshold and avg_gain > best_gain:
                         best_gain = avg_gain
+                        best_win_rate = win_rate
                         best_ti, best_gi, best_node_chosen = cand_ti, cand_gi, cand_node
                         best_arrival = cand_arrival
                         best_horizon_cost = float(np.mean(cand_costs))
@@ -1852,9 +1857,10 @@ class RollingHorizonRunner:
 
             if best_node_chosen != base_node:
                 state.replan_overrides += 1
+                wr_str = f", Win-Rate {best_win_rate:.0%}" if best_win_rate is not None else ""
                 log.notes.append(
                     f"Replan-Rollout-Override: drop {best_node_chosen} statt {base_node} "
-                    f"(Horizont {best_horizon_cost:.2f} EUR)"
+                    f"(Horizont {best_horizon_cost:.2f} EUR{wr_str})"
                 )
             else:
                 log.notes.append(
@@ -2294,7 +2300,8 @@ class RollingHorizonRunner:
                 "initial_seed_block_size": rh_config.get("initial_seed_block_size"),
                 "time_budget_sec": rh_config.get("time_budget_sec"),
                 "candidate_selection_mode": rh_config.get("candidate_selection_mode", "expected_value"),
-                "win_rate_threshold": rh_config.get("win_rate_threshold", 0.8),
+                "win_rate_threshold_replan": rh_config.get("win_rate_threshold_replan", 0.7),
+                "win_rate_threshold_initial": rh_config.get("win_rate_threshold_initial", 0.7),
                 "replan_overrides": replan_overrides,
                 "initial_overrides": initial_overrides,
             }

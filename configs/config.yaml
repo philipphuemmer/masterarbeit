@@ -48,12 +48,13 @@ rolling_horizon:
 
   # Kandidaten-Auswahlmodus bei Drop-Entscheidungen:
   #   "expected_value" → Kandidat mit niedrigstem Erwartungswert (bisheriges Verhalten)
-  #   "win_rate"       → Kandidat muss Basisaktion in ≥ win_rate_threshold Szenarien schlagen;
+  #   "win_rate"       → Kandidat muss Basisaktion in ≥ win_rate_threshold_replan/_initial Szenarien schlagen;
   #                       kein Wechsel wenn kein Kandidat die Schwelle erfüllt
   candidate_selection_mode: "win_rate"
 
-  # Mindest-Gewinnquote für win_rate-Modus (0.0–1.0)
-  win_rate_threshold: 0.7
+  # Mindest-Gewinnquote für win_rate-Modus (0.0–1.0), separat für Replan und Initialplan.
+  win_rate_threshold_replan: 0.7
+  win_rate_threshold_initial: 0.7
 
 solver:
   # true  → OR-Tools für Initialplan und Replan (bisheriges Verhalten aller Modelle)
