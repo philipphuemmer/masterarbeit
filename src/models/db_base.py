@@ -305,6 +305,22 @@ class DBBasePolicy:
             return float(self._theta @ phi_scaled)
         return self.node_to_power.get(node_idx, 22.0) * self._p_failure_curve(dsm)
 
+    def _value(self, node_idx: int, dsm: float) -> float:
+        """Alias für _station_value — kompatibel mit PolicyAdapter.get_drop_score_fn()."""
+        return self._station_value(node_idx, dsm)
+
+    def _prepare_day(self, all_tasks: list, n_carryover: int = 0) -> None:
+        """Berechnet δ vor dem Tagesstart (analog zu DBBaseMaintenanceSimulator._run_day)."""
+        phi = self.extract_replan_features(
+            sim_routes=[],
+            time_min=0.0,
+            n_open_failures=n_carryover,
+            tasks=all_tasks,
+        )
+        delta = self.db_model.predict_delta(phi)
+        self.set_precomputed_delta(delta)
+        logger.debug(f"DB-Base _prepare_day: δ={delta:.3f}")
+
     # ------------------------------------------------------------------
     # Hilfsmethoden: Greedy-Routing
     # ------------------------------------------------------------------

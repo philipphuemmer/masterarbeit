@@ -182,6 +182,22 @@ class PolicyAdapter:
         m = self.model
         return m._value if hasattr(m, "_value") else None
 
+    def prepare_day(self, all_tasks: list, n_carryover: int = 0) -> None:
+        """Hook für modellspezifische Tagesstart-Vorbereitung (z.B. δ-Berechnung in DB-Base)."""
+        if hasattr(self.model, "_prepare_day"):
+            self.model._prepare_day(all_tasks, n_carryover)
+
+    def get_drop_score_fn_at(self, sim_routes, time_min: float, disruptions) -> Callable:
+        """Drop-Score-Funktion für den aktuellen Störungszeitpunkt.
+
+        Für Modelle mit _get_drop_score_fn_at (z.B. VFA): berechnet delta_global
+        frisch aus den bei time_min noch offenen Stops — identisch zu handle_disruptions.
+        Fallback: get_drop_score_fn() (zustandsunabhängig, z.B. CFA-Future).
+        """
+        if hasattr(self.model, "_get_drop_score_fn_at"):
+            return self.model._get_drop_score_fn_at(sim_routes, time_min, disruptions)
+        return self.get_drop_score_fn()
+
     def get_route_score_fn_for_tasks(
         self, tasks: list[MaintenanceTask]
     ) -> Callable[[int, float, int], float]:
@@ -457,6 +473,7 @@ class HorizonEvaluator:
             daily_plan = forced_plan
         else:
             _, all_tasks, team_assignment = self.task_gen.build_daily_tasks(state, team_states)
+            self.policy.prepare_day(all_tasks, n_carryover=len(state.carryover_tasks))
             daily_plan = self.policy.create_initial_plan(all_tasks, team_assignment) if all_tasks else None
 
         sim_routes = plan_to_sim_routes(daily_plan, all_tasks, self.n_teams)
@@ -1354,6 +1371,8 @@ class RollingHorizonRunner:
 
         _initial_override_notes: list[str] = []
         if all_tasks:
+            n_carryover = sum(1 for t in all_tasks if t.task_type == "carryover")
+            self.policy.prepare_day(all_tasks, n_carryover=n_carryover)
             if rh_enabled and enable_initial:
                 daily_plan, _initial_override_notes = self.create_initial_plan_rh(
                     all_tasks, team_assignment, state, rh_config
@@ -1423,7 +1442,6 @@ class RollingHorizonRunner:
 
         disruptions_handled = 0
         carried_disruptions: list[DisruptionEvent] = []
-        drop_score_fn = self.policy.get_drop_score_fn()
 
         for hour in range(8, 17):
             time_min = float((hour - 8) * 60)
@@ -1456,7 +1474,7 @@ class RollingHorizonRunner:
                 if rh_enabled and enable_replan:
                     handled, carried, h_downtime = self._handle_disruptions_rh(
                         h_disruptions, sim_routes, state, all_tasks,
-                        time_min, hour, hour_log, rh_config, drop_score_fn
+                        time_min, hour, hour_log, rh_config
                     )
                 else:
                     handled, carried, h_downtime = self.policy.handle_disruptions(
@@ -1637,7 +1655,6 @@ class RollingHorizonRunner:
         hour: int,
         log: HourLog,
         rh_config: dict,
-        drop_score_fn: Callable,
     ) -> tuple[int, list[DisruptionEvent], float]:
         """
         Störungshandling mit RH-Kandidatenbewertung.
@@ -1654,6 +1671,8 @@ class RollingHorizonRunner:
         Problem, dass ein RH-gewählter erster Drop + Legacy-Fallback-Drops zusammen
         mehr Stationen opfern als die Basis-Policy allein.
         """
+        drop_score_fn = self.policy.get_drop_score_fn_at(sim_routes, time_min, disruptions)
+
         matrix = self._get_matrix(time_min)
         cp = self.cost_params
         carryover: list[DisruptionEvent] = []

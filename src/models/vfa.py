@@ -47,23 +47,18 @@ logger = logging.getLogger(__name__)
 _DEFAULT_LOCAL_THETA_PATH  = Path("data/training/cfa_future/theta.json")
 _DEFAULT_GLOBAL_THETA_PATH = Path("data/training/vfa/theta.json")
 
-N_STATE_FEATURES = 15
+N_STATE_FEATURES = 10
 STATE_FEATURE_NAMES = [
-    "frac_remaining",          # f0
-    "carryover_ratio",         # f1
-    "total_urgency",           # f2
-    "expected_damage",         # f3
-    "mean_dsm",                # f4
-    "max_urgency",             # f5
-    "overdue_frac",            # f6
-    "critical_frac",           # f7
-    "mean_depot_dist_km",      # f8
-    "std_depot_dist_km",       # f9
-    "mean_slack_ratio",        # f10
-    "slack_imbalance",         # f11
-    "time_remaining_ratio",    # f12
-    "recovery_weighted_power", # f13
-    "risk_weighted_urgency",   # f14
+    "frac_remaining",       # f0
+    "carryover_ratio",      # f1
+    "mean_urgency",         # f2  mean(power×dsm)
+    "mean_expected_damage", # f3  mean(failure_risk×power)
+    "mean_dsm",             # f4
+    "max_urgency",          # f5
+    "overdue_frac",         # f6  dsm > 90
+    "mean_depot_dist_km",   # f7
+    "std_depot_dist_km",    # f8
+    "urgency_cv",           # f9  std(power×dsm) / mean(power×dsm)
 ]
 
 
@@ -247,6 +242,55 @@ class VFAModel:
         )
         return float(self.theta_local @ phi_scaled)
 
+    def _value(self, node_idx: int, dsm: float) -> float:
+        """Alias für _local_value — kompatibel mit PolicyAdapter.get_drop_score_fn()."""
+        return self._local_value(node_idx, dsm)
+
+    def _get_drop_score_fn_at(
+        self,
+        sim_routes: list[SimRoute],
+        time_min: float,
+        disruptions: list[DisruptionEvent],
+    ):
+        """Volle VFA-Drop-Score-Funktion zum Zeitpunkt einer Störung.
+
+        Identische Zustandsextraktion wie handle_disruptions: delta_global
+        wird aus den bei time_min noch offenen Stops berechnet.
+        """
+        remaining_tasks = [
+            MaintenanceTask(
+                node_idx=s.node_idx,
+                task_type=s.task_type,
+                priority=1 if s.task_type != "routine" else 2,
+                service_time=int(s.service_min),
+                days_since_maintenance=s.days_since_maintenance,
+            )
+            for r in sim_routes
+            for s in r.remaining_stops_at(time_min)
+        ]
+        disruption_stubs = [
+            MaintenanceTask(
+                node_idx=d.node_idx,
+                task_type="disruption",
+                priority=1,
+                service_time=int(round(d.service_min)),
+                days_since_maintenance=0.0,
+            )
+            for d in disruptions
+        ]
+        all_tasks = remaining_tasks + disruption_stubs
+        n_existing = sum(1 for t in remaining_tasks if t.task_type != "routine")
+        delta_global = self._compute_delta_global(
+            all_tasks,
+            n_carryover=n_existing + len(disruptions),
+        )
+        alpha, beta, wage = self._alpha, self._beta, self._wage_per_min
+        return lambda node, dsm, rem_h, cur, det: (
+            alpha * self._local_value(node, dsm)
+            + beta * delta_global.get(node, 0.0)
+            - wage * det
+        )
+
     # ------------------------------------------------------------------
     # Globale Wertfunktion
     # ------------------------------------------------------------------
@@ -255,18 +299,16 @@ class VFAModel:
         self,
         tasks: list[MaintenanceTask],
         n_carryover: int = 0,
-        team_current_times: Optional[list[float]] = None,
-        time_min: float = 0.0,
         exclude_node: Optional[int] = None,
     ) -> np.ndarray:
         """
-        15 globale Zustandsfeatures.
+        10 globale Zustandsfeatures (mittelwert-normiert, orthogonal zu frac_remaining).
 
-        Demand-Block (f0–f7): aus offenen Routine-Tasks.
-        Spatial-Block (f8–f9): Depot-Distanzen der offenen Stationen.
-        Team-Block (f10–f12): verbleibende Teamzeit, Imbalance, Tagesfortschritt.
-            Defaults (1.0, 0.0, 1.0) falls keine Teaminfo verfügbar (Initialplan).
-        Anticipation-Block (f13–f14): zukunftsgewichtete Risikosignale.
+        f0: frac_remaining, f1: carryover_ratio,
+        f2: mean_urgency, f3: mean_expected_damage, f4: mean_dsm,
+        f5: max_urgency, f6: overdue_frac,
+        f7: mean_depot_dist_km, f8: std_depot_dist_km,
+        f9: urgency_cv
         """
         routine = [
             t for t in tasks
@@ -282,20 +324,13 @@ class VFAModel:
             )
             urgency      = pow_vals * dsm_vals
             failure_risk = 1.0 - np.exp(-self.lambda_per_day * dsm_vals)
-            rc_vals      = (
-                self._initial_factor
-                + (1.0 - self._initial_factor)
-                * np.minimum(dsm_vals, self._recovery_days) / self._recovery_days
-            )
 
-            f2  = float(np.sum(urgency))
-            f3  = float(np.sum(failure_risk * pow_vals))
-            f4  = float(np.mean(dsm_vals))
-            f5  = float(np.max(urgency))
-            f6  = float(np.mean(dsm_vals > 90))
-            f7  = float(np.mean(dsm_vals > 180))
-            f13 = float(np.sum(pow_vals * rc_vals))
-            f14 = float(np.sum(failure_risk * urgency))
+            f2 = float(np.mean(urgency))
+            f3 = float(np.mean(failure_risk * pow_vals))
+            f4 = float(np.mean(dsm_vals))
+            f5 = float(np.max(urgency))
+            f6 = float(np.mean(dsm_vals > 90))
+            f9 = float(np.std(urgency) / max(float(np.mean(urgency)), 1e-8))
 
             if self.all_coords is not None:
                 depot = self.all_coords[0]
@@ -303,32 +338,18 @@ class VFAModel:
                     [_approx_km(self.all_coords[t.node_idx], depot) for t in routine],
                     dtype=np.float64,
                 )
-                f8 = float(np.mean(dists))
-                f9 = float(np.std(dists)) if len(dists) > 1 else 0.0
+                f7 = float(np.mean(dists))
+                f8 = float(np.std(dists)) if len(dists) > 1 else 0.0
             else:
-                f8 = f9 = 0.0
+                f7 = f8 = 0.0
         else:
-            f2 = f3 = f4 = f5 = f6 = f7 = f8 = f9 = f13 = f14 = 0.0
+            f2 = f3 = f4 = f5 = f6 = f7 = f8 = f9 = 0.0
 
         f0 = n_remaining / max(1, self.n_stations)
         f1 = n_carryover / 10.0
 
-        if team_current_times:
-            rem = np.array(
-                [max(0.0, self.WORKDAY_MINUTES - t) for t in team_current_times],
-                dtype=np.float64,
-            )
-            f10 = float(np.mean(rem)) / max(1.0, self.WORKDAY_MINUTES)
-            f11 = (
-                float(np.std(rem)) / max(1.0, self.WORKDAY_MINUTES)
-                if len(rem) > 1 else 0.0
-            )
-            f12 = max(0.0, 1.0 - time_min / max(1.0, self.WORKDAY_MINUTES))
-        else:
-            f10, f11, f12 = 1.0, 0.0, 1.0
-
         return np.array(
-            [f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14],
+            [f0, f1, f2, f3, f4, f5, f6, f7, f8, f9],
             dtype=np.float64,
         )
 
@@ -343,21 +364,16 @@ class VFAModel:
         self,
         tasks: list[MaintenanceTask],
         n_carryover: int = 0,
-        team_current_times: Optional[list[float]] = None,
-        time_min: float = 0.0,
     ) -> dict[int, float]:
         """ΔV̂_global(k) = V̂(s) − V̂(s ohne k) für alle Routine-Stationen."""
         routine_tasks = [t for t in tasks if t.task_type == "routine"]
         if not routine_tasks:
             return {}
-        phi_s = self._phi_state(tasks, n_carryover, team_current_times, time_min)
+        phi_s = self._phi_state(tasks, n_carryover)
         v_s   = self._global_value(phi_s)
         return {
             t.node_idx: v_s - self._global_value(
-                self._phi_state(
-                    tasks, n_carryover, team_current_times, time_min,
-                    exclude_node=t.node_idx,
-                )
+                self._phi_state(tasks, n_carryover, exclude_node=t.node_idx)
             )
             for t in routine_tasks
         }
@@ -431,13 +447,6 @@ class VFAModel:
         drop_score_fn = α × L(k) + β × ΔV̂_global(k) − wage × detour_min
         Höherer Score → Station wird behalten (wichtiger).
         """
-        team_current_times = [
-            float(r.lunch_end_min)
-            if (r.lunch_end_min is not None and time_min < r.lunch_end_min)
-            else float(r.current_departure_at(time_min))
-            for r in sim_routes
-        ]
-
         # Verbleibende Tasks für Zustandsberechnung (inkl. neue Disruptions)
         remaining_tasks = [
             MaintenanceTask(
@@ -469,8 +478,6 @@ class VFAModel:
         delta_global = self._compute_delta_global(
             all_tasks,
             n_carryover=n_carryover,
-            team_current_times=team_current_times,
-            time_min=time_min,
         )
 
         def drop_score_fn(node: int, dsm: float, rem_h: float, cur: int, det: float) -> float:

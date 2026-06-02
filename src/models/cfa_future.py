@@ -36,7 +36,10 @@ _DEFAULT_THETA_PATH = Path("data/training/cfa_future/theta.json")
 
 class CFAFutureModel:
     """
-    Echtes CFA-Modell mit gelernter Wertfunktionsapproximation.
+    CFA-Future-Modell: identische Policy-Logik wie CFAModel, aber mit kontrastiv gelerntem θ.
+
+    θ wird aus Suffix-Simulationen gelernt (Label: cost_drop_k − cost_serve_k),
+    nicht via OLS auf Myopic-Rollouts wie in CFAModel.
 
     Parameters
     ----------
@@ -51,7 +54,7 @@ class CFAFutureModel:
     cost_params : CostParams | None
         Kostenparameter (None → Standardwerte).
     theta_path : Path | str | None
-        Pfad zu data/training/cfa/theta.json. None → Standardpfad.
+        Pfad zu data/training/cfa_future/theta.json. None → Standardpfad.
     theta_override : float | None
         Direkt übergebener θ-Wert (überschreibt theta_path). Wird für
         iteratives Policy-Training verwendet, um θ ohne Datei-I/O zu setzen.
@@ -146,13 +149,13 @@ class CFAFutureModel:
             self.theta = np.asarray(theta_override, dtype=float)
             self._feature_means = np.zeros(len(self.theta))
             self._feature_stds = np.ones(len(self.theta))
-            logger.info(f"CFA: θ={self.theta} (direkt übergeben)")
+            logger.info(f"CFA-Future: θ={self.theta} (direkt übergeben)")
         else:
             path = Path(theta_path) if theta_path else _DEFAULT_THETA_PATH
             if not path.exists():
                 raise FileNotFoundError(
-                    f"CFA-Gewicht nicht gefunden: {path}\n"
-                    f"Bitte zuerst 'python scripts/train/train_cfa.py' ausführen."
+                    f"CFA-Future-Gewicht nicht gefunden: {path}\n"
+                    f"Bitte zuerst 'python scripts/train/train_cfa_future.py' ausführen."
                 )
             with open(path) as f:
                 data = json.load(f)
@@ -160,7 +163,7 @@ class CFAFutureModel:
             self._feature_means = np.array(data.get("feature_means", np.zeros(len(self.theta))))
             self._feature_stds = np.array(data.get("feature_stds", np.ones(len(self.theta))))
             logger.info(
-                f"CFA: θ={self.theta} geladen aus {path} "
+                f"CFA-Future: θ={self.theta} geladen aus {path} "
                 f"(R²={data.get('r2', '?'):.4f}, {data.get('n_runs', '?')} Läufe)"
             )
 
@@ -207,15 +210,15 @@ class CFAFutureModel:
         team_assignment: Optional[dict[int, list[int]]] = None,
     ) -> DailyPlan:
         """
-        Erstellt den Tagesplan mit wertfunktionsbasierter Soft-Deadline.
+        Erstellt den Tagesplan mit wertfunktionsbasierter Priorisierung.
 
-        Alle Routine-Tasks sind mandatory. V̂ bestimmt die Reihenfolge:
-        höhere Dringlichkeit → frühere Soft-Deadline → OR-Tools plant früher.
+        Greedy-Pfad (use_or_tools=false): C̃/dist als route_score_fn in greedy_initial_plan.
+        OR-Tools-Pfad: C̃/depot_dist-Ranking → Soft-Deadlines; höhere Dringlichkeit → frühere Deadline.
         """
         if not self._use_or_tools:
             n_routine = sum(1 for t in tasks if t.task_type == "routine")
             logger.info(
-                f"CFA Greedy-Initialplan: {len(tasks)} Tasks, {n_routine} Routine "
+                f"CFA-Future Greedy-Initialplan: {len(tasks)} Tasks, {n_routine} Routine "
                 f"(C̃/dist, θ={np.array2string(self.theta, precision=3)})."
             )
             # Shift so that min(C̃) → 1.0: negative values würden bei kleiner Distanz
@@ -256,7 +259,7 @@ class CFAFutureModel:
             ]
             for rank, idx in enumerate(np.argsort(scores)[::-1]):
                 deadline = int((rank + 1) / n * self.WORKDAY_MINUTES)
-                # Penalty = 1 min/min: V̂ steuert die Reihenfolge der Deadlines,
+                # Penalty = 1 min/min: C̃ steuert die Reihenfolge der Deadlines,
                 # nicht die Durchsetzungsstärke. Disruptions (4+ min/min) dominieren.
                 routine_tasks[idx].soft_deadline_min = deadline
                 routine_tasks[idx].deadline_penalty = 1
@@ -269,7 +272,7 @@ class CFAFutureModel:
                 )
 
         logger.info(
-            f"CFA OR-Tools-Initialplan: {len(tasks)} Tasks, {n} Routine "
+            f"CFA-Future OR-Tools-Initialplan: {len(tasks)} Tasks, {n} Routine "
             f"mit Soft-Deadlines (θ={np.array2string(self.theta, precision=3)})."
         )
         return self.solver.create_initial_plan(tasks, team_assignment=team_assignment)
@@ -283,10 +286,12 @@ class CFAFutureModel:
         log: HourLog,
     ) -> tuple[int, list[DisruptionEvent], float]:
         """
-        OR-Tools Replan mit V̂-basiertem Drop im Retry.
+        Replan mit C̃-basiertem Drop im Retry.
 
-        1. Replan mit allen verbleibenden Stops + Störungen (mandatory).
-        2. Falls infeasible: Droppe Routine-Stop mit niedrigstem V̂, repeat.
+        Greedy-Pfad (use_or_tools=false): handle_disruptions_greedy mit C̃-Drop-Score.
+        OR-Tools-Pfad:
+          1. Replan mit allen verbleibenden Stops + Störungen (mandatory).
+          2. Falls infeasible: Droppe Routine-Stop mit niedrigstem C̃, repeat.
         """
         if not self._use_or_tools:
             return handle_disruptions_greedy(
@@ -348,11 +353,11 @@ class CFAFutureModel:
         new_plan = self.solver.replan(all_tasks, team_states)
 
         if new_plan.solver_status in ("INFEASIBLE", "NO_SOLUTION"):
-            # CFA-Kern: Routine-Stops nach aufsteigendem V̂ droppen
+            # CFA-Future-Kern: Routine-Stops nach aufsteigendem C̃ droppen
             routine_tasks = [t for t in remaining_tasks if t.task_type == "routine"]
             mandatory = [t for t in remaining_tasks if t.task_type != "routine"] + disruption_tasks
 
-            # Aufsteigend nach V̂ sortieren; bei gleichem V̂: depotfernere Station zuerst droppen
+            # Aufsteigend nach C̃ sortieren; bei gleichem C̃: depotfernere Station zuerst droppen
             # (spart mehr Fahrzeit und ist konsistent mit der Zonenlogik)
             routine_tasks.sort(key=lambda t: (
                 self._value(t.node_idx, t.days_since_maintenance),
@@ -368,7 +373,7 @@ class CFAFutureModel:
                 if new_plan.solver_status not in ("INFEASIBLE", "NO_SOLUTION"):
                     dropped = [t.node_idx for t in routine_tasks[:n_drop]]
                     log.notes.append(
-                        f"CFA-Replan Retry: {n_drop} Routine-Stop(s) nach V̂ ausgebaut "
+                        f"CFA-Future-Replan Retry: {n_drop} Routine-Stop(s) nach C̃ ausgebaut "
                         f"{dropped}, Status: {new_plan.solver_status}"
                     )
                     solved = True
@@ -376,7 +381,7 @@ class CFAFutureModel:
 
             if not solved:
                 log.notes.append(
-                    f"CFA-Replan fehlgeschlagen ({new_plan.solver_status}): "
+                    f"CFA-Future-Replan fehlgeschlagen ({new_plan.solver_status}): "
                     f"{len(disruptions)} Störung(en) als Carryover."
                 )
                 return 0, list(disruptions), 0.0
@@ -405,7 +410,7 @@ class CFAFutureModel:
                         )
 
         log.notes.append(
-            f"CFA-Replan: {len(disruptions)} Störung(en) eingearbeitet, "
+            f"CFA-Future-Replan: {len(disruptions)} Störung(en) eingearbeitet, "
             f"Status: {new_plan.solver_status}"
         )
         return len(disruptions), [], downtime_cost

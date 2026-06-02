@@ -190,6 +190,7 @@ def build_traffic_matrices(
     tolerance_m: float = DEFAULT_TOLERANCE_M,
     num_workers: int = DEFAULT_WORKERS,
     progress_path: Path | None = None,
+    apply_mean_to_unmatched: bool = False,
 ) -> dict[int, np.ndarray]:
     """
     Erstellt für jede Stunde eine modifizierte Fahrzeit-Matrix.
@@ -199,6 +200,9 @@ def build_traffic_matrices(
 
     Fortschritt wird in progress_path als .npy-Zwischendatei gesichert
     (alle 5.000 Routen) um bei einem Abbruch weitermachen zu können.
+
+    apply_mean_to_unmatched: Wenn True, erhalten Routen ohne Stau-Treffer
+    den stündlichen Mittelwert aller gematchten Routen als Zuschlag.
     """
     n = base_duration.shape[0]
 
@@ -221,9 +225,12 @@ def build_traffic_matrices(
     # Fortschritt laden falls vorhanden
     start_k = 0
     traffic_matrices = {h: base_duration.copy() for h in hours}
+    # Separate Matrix zum Tracking der Route-Zuschläge (für Mittelwertberechnung)
+    additions_matrices = {h: np.zeros((n, n), dtype=np.float64) for h in hours}
     if progress_path and progress_path.exists():
         saved = np.load(progress_path, allow_pickle=True).item()
         traffic_matrices = saved["matrices"]
+        additions_matrices = saved.get("additions_matrices", additions_matrices)
         start_k = saved["next_k"]
         print(f"[Matrix] Fortschritt geladen — starte bei Route {start_k:,}")
 
@@ -247,6 +254,7 @@ def build_traffic_matrices(
             i, j, additions = future.result()
             for h in hours:
                 traffic_matrices[h][i, j] += additions[h]
+                additions_matrices[h][i, j] = additions[h]
 
             if iterator:
                 iterator.update(1)
@@ -255,6 +263,7 @@ def build_traffic_matrices(
             if progress_path and (step + 1) % 5_000 == 0:
                 np.save(progress_path, {
                     "matrices": traffic_matrices,
+                    "additions_matrices": additions_matrices,
                     "next_k": start_k + step + 1,
                 })
 
@@ -264,6 +273,23 @@ def build_traffic_matrices(
     # Fortschrittsdatei aufräumen
     if progress_path and progress_path.exists():
         progress_path.unlink()
+
+    # Durchschnittlichen Stau auf ungematchte Routen anwenden
+    if apply_mean_to_unmatched:
+        off_diag = ~np.eye(n, dtype=bool)
+        for h in hours:
+            matched_mask = (additions_matrices[h] > 0) & off_diag
+            n_matched = matched_mask.sum()
+            if n_matched == 0:
+                print(f"  {h:2d} Uhr: keine gematchten Routen — Mittelwert-Fallback übersprungen.")
+                continue
+            mean_delay = additions_matrices[h][matched_mask].mean()
+            unmatched_mask = (additions_matrices[h] == 0) & off_diag
+            traffic_matrices[h][unmatched_mask] += mean_delay
+            print(
+                f"  {h:2d} Uhr: {n_matched:,} gematchte / {unmatched_mask.sum():,} ungematchte Routen"
+                f" — Ø Zuschlag {mean_delay:.1f}s auf ungematchte addiert."
+            )
 
     return traffic_matrices
 
@@ -280,6 +306,7 @@ def main(
 ) -> None:
     config   = load_config(PROJECT_ROOT / "configs" / "config.yaml")
     osrm_url = config["osrm"]["base_url"]
+    apply_mean = config.get("traffic", {}).get("apply_mean_delay_to_unmatched", False)
 
     # 1. OSRM prüfen
     print(f"[Setup] Prüfe OSRM-Verbindung zu {osrm_url} …")
@@ -319,6 +346,8 @@ def main(
     # 5. Stau-Matrizen bauen (Geometrien werden on-the-fly abgerufen)
     progress_path = DEFAULT_OUTPUT_DIR / "traffic_matrix_progress.npy"
     print(f"\n[Matrix] Berechne Stau-Matrizen für {hours} Uhr …")
+    if apply_mean:
+        print("[Matrix] Modus: Ø-Stau auf ungematchte Routen aktiv (traffic.apply_mean_delay_to_unmatched=true)")
     traffic_matrices = build_traffic_matrices(
         base_duration=base_duration,
         coords=coords,
@@ -328,6 +357,7 @@ def main(
         tolerance_m=tolerance_m,
         num_workers=num_workers,
         progress_path=progress_path,
+        apply_mean_to_unmatched=apply_mean,
     )
 
     # 7. Speichern

@@ -93,40 +93,29 @@ class VFATrainingSimulator(MaintenanceSimulator):
             )
             urgency      = pow_vals * dsm_vals
             failure_risk = 1.0 - np.exp(-self._lambda_per_day * dsm_vals)
-            rc_vals      = (
-                self._initial_factor
-                + (1.0 - self._initial_factor)
-                * np.minimum(dsm_vals, self._recovery_days) / self._recovery_days
-            )
 
-            f0  = len(remaining_nodes) / max(1, self.n_stations)
-            f1  = n_carryover / 10.0
-            f2  = float(np.sum(urgency))
-            f3  = float(np.sum(failure_risk * pow_vals))
-            f4  = float(np.mean(dsm_vals))
-            f5  = float(np.max(urgency))
-            f6  = float(np.mean(dsm_vals > 90))
-            f7  = float(np.mean(dsm_vals > 180))
-            f13 = float(np.sum(pow_vals * rc_vals))
-            f14 = float(np.sum(failure_risk * urgency))
+            f2 = float(np.mean(urgency))
+            f3 = float(np.mean(failure_risk * pow_vals))
+            f4 = float(np.mean(dsm_vals))
+            f5 = float(np.max(urgency))
+            f6 = float(np.mean(dsm_vals > 90))
+            f9 = float(np.std(urgency) / max(float(np.mean(urgency)), 1e-8))
 
             depot = self.all_coords[0]
             dists = np.array(
                 [_approx_km(self.all_coords[n], depot) for n in remaining_nodes],
                 dtype=np.float64,
             )
-            f8 = float(np.mean(dists))
-            f9 = float(np.std(dists)) if len(dists) > 1 else 0.0
+            f7 = float(np.mean(dists))
+            f8 = float(np.std(dists)) if len(dists) > 1 else 0.0
         else:
-            f0 = len(remaining_nodes) / max(1, self.n_stations)
-            f1 = n_carryover / 10.0
-            f2 = f3 = f4 = f5 = f6 = f7 = f8 = f9 = f13 = f14 = 0.0
+            f2 = f3 = f4 = f5 = f6 = f7 = f8 = f9 = 0.0
 
-        # Teamfeatures: Tagesstart → voller Slack, kein Imbalance
-        f10, f11, f12 = 1.0, 0.0, 1.0
+        f0 = len(remaining_nodes) / max(1, self.n_stations)
+        f1 = n_carryover / 10.0
 
         phi = np.array(
-            [f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14],
+            [f0, f1, f2, f3, f4, f5, f6, f7, f8, f9],
             dtype=np.float64,
         )
         self.training_records.append({"day": day, "phi": phi})

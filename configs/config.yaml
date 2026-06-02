@@ -9,7 +9,7 @@ rolling_horizon:
   enabled: false
 
   # Anzahl Tage, über die jeder Drop-Kandidat simuliert wird
-  horizon_days: 21
+  horizon_days: 14
 
   # Anzahl stochastischer Szenarien pro Kandidat (Erwartungswert-Approximation)
   n_scenarios: 25
@@ -95,10 +95,16 @@ osrm:
 depot:
   # WVV Betriebshof Sanderau, Friedrich-Spee-Straße 58-64, 97072 Würzburg
   name: "WVV Betriebshof Sanderau"
-  # 49.776414
-  lat: 49.7817
-  # 9.938582
-  lon: 9.9351
+  # ALT: 49.7817
+  lat: 49.776414
+  # ALT: 9.9351
+  lon: 9.938582
+
+traffic:
+  # false → nur Routen, die einen bekannten Stauknoten passieren, erhalten einen Zuschlag.
+  # true  → Routen ohne Stau-Treffer bekommen den stündlichen Ø-Zuschlag der gematchten
+  #          Routen addiert (Stau gilt für alle Strecken gleichmäßig).
+  apply_mean_delay_to_unmatched: true
 
 planning:
   # K-Means Clustering (reines K-Means, kein Balance-Zwang) Normal: 60
@@ -192,7 +198,7 @@ vfa:
   # L(k)          = θ_local^T × φ_scaled_local(k)   (aus cfa_future θ)
   # ΔV̂_global(k) = V̂(s) − V̂(s ohne k)             (aus train_vfa.py θ)
   alpha: 1.0                 # Gewicht lokaler CFA-Future-Term
-  beta:  1.0                 # Gewicht globaler Zustandswert-Term
+  beta:  0.1                 # Gewicht globaler Zustandswert-Term
 
 maintenance:
   # Failure-Wahrscheinlichkeit pro Zeitschritt (wird später durch Daten kalibriert)
