@@ -120,6 +120,10 @@ planning:
   #   "depot_distance" → nur mittlere Depot-Entfernung (nächste Zonen zuerst)
   #   "value_based"    → modellspezifische Wertfunktion (CFA/VFA/...)
   zone_selection_mode: "value_based"
+  # Expansionsmodus nach Erschöpfen der Startzone:
+  #   "nearest"    → Nearest-Neighbor aus allen verfügbaren Stationen (bisheriges Verhalten)
+  #   "score_rank" → nächste Zone nach Score-Rang komplett laden, dann übernächste usw.
+  zone_expansion_mode: "score_rank"
   # Team-Zuweisung im Initialplan: true → OR-Tools darf nur dem zugewiesenen Team fahren
   # (verhindert geografisch unpassende Zuordnungen, kann aber Infeasibility erzwingen).
   # false → OR-Tools verteilt Tasks frei über beide Teams.
@@ -232,3 +236,11 @@ maintenance:
   # Lösungsanzahl (aktiv wenn solver_limit_mode: "solution")
   solver_solution_limit_initial: 100
   solver_solution_limit_replan: 50
+
+
+# DB-Simple: δ-Balancing-Modus
+#   "rf"    → gelerntes Random-Forest-Modell (data/training/db_simple/model.pkl)
+#   "rule"  → regelbasierte Stufenfunktion (rule_delta, kein Training nötig)
+#   "fixed" → festes δ (default_delta aus --delta Argument, Fallback 0.5)
+db_simple:
+  delta_mode: "rule"

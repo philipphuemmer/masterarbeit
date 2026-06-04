@@ -811,6 +811,9 @@ class RollingHorizonRunner:
         self.cost_params = cost_params
         self.n_stations = n_stations
         self.n_teams = n_teams
+        # Optionaler Hook: wird am Anfang jedes _run_day mit dem SystemState aufgerufen.
+        # Ermöglicht modellspezifische Tagesstart-Logik (z.B. δ-Berechnung in DB-Simple).
+        self.pre_day_hook: Optional[Callable[["SystemState"], None]] = None
 
         maint = config["maintenance"]
         self.WORKDAY_MINUTES: int = (
@@ -1352,6 +1355,9 @@ class RollingHorizonRunner:
         rh_config: dict,
     ) -> tuple[DayResult, list[SimRoute], list[DisruptionEvent]]:
         """Simuliert einen vollständigen Arbeitstag mit RH-Intervention."""
+        if self.pre_day_hook is not None:
+            self.pre_day_hook(state)
+
         day = state.day
         hourly_logs: list[HourLog] = []
         downtime_cost = 0.0

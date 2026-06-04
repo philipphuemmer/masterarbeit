@@ -17,6 +17,7 @@ build/
 # Data (raw data in git, processed/cached data not)
 data/processed/
 data/distance_matrices/
+data/distance_matrices_alt/
 data/osrm/
 
 # Logs & artifacts

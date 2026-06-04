@@ -1,0 +1,51 @@
+{
+  "phase1_results": {
+    "k_range": [
+      20,
+      40,
+      60,
+      80,
+      100,
+      120,
+      140,
+      160,
+      180,
+      200
+    ],
+    "best_silhouette": {
+      "k": 140,
+      "score": 0.6490332606184537
+    },
+    "best_cfa": {
+      "k": 160,
+      "costs": 37679.7449609375
+    },
+    "best_db_simple": {
+      "k": 180,
+      "costs": 36350.1821484375
+    },
+    "phase2_k_center": 160
+  },
+  "phase2_results": {
+    "k_range": [
+      140,
+      150,
+      160,
+      170,
+      180
+    ],
+    "best_silhouette": {
+      "k": 140,
+      "score": 0.6490332606184537
+    },
+    "best_cfa": {
+      "k": 170,
+      "costs": 37503.8941015625
+    },
+    "best_db_simple": {
+      "k": 180,
+      "costs": 36350.1821484375
+    },
+    "phase3_k_center": 170
+  }
+}

@@ -48,7 +48,33 @@ logger = logging.getLogger(__name__)
 _DEFAULT_THETA_PATH = Path("data/training/cfa_future/theta.json")
 _DEFAULT_DB_SIMPLE_MODEL_PATH = Path("data/training/db_simple/model.pkl")
 
-_CRITICAL_DSM_FRACTION = 0.2  # dsm > 0.2 × recovery_days → kritisch
+_CRITICAL_DSM_FRACTION = 0.8  # dsm > 0.8 × recovery_days → kritisch
+
+
+# ---------------------------------------------------------------------------
+# Regelbasiertes δ
+# ---------------------------------------------------------------------------
+
+def rule_delta(day_progress: float, n_remaining: int) -> float:
+    """
+    δ-basiertes Balancieren zwischen C̃ (Zukunftswert) und Routingeffizienz.
+
+    Basierend auf empirischer Analyse:
+    - Tag 1-10: 3.7-5.2 Störungen/Tag, 340-397 Stops → δ=0.1
+    - Tag 11-20: 2.6-3.8 Störungen/Tag, 246-332 Stops → δ=0.3
+    - Tag 21-30: 1.5-2.5 Störungen/Tag, 134-235 Stops → δ=0.5
+    - Tag 31-36: 1.0-1.3 Störungen/Tag, 38-106 Stops → δ=0.7
+    - Tag 37-44: 0-0.9 Störungen/Tag, 2-30 Stops → δ=0.9
+    """
+    if n_remaining >= 370:    # Tag ~1-12: viele Störungen, C̃ dominiert
+        return 0.5
+    if n_remaining >= 330:    # Tag ~13-22: noch viel Arbeit1
+        return 0.5
+    if n_remaining >= 180:    # Tag ~23-31: Balance-Zone
+        return 0.5
+    if n_remaining >= 130:     # Tag ~32-37: wenig Störungen
+        return 0.5
+    return 0.9                # Tag 38+: fast fertig, Routing dominiert
 
 
 # ---------------------------------------------------------------------------
@@ -171,9 +197,8 @@ class DBSimplePolicy(CFAFutureModel):
         """
         3-dimensionaler Zustandsvektor für δ-Schätzung am Tagesstart.
 
-        f0: day_progress        = (day − 1) / 364.0
-        f1: n_remaining_stops   = len(remaining)
-        f2: n_critical_stations = Anzahl mit dsm > 0.2 × recovery_days
+        f0: day_progress      = (day − 1) / 364.0
+        f1: n_remaining_stops = len(remaining)
 
         Parameters
         ----------
@@ -181,18 +206,10 @@ class DBSimplePolicy(CFAFutureModel):
         dsm_array  : dsm_array[node_idx] = Tage seit letzter Wartung (node_idx 1-basiert).
         day        : aktueller Simulationstag (1-basiert).
         """
-        fail_cfg = self.config.get("failure_simulation", {})
-        recovery_days = float(fail_cfg.get("recovery_days", 365))
-        critical_threshold = _CRITICAL_DSM_FRACTION * recovery_days
-
         day_progress = (day - 1) / 364.0
         n_remaining = float(len(remaining))
-        n_critical = float(sum(
-            1 for idx in remaining
-            if dsm_array[idx + 1] > critical_threshold
-        ))
 
-        return np.array([day_progress, n_remaining, n_critical], dtype=np.float64)
+        return np.array([day_progress, n_remaining], dtype=np.float64)
 
     # ------------------------------------------------------------------
     # Policy-Schnittstelle (Greedy-Pfad überschrieben, OR-Tools delegiert)
@@ -297,10 +314,16 @@ class DBSimpleMaintenanceSimulator(MaintenanceSimulator):
 
     def _run_day(self, day, remaining, team_states, carryover_tasks, day_disruptions):
         dsm_map = getattr(self, "_days_since_maintenance", None)
+        delta_mode = self.config.get("db_simple", {}).get("delta_mode", "rf")
 
         if dsm_map is not None and len(remaining) > 0:
             phi = self.policy.extract_balance_features(remaining, dsm_map, day)
-            delta = self.policy.db_model.predict_delta(phi)
+            if delta_mode == "rule":
+                delta = rule_delta(float(phi[0]), int(phi[1]))
+            elif delta_mode == "rf":
+                delta = self.policy.db_model.predict_delta(phi)
+            else:  # "fixed"
+                delta = self.policy.db_model.default_delta
         else:
             phi = None
             delta = self.policy.db_model.default_delta
@@ -308,8 +331,8 @@ class DBSimpleMaintenanceSimulator(MaintenanceSimulator):
         self.policy.set_precomputed_delta(delta)
         self.delta_log[day] = delta
         logger.debug(
-            f"DB-Simple Tag {day}: δ_start={delta:.3f} "
-            f"(remaining={len(remaining)}, features={phi})"
+            f"DB-Simple Tag {day}: δ_start={delta:.3f} (mode={delta_mode}, "
+            f"remaining={len(remaining)}, features={phi})"
         )
 
         return super()._run_day(day, remaining, team_states, carryover_tasks, day_disruptions)

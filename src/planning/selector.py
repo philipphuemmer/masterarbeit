@@ -84,6 +84,7 @@ class DailyZoneSelector:
         self.w_area: float = float(w.get("convex_hull_area", 0.5))
         self.w_value: float = float(w.get("zone_value", 0.5))
         self.zone_selection_mode: str = planning_cfg.get("zone_selection_mode", "classic")
+        self.zone_expansion_mode: str = planning_cfg.get("zone_expansion_mode", "nearest")
 
         # Wird nach Konstruktion gesetzt wenn zone_selection_mode == "value_based":
         #   selector.value_fn = lambda node_idx, dsm: model._value(node_idx, dsm)
@@ -167,7 +168,8 @@ class DailyZoneSelector:
 
             start_zone = starting_zones.get(tid)
             stations = self._expand_from_zone(
-                start_zone, remaining_set, claimed, state, capacity=capacity
+                start_zone, remaining_set, claimed, state, capacity=capacity,
+                scored_zones=scored_zones,
             )
             claimed.update(s - 1 for s in [t.node_idx for t in stations])
             tasks_per_team[tid].extend(stations)
@@ -293,12 +295,13 @@ class DailyZoneSelector:
         already_claimed: set[int],
         team_state: TeamState,
         capacity: int | None = None,
+        scored_zones: list[int] | None = None,
     ) -> list[MaintenanceTask]:
         """
         Baut die Kandidatenmenge eines Teams auf:
         1. Alle unbesuchten Stationen der Startzone
-        2. Dann iterativ die nächste unbesuchte Station (aus beliebiger Zone)
-           zum Cluster-Schwerpunkt hinzufügen bis Kapazitätslimit erreicht.
+        2a. "nearest":    Nearest-Neighbor aus allen verfügbaren Stationen
+        2b. "score_rank": nächste offene Zone nach Score-Rang komplett laden, usw.
 
         `already_claimed` verhindert Doppelzuweisungen zwischen Teams.
         """
@@ -318,24 +321,37 @@ class DailyZoneSelector:
                 if s in available and len(selected) < cap:
                     selected.append(s)
 
-        # Nearest-Neighbor-Expansion bis Kapazitätslimit
-        while len(selected) < cap:
-            remaining_available = available - set(selected)
-            if not remaining_available:
-                break
+        if self.zone_expansion_mode == "score_rank" and scored_zones is not None:
+            # Zonen in Score-Reihenfolge durchgehen (Startzone überspringen)
+            visited_zones = {start_zone} if start_zone is not None else set()
+            for z in scored_zones:
+                if len(selected) >= cap:
+                    break
+                if z in visited_zones:
+                    continue
+                visited_zones.add(z)
+                for s in self.clusterer.station_indices_per_zone_[z]:
+                    if s in available and s not in selected and len(selected) < cap:
+                        selected.append(s)
+        else:
+            # Nearest-Neighbor-Expansion bis Kapazitätslimit
+            while len(selected) < cap:
+                remaining_available = available - set(selected)
+                if not remaining_available:
+                    break
 
-            # Schwerpunkt der bereits gewählten Stationen
-            if selected:
-                anchor = self.station_coords[selected].mean(axis=0)
-            else:
-                anchor = self.all_coords[team_state.current_node]
+                # Schwerpunkt der bereits gewählten Stationen
+                if selected:
+                    anchor = self.station_coords[selected].mean(axis=0)
+                else:
+                    anchor = self.all_coords[team_state.current_node]
 
-            # Nächste Station zum Schwerpunkt
-            next_s = min(
-                remaining_available,
-                key=lambda s: _approx_km(anchor, self.station_coords[s]),
-            )
-            selected.append(next_s)
+                # Nächste Station zum Schwerpunkt
+                next_s = min(
+                    remaining_available,
+                    key=lambda s: _approx_km(anchor, self.station_coords[s]),
+                )
+                selected.append(next_s)
 
         # node_idx = station_idx + 1 (Depot belegt Index 0)
         return [
