@@ -85,6 +85,15 @@ def _load_rh_overrides_from_json(path: Path) -> tuple[int, int]:
 from src.utils.mc_analyse import analyse
 
 
+def _myopic_plus_cfg_lines(cfg: dict | None) -> list[str]:
+    if not cfg:
+        return []
+    return [
+        "\n  MyopicPlus",
+        f"    α (Ausfallkostenfaktor)  : {cfg.get('cfa', {}).get('alpha', '–')}",
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Monte-Carlo-Simulation (Myopic Plus)")
     parser.add_argument("--runs", type=int, default=30,
@@ -181,6 +190,7 @@ def main() -> None:
                 [completed[s] for s in sorted_seeds], sorted_seeds, cfg=cfg,
                 initial_overrides=sorted_init if rh_enabled else None,
                 replan_overrides=sorted_replan if rh_enabled else None,
+                model_cfg_lines=_myopic_plus_cfg_lines(cfg),
             ),
             encoding="utf-8",
         )
@@ -349,6 +359,7 @@ def main() -> None:
             cost_params=cost_params_dict,
             initial_overrides=sorted_init if rh_enabled else None,
             replan_overrides=sorted_replan if rh_enabled else None,
+            model_cfg_lines=_myopic_plus_cfg_lines(run_cfg),
         )
         overview_path.write_text(overview_text, encoding="utf-8")
 

@@ -88,15 +88,29 @@ def _load_rh_overrides_from_json(path: Path) -> tuple[int, int]:
 from src.utils.mc_analyse import analyse
 
 
-def _vfa_cfg_lines(cfg: dict | None) -> list[str]:
+def _vfa_cfg_lines(cfg: dict | None, local_theta_data: dict | None = None,
+                   global_theta_data: dict | None = None) -> list[str]:
     if not cfg:
         return []
     vf = cfg.get("vfa", {})
-    return [
+    lines = [
         "\n  Hybrid-VFA",
         f"    α (lokaler Term)         : {vf.get('alpha', 1.0)}",
         f"    β (globaler Term)        : {vf.get('beta',  1.0)}",
     ]
+    if local_theta_data:
+        theta = [f"{v:.4f}" for v in local_theta_data.get("theta", [])]
+        lines.append(f"    θ_lokal                  : [{', '.join(theta)}]")
+        r2 = local_theta_data.get("r2")
+        if r2 is not None:
+            lines.append(f"    R² (lokal)               : {r2:.4f}")
+    if global_theta_data:
+        theta = [f"{v:.4f}" for v in global_theta_data.get("theta", [])]
+        lines.append(f"    θ_global                 : [{', '.join(theta)}]")
+        r2 = global_theta_data.get("r2")
+        if r2 is not None:
+            lines.append(f"    R² (global)              : {r2:.4f}")
+    return lines
 
 
 def main() -> None:
@@ -143,6 +157,18 @@ def main() -> None:
     else:
         mal_df = None
         print("  Störungsmodus: stochastisch")
+
+    local_theta_data, global_theta_data = None, None
+    try:
+        with open(args.local_theta) as f:
+            local_theta_data = json.load(f)
+    except FileNotFoundError:
+        pass
+    try:
+        with open(args.global_theta) as f:
+            global_theta_data = json.load(f)
+    except FileNotFoundError:
+        pass
 
     if rh_enabled:
         print(f"  Rolling Horizon aktiv: H={rh_cfg.get('horizon_days', 7)}, "
@@ -191,7 +217,7 @@ def main() -> None:
                 [completed[s] for s in sorted_seeds], sorted_seeds, cfg=cfg,
                 initial_overrides=[completed_rh[s][0] for s in sorted_seeds] if rh_enabled else None,
                 replan_overrides=[completed_rh[s][1] for s in sorted_seeds] if rh_enabled else None,
-                model_cfg_lines=_vfa_cfg_lines(cfg),
+                model_cfg_lines=_vfa_cfg_lines(cfg, local_theta_data, global_theta_data),
             ),
             encoding="utf-8",
         )
@@ -350,7 +376,7 @@ def main() -> None:
             cost_params=cost_params_dict,
             initial_overrides=sorted_init if rh_enabled else None,
             replan_overrides=sorted_replan if rh_enabled else None,
-            model_cfg_lines=_vfa_cfg_lines(run_cfg),
+            model_cfg_lines=_vfa_cfg_lines(run_cfg, local_theta_data, global_theta_data),
         )
         overview_path.write_text(overview_text, encoding="utf-8")
 

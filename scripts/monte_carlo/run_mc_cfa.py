@@ -67,6 +67,25 @@ def _load_result_from_json(path: Path) -> SimulationResult:
 from src.utils.mc_analyse import analyse
 
 
+def _cfa_cfg_lines(cfg: dict | None, theta_data: dict | None = None) -> list[str]:
+    if not cfg:
+        return []
+    lines = [
+        "\n  CFA",
+        f"    α (Ausfallkostenfaktor)  : {cfg.get('cfa', {}).get('alpha', '–')}",
+    ]
+    if theta_data:
+        theta = [f"{v:.4f}" for v in theta_data.get("theta", [])]
+        lines.append(f"    θ                        : [{', '.join(theta)}]")
+        r2 = theta_data.get("r2")
+        if r2 is not None:
+            lines.append(f"    R²                       : {r2:.4f}")
+        n_runs = theta_data.get("n_runs")
+        if n_runs is not None:
+            lines.append(f"    Trainingsläufe           : {n_runs}")
+    return lines
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Monte-Carlo-Simulation (CFA)")
     parser.add_argument("--runs",       type=int, default=30,
@@ -141,7 +160,8 @@ def main() -> None:
         print("Alle Läufe bereits vorhanden. Overview wird neu geschrieben.")
         sorted_seeds = sorted(completed.keys())
         overview_path.write_text(
-            analyse([completed[s] for s in sorted_seeds], sorted_seeds, cfg=cfg),
+            analyse([completed[s] for s in sorted_seeds], sorted_seeds, cfg=cfg,
+                    model_cfg_lines=_cfa_cfg_lines(cfg, theta_data)),
             encoding="utf-8",
         )
         return
@@ -245,6 +265,7 @@ def main() -> None:
         overview_text = analyse(
             [completed[s] for s in sorted_seeds], sorted_seeds,
             cfg=cfg, cost_params=cost_params_dict,
+            model_cfg_lines=_cfa_cfg_lines(cfg, theta_data),
         )
         overview_path.write_text(overview_text, encoding="utf-8")
 

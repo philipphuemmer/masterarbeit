@@ -184,6 +184,21 @@ class DBSimplePolicy(CFAFutureModel):
     def set_precomputed_delta(self, delta: float) -> None:
         self._precomputed_delta = float(delta)
 
+    def _prepare_day(self, all_tasks: list, n_carryover: int = 0) -> None:
+        """δ vor dem Tagesstart setzen — wird vom RollingHorizonRunner via prepare_day() aufgerufen.
+
+        Spiegelt die Logik von DBSimpleMaintenanceSimulator._run_day wider:
+        delta_mode "rule" nutzt rule_delta(n_remaining); andere Modi behalten default_delta.
+        day_progress wird für rule_delta nicht benötigt (0.0 als Platzhalter).
+        """
+        delta_mode = self.config.get("db_simple", {}).get("delta_mode", "rf")
+        n_routine = sum(1 for t in all_tasks if getattr(t, "task_type", "") == "routine")
+        if delta_mode == "rule":
+            delta = rule_delta(0.0, n_routine)
+        else:
+            delta = self.db_model.default_delta
+        self.set_precomputed_delta(delta)
+
     # ------------------------------------------------------------------
     # Feature-Extraktion
     # ------------------------------------------------------------------

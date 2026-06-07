@@ -334,6 +334,15 @@ class HorizonEvaluator:
         self._typ2_handling_min: float = cp.typ2_handling_min
         self._typ2_remount_min: float = cp.typ2_remount_min
 
+        # Terminal-Kostenpauschale: Kosten pro am Horizont-Ende noch offener Routinestation.
+        # Gewicht aus Config (0.0 = deaktiviert).
+        rh_cfg = config.get("rolling_horizon", {})
+        _terminal_weight: float = float(rh_cfg.get("terminal_remaining_weight", 0.0))
+        _mean_service_min: float = float(maint.get("mean_service_time", 45))
+        self._terminal_cost_per_station: float = (
+            _terminal_weight * _mean_service_min * cp.wage_eur_per_hour / 60.0
+        )
+
         # Fixer RNG nur für die Szenario-Seed-Generierung (läuft unabhängig
         # vom Simulations-RNG, sodass Evaluation reproduzierbar bleibt)
         self._eval_rng = np.random.default_rng(0)
@@ -372,6 +381,7 @@ class HorizonEvaluator:
                 s = self._update_state_fast(s, result)
                 if not s.remaining and not s.carryover_tasks:
                     break
+            total += len(s.remaining) * self._terminal_cost_per_station
             costs.append(total)
         return costs
 
@@ -421,6 +431,7 @@ class HorizonEvaluator:
                 result = self._run_day_fast(s)
                 total += result.cost
                 s = self._update_state_fast(s, result)
+            total += len(s.remaining) * self._terminal_cost_per_station
             costs.append(total)
         return float(np.mean(costs))
 
@@ -697,6 +708,7 @@ class HorizonEvaluator:
                 total += result.cost
                 s = self._update_state_fast(s, result)
 
+            total += len(s.remaining) * self._terminal_cost_per_station
             costs.append(total)
         return costs
 

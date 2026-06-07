@@ -114,6 +114,10 @@ def analyse(
         mt = cfg.get("maintenance", {})
         fs = cfg.get("failure_simulation", {})
         pw = pl.get("priority_weights", {})
+        rh = cfg.get("rolling_horizon", {})
+        st = cfg.get("stochastic_travel_times", {})
+        sv = cfg.get("solver", {})
+        tr = cfg.get("traffic", {})
 
         out(f"\n{sep}")
         out("  SIMULATIONSPARAMETER")
@@ -125,13 +129,16 @@ def analyse(
         out(f"    Min. Teamabstand         : {pl.get('min_team_separation_km', '–')} km")
         out(f"    Max. Stationen/Team      : {pl.get('max_stations_per_team', '–')}")
         out(f"    Zeitpuffer Depot         : {pl.get('travel_reserve_min', '–')} min")
-        out(f"    V̂-basierte Zonenauswahl  : {pl.get('zone_selection_mode', 'classic')}")
+        out(f"    Auswahlmodus             : {pl.get('zone_selection_mode', 'classic')}")
+        out(f"    Expansionsmodus          : {pl.get('zone_expansion_mode', 'nearest')}")
         out(f"    Team-Zuweisung           : {'Ja' if pl.get('use_team_assignment', True) else 'Nein'}")
         out(f"    Gewicht Depot-Entfernung : {pw.get('depot_distance', '–')}")
         out(f"    Gewicht Fläche           : {pw.get('convex_hull_area', '–')}")
         out(f"    Gewicht Zonenwert (V̂)    : {pw.get('zone_value', '–')}")
 
-        out("\n  Solver (OR-Tools)")
+        use_or_tools = sv.get("use_or_tools", True)
+        out("\n  Routing")
+        out(f"    OR-Tools aktiv           : {'Ja' if use_or_tools else 'Nein (Greedy)'}")
         slm = mt.get("solver_limit_mode", "time")
         out(f"    Abbruchkriterium         : {slm}")
         if slm == "solution":
@@ -149,6 +156,14 @@ def analyse(
         eh = mt.get("workday_end_hour", 16)
         out(f"    Arbeitstag               : {sh:02d}:00–{eh:02d}:00")
         out(f"    Mittlere Servicezeit     : {mt.get('mean_service_time', '–')} min")
+        out(f"    Servicezeit-Modus        : {mt.get('service_time_mode', 'fixed')}")
+        if mt.get("service_time_mode") == "per_charging_point":
+            out(f"    Min. je Ladepunkt        : {mt.get('minutes_per_charging_point', '–')} min")
+        if mt.get("lunch_duration_min", 0) > 0:
+            lunch_earliest = mt.get("lunch_earliest_min", 240)
+            lunch_h = 8 + lunch_earliest // 60
+            lunch_m = lunch_earliest % 60
+            out(f"    Früheste Mittagspause    : {lunch_h:02d}:{lunch_m:02d} Uhr")
 
         if cost_params:
             out("\n  Kosten")
@@ -163,6 +178,38 @@ def analyse(
             out(f"    p(Typ-2)/h               : {fs.get('p2_per_hour', 0):.5f}")
             out(f"    Erholungsdauer           : {fs.get('recovery_days', '–')} Tage")
             out(f"    Initialfaktor            : {fs.get('initial_factor', 0):.2f}")
+            out(f"    DSM randomisiert         : {'Ja' if fs.get('randomize_initial_dsm', False) else 'Nein'}")
+
+        out("\n  Fahrtzeiten")
+        out(f"    Stau-Mittelwert ungematch: {'Ja' if tr.get('apply_mean_delay_to_unmatched', True) else 'Nein'}")
+        out(f"    Stochastisch             : {'Ja' if st.get('enabled', False) else 'Nein'}")
+        if st.get("enabled", False):
+            out(f"    Monte-Carlo-Läufe        : {st.get('n_mc_runs', '–')}")
+            out(f"    Service-Level α          : {st.get('feasibility_alpha', '–')}")
+            cv = st.get("cv_by_hour", {})
+            if cv:
+                cv_str = "  ".join(f"{h}h:{v}" for h, v in sorted(cv.items()))
+                out(f"    CV je Stunde             : {cv_str}")
+
+        if rh.get("enabled", False):
+            out("\n  Rolling Horizon")
+            out(f"    Horizont (Tage)          : {rh.get('horizon_days', '–')}")
+            out(f"    Szenarien/Kandidat       : {rh.get('n_scenarios', '–')}")
+            out(f"    Top-k Kandidaten         : {rh.get('top_k_candidates', '–')}")
+            out(f"    Replan aktiv             : {'Ja' if rh.get('enable_replan', True) else 'Nein'}")
+            out(f"    Initial aktiv            : {'Ja' if rh.get('enable_initial', False) else 'Nein'}")
+            out(f"    Post-Decision-Rollout    : {'Ja' if rh.get('use_post_decision_rollout', False) else 'Nein'}")
+            csel = rh.get("candidate_selection_mode", "expected_value")
+            out(f"    Auswahlmodus             : {csel}")
+            if csel == "win_rate":
+                out(f"    Win-Rate Replan          : {rh.get('win_rate_threshold_replan', '–')}")
+                out(f"    Win-Rate Initial         : {rh.get('win_rate_threshold_initial', '–')}")
+            out(f"    Terminal-Gewicht         : {rh.get('terminal_remaining_weight', 0.0)}")
+            if rh.get("enable_initial", False):
+                out(f"    Top-k Initial            : {rh.get('top_k_initial', '–')}")
+                out(f"    Seed-Block-Größe         : {rh.get('initial_seed_block_size', 1)}")
+            out(f"    Zeitbudget/Ereignis      : {rh.get('time_budget_sec', '–')} s")
+            out(f"    Fallback bei Timeout     : {'Ja' if rh.get('fallback_to_legacy_on_timeout', True) else 'Nein'}")
 
         if model_cfg_lines:
             for line in model_cfg_lines:

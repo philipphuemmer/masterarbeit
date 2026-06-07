@@ -14,38 +14,74 @@
     ],
     "best_silhouette": {
       "k": 140,
-      "score": 0.6490332606184537
+      "score": 0.6490332606184538
     },
     "best_cfa": {
-      "k": 160,
-      "costs": 37679.7449609375
+      "k": 180,
+      "costs": 34067.8687109375
     },
     "best_db_simple": {
-      "k": 180,
-      "costs": 36350.1821484375
+      "k": 160,
+      "costs": 34063.01546875
     },
-    "phase2_k_center": 160
+    "phase2_k_center": 180
   },
   "phase2_results": {
     "k_range": [
-      140,
-      150,
       160,
       170,
-      180
+      180,
+      190,
+      200
     ],
     "best_silhouette": {
-      "k": 140,
-      "score": 0.6490332606184537
+      "k": 160,
+      "score": 0.6342976440831031
     },
     "best_cfa": {
-      "k": 170,
-      "costs": 37503.8941015625
+      "k": 180,
+      "costs": 34067.8687109375
     },
     "best_db_simple": {
-      "k": 180,
-      "costs": 36350.1821484375
+      "k": 160,
+      "costs": 34063.01546875
     },
-    "phase3_k_center": 170
+    "phase3_k_center": 180
+  },
+  "phase3_results": {
+    "k_range": [
+      175,
+      176,
+      177,
+      178,
+      179,
+      180,
+      181,
+      182,
+      183,
+      184,
+      185
+    ],
+    "best_silhouette": {
+      "k": 175,
+      "score": 0.6298559247958923
+    },
+    "best_cfa": {
+      "k": 178,
+      "costs": 33918.74275390625
+    },
+    "best_db_simple": {
+      "k": 178,
+      "costs": 33956.42478515625
+    }
+  },
+  "final_decision": {
+    "k_final": 178,
+    "silhouette_score": 0.6230053644872752,
+    "cfa_costs": 33918.74275390625,
+    "db_simple_costs": 33956.42478515625,
+    "decision_logic": "priority_cfa",
+    "runs_per_k": 100,
+    "max_days": 365
   }
 }

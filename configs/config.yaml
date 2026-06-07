@@ -6,10 +6,10 @@ rolling_horizon:
   # false → exakt dasselbe Verhalten wie bisher (MaintenanceSimulator, kein RH)
   # true  → RollingHorizonRunner aktiv: Drop-Entscheidungen bei Störungen werden
   #          über einen kurzen Horizont bewertet und ggf. von der Basis-Policy überschrieben.
-  enabled: false
+  enabled: true
 
   # Anzahl Tage, über die jeder Drop-Kandidat simuliert wird
-  horizon_days: 14
+  horizon_days: 40
 
   # Anzahl stochastischer Szenarien pro Kandidat (Erwartungswert-Approximation)
   n_scenarios: 25
@@ -31,6 +31,11 @@ rolling_horizon:
 
   # Größe des Seed-Blocks: 1 = einzelne Startstation, 2 = Zweier-Block
   initial_seed_block_size: 1
+
+  # Terminal-Kostenpauschale: Gewicht für noch offene Routinestationen am Horizont-Ende.
+  # Jede offene Station wird mit terminal_remaining_weight × mean_service_time × wage bewertet.
+  # 0.0 = deaktiviert (bisheriges Verhalten); 1.0 = volle Wartungskosten pro offener Station.
+  terminal_remaining_weight: 1.0
 
   # Bei Überschreitung des Zeitbudgets: Fallback auf Basis-Policy-Entscheidung
   fallback_to_legacy_on_timeout: true
@@ -108,7 +113,7 @@ traffic:
 
 planning:
   # K-Means Clustering (reines K-Means, kein Balance-Zwang) Normal: 60
-  n_zones: 120
+  n_zones: 178
   # Tägliche Zonenauswahl
   n_top_candidates: 20       # Aus allen offenen Zonen: Top-N nach Prioritätsscore für Startzone
   min_team_separation_km: 0.0  # Mindestabstand zwischen Team-Zonen
