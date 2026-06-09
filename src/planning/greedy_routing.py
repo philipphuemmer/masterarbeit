@@ -7,10 +7,10 @@ Initialplan
 -----------
 greedy_initial_plan() baut die Route Schritt für Schritt auf:
   - Carryover-Tasks: Nearest-Neighbor (mandatory, immer zuerst)
-  - Routine-Tasks:   route_score_fn(node_idx, dsm, current_node) → höher = als nächstes
+  - Routine-Tasks:   route_score_fn(node_idx, dsm, current_node, matrix) → höher = als nächstes
 
-    CFA:        route_score_fn = C̃(k) / dist(cur, k)
-    MyopicPlus: route_score_fn = 1    / dist(cur, k)   (Nearest-Neighbor)
+    CFA:        route_score_fn = C̃(k) / (mat[cur, k] / 60)
+    MyopicPlus: route_score_fn = 1    / (mat[cur, k] / 60)   (Nearest-Neighbor)
 
 Störungs-Replan
 ---------------
@@ -92,7 +92,7 @@ def _extend_route_greedily(
     workday_minutes: int,
     lunch_earliest_min: int,
     lunch_end: int,
-    route_score_fn: Callable[[int, float, int], float],
+    route_score_fn: Callable[[int, float, int, np.ndarray], float],
 ) -> tuple[list[int], list[int], list[int], int]:
     """
     Greedy-Erweiterung einer Route ab einem gegebenen Startzustand.
@@ -116,7 +116,7 @@ def _extend_route_greedily(
         order = sorted(
             range(len(remaining)),
             key=lambda i: route_score_fn(
-                remaining[i].node_idx, remaining[i].days_since_maintenance, cur
+                remaining[i].node_idx, remaining[i].days_since_maintenance, cur, matrix
             ),
             reverse=True,
         )
@@ -153,7 +153,7 @@ def greedy_initial_plan(
     lunch_earliest_min: int,
     lunch_duration_min: int,
     n_teams: int,
-    route_score_fn: Callable[[int, float, int], float],
+    route_score_fn: Callable[[int, float, int, np.ndarray], float],
 ) -> DailyPlan:
     """
     Baut den Tagesplan greedy auf — kein OR-Tools.
@@ -164,10 +164,10 @@ def greedy_initial_plan(
     Parameters
     ----------
     route_score_fn
-        (node_idx, days_since_maintenance, current_node_idx) → float.
+        (node_idx, days_since_maintenance, current_node_idx, matrix) → float.
         Höherer Score → Station wird als nächstes gewählt.
-        CFA:        C̃(k) / dist(cur, k)
-        MyopicPlus: 1    / dist(cur, k)
+        CFA:        C̃(k) / (mat[cur, k] / 60)
+        MyopicPlus: 1    / (mat[cur, k] / 60)
     """
     lunch_end = lunch_earliest_min + lunch_duration_min
     node_to_task = {t.node_idx: t for t in tasks}
@@ -181,9 +181,10 @@ def greedy_initial_plan(
     else:
         # Ohne Zuweisung: nach Score vom Depot abwechselnd verteilen
         per_team = {i: [] for i in range(n_teams)}
+        initial_matrix = _get_matrix(traffic_matrices, 0, workday_start_hour)
         sorted_tasks = sorted(
             tasks,
-            key=lambda t: route_score_fn(t.node_idx, t.days_since_maintenance, 0),
+            key=lambda t: route_score_fn(t.node_idx, t.days_since_maintenance, 0, initial_matrix),
             reverse=True,
         )
         for idx, t in enumerate(sorted_tasks):
@@ -254,7 +255,7 @@ def complete_route_from_partial(
     workday_minutes: int,
     lunch_earliest_min: int,
     lunch_duration_min: int,
-    route_score_fn: Callable[[int, float, int], float],
+    route_score_fn: Callable[[int, float, int, np.ndarray], float],
 ) -> tuple[list[int], list[int], list[int], int]:
     """
     Vervollständigt eine Team-Route ab einem fixierten Seed-Präfix.

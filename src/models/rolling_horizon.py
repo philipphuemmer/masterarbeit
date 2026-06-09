@@ -182,10 +182,10 @@ class PolicyAdapter:
         m = self.model
         return m._value if hasattr(m, "_value") else None
 
-    def prepare_day(self, all_tasks: list, n_carryover: int = 0) -> None:
+    def prepare_day(self, all_tasks: list, n_carryover: int = 0, n_remaining: int = 0) -> None:
         """Hook für modellspezifische Tagesstart-Vorbereitung (z.B. δ-Berechnung in DB-Base)."""
         if hasattr(self.model, "_prepare_day"):
-            self.model._prepare_day(all_tasks, n_carryover)
+            self.model._prepare_day(all_tasks, n_carryover, n_remaining)
 
     def get_drop_score_fn_at(self, sim_routes, time_min: float, disruptions) -> Callable:
         """Drop-Score-Funktion für den aktuellen Störungszeitpunkt.
@@ -200,9 +200,9 @@ class PolicyAdapter:
 
     def get_route_score_fn_for_tasks(
         self, tasks: list[MaintenanceTask]
-    ) -> Callable[[int, float, int], float]:
+    ) -> Callable[[int, float, int, np.ndarray], float]:
         """
-        route_score_fn(node_idx, dsm, current_node) → float für greedy_initial_plan.
+        route_score_fn(node_idx, dsm, current_node, matrix) → float für greedy_initial_plan.
 
         Repliziert die Logik aus CFAFutureModel.create_initial_plan (Greedy-Pfad):
         score = (C̃(k) + shift) / dist(cur, k).
@@ -216,11 +216,11 @@ class PolicyAdapter:
                 default=0.0,
             )
             shift = max(0.0, -min_val) + 1.0
-            return lambda node, dsm, cur: (
+            return lambda node, dsm, cur, mat: (
                 (m._value(node, dsm) + shift)
                 / max(0.1, _approx_km(m.all_coords[cur], m.all_coords[node]))
             )
-        return lambda node, dsm, cur: 1.0
+        return lambda node, dsm, cur, mat: 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -484,7 +484,7 @@ class HorizonEvaluator:
             daily_plan = forced_plan
         else:
             _, all_tasks, team_assignment = self.task_gen.build_daily_tasks(state, team_states)
-            self.policy.prepare_day(all_tasks, n_carryover=len(state.carryover_tasks))
+            self.policy.prepare_day(all_tasks, n_carryover=len(state.carryover_tasks), n_remaining=len(state.remaining))
             daily_plan = self.policy.create_initial_plan(all_tasks, team_assignment) if all_tasks else None
 
         sim_routes = plan_to_sim_routes(daily_plan, all_tasks, self.n_teams)
@@ -1149,7 +1149,7 @@ class RollingHorizonRunner:
         all_tasks: list[MaintenanceTask],
         team_assignment: dict[int, list[int]],
         reference_plan: DailyPlan,
-        route_score_fn: Callable[[int, float, int], float],
+        route_score_fn: Callable[[int, float, int, np.ndarray], float],
     ) -> DailyPlan:
         """
         Baut einen DailyPlan in dem ein Team einen festen Seed-Präfix hat.
@@ -1390,7 +1390,7 @@ class RollingHorizonRunner:
         _initial_override_notes: list[str] = []
         if all_tasks:
             n_carryover = sum(1 for t in all_tasks if t.task_type == "carryover")
-            self.policy.prepare_day(all_tasks, n_carryover=n_carryover)
+            self.policy.prepare_day(all_tasks, n_carryover=n_carryover, n_remaining=len(state.remaining))
             if rh_enabled and enable_initial:
                 daily_plan, _initial_override_notes = self.create_initial_plan_rh(
                     all_tasks, team_assignment, state, rh_config

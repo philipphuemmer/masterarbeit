@@ -238,7 +238,7 @@ class CFAFutureModel:
                 lunch_earliest_min=self._lunch_earliest_min,
                 lunch_duration_min=self._lunch_duration_min,
                 n_teams=self.solver.n_teams,
-                route_score_fn=lambda node, dsm, cur: (
+                route_score_fn=lambda node, dsm, cur, mat: (
                     (self._value(node, dsm) + shift)
                     / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
                 ),

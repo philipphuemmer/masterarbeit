@@ -184,7 +184,7 @@ class DBSimplePolicy(CFAFutureModel):
     def set_precomputed_delta(self, delta: float) -> None:
         self._precomputed_delta = float(delta)
 
-    def _prepare_day(self, all_tasks: list, n_carryover: int = 0) -> None:
+    def _prepare_day(self, _all_tasks: list, n_carryover: int = 0, n_remaining: int = 0) -> None:
         """δ vor dem Tagesstart setzen — wird vom RollingHorizonRunner via prepare_day() aufgerufen.
 
         Spiegelt die Logik von DBSimpleMaintenanceSimulator._run_day wider:
@@ -192,9 +192,8 @@ class DBSimplePolicy(CFAFutureModel):
         day_progress wird für rule_delta nicht benötigt (0.0 als Platzhalter).
         """
         delta_mode = self.config.get("db_simple", {}).get("delta_mode", "rf")
-        n_routine = sum(1 for t in all_tasks if getattr(t, "task_type", "") == "routine")
         if delta_mode == "rule":
-            delta = rule_delta(0.0, n_routine)
+            delta = rule_delta(0.0, n_remaining)
         else:
             delta = self.db_model.default_delta
         self.set_precomputed_delta(delta)
@@ -261,7 +260,7 @@ class DBSimplePolicy(CFAFutureModel):
                 lunch_earliest_min=self._lunch_earliest_min,
                 lunch_duration_min=self._lunch_duration_min,
                 n_teams=self.solver.n_teams,
-                route_score_fn=lambda node, dsm, cur: (
+                route_score_fn=lambda node, dsm, cur, mat: (
                     (self._value(node, dsm) + shift)
                     / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node])) ** (2.0 * delta)
                 ),
@@ -269,6 +268,13 @@ class DBSimplePolicy(CFAFutureModel):
 
         # OR-Tools: unverändert aus CFAFutureModel
         return super().create_initial_plan(tasks, team_assignment)
+
+    def _get_drop_score_fn_at(self, sim_routes, time_min: float, disruptions) -> object:
+        """Drop-Score-Funktion für PolicyAdapter (RH-Pfad): identisch zu handle_disruptions."""
+        delta = self._precomputed_delta
+        return lambda node, dsm, rem_h, cur, det: (
+            self._value(node, dsm) - (2.0 * delta) * self._wage_per_min * det
+        )
 
     def handle_disruptions(
         self,

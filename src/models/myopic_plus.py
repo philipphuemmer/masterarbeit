@@ -204,9 +204,9 @@ class MyopicPlusModel:
                 lunch_earliest_min=self._lunch_earliest_min,
                 lunch_duration_min=self._lunch_duration_min,
                 n_teams=self.n_teams,
-                route_score_fn=lambda node, dsm, cur: (
+                route_score_fn=lambda node, dsm, cur, mat: (
                     self.node_to_power.get(node, 22.0)
-                    / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
+                    / max(1.0, mat[cur, node])
                 ),
             )
 

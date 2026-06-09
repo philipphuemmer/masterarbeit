@@ -410,7 +410,7 @@ class VFAModel:
         else:
             shift = 1.0
 
-        def route_score_fn(node: int, dsm: float, cur: int) -> float:
+        def route_score_fn(node: int, dsm: float, cur: int, mat: np.ndarray) -> float:
             local_v = self._local_value(node, dsm) + shift
             global_delta = max(0.0, delta_global.get(node, 0.0))
             combined = self._alpha * local_v + self._beta * global_delta

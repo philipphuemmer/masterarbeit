@@ -127,8 +127,8 @@ class MyopicPolicy:
                 lunch_earliest_min=self._lunch_earliest_min,
                 lunch_duration_min=self._lunch_duration_min,
                 n_teams=self.n_teams,
-                route_score_fn=lambda node, dsm, cur: (
-                    1.0 / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
+                route_score_fn=lambda node, dsm, cur, mat: (
+                    1.0 / max(1.0, mat[cur, node])
                 ),
             )
         return self.solver.create_initial_plan(tasks, team_assignment=team_assignment)
