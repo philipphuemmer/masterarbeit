@@ -90,6 +90,11 @@ class MyopicPolicy:
         else:
             self.node_to_power: dict[int, float] = {}
 
+        # Drop-Score für PolicyAdapter (RH-Pfad): identisch zur drop_score_fn in handle_disruptions.
+        self._drop_score_fn = lambda node, dsm, rem_h, cur, det: (
+            _approx_km(self.all_coords[cur], self.all_coords[node])
+        )
+
     # ------------------------------------------------------------------
     # Hilfsmethoden
     # ------------------------------------------------------------------
