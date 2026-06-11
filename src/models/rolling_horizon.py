@@ -1388,6 +1388,7 @@ class RollingHorizonRunner:
         enable_initial = rh_config.get("enable_initial", False)
 
         _initial_override_notes: list[str] = []
+        n_carryover = 0
         if all_tasks:
             n_carryover = sum(1 for t in all_tasks if t.task_type == "carryover")
             self.policy.prepare_day(all_tasks, n_carryover=n_carryover, n_remaining=len(state.remaining))
@@ -1490,6 +1491,7 @@ class RollingHorizonRunner:
                 }
 
                 if rh_enabled and enable_replan:
+                    self.policy.prepare_day(all_tasks, n_carryover=n_carryover, n_remaining=len(state.remaining))
                     handled, carried, h_downtime = self._handle_disruptions_rh(
                         h_disruptions, sim_routes, state, all_tasks,
                         time_min, hour, hour_log, rh_config

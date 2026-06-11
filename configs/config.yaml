@@ -58,7 +58,7 @@ rolling_horizon:
   candidate_selection_mode: "win_rate"
 
   # Mindest-Gewinnquote für win_rate-Modus (0.0–1.0), separat für Replan und Initialplan.
-  win_rate_threshold_replan: 0.8
+  win_rate_threshold_replan: 0.7
   win_rate_threshold_initial: 0.7
 
 solver:
