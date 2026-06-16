@@ -6,7 +6,7 @@ rolling_horizon:
   # false → exakt dasselbe Verhalten wie bisher (MaintenanceSimulator, kein RH)
   # true  → RollingHorizonRunner aktiv: Drop-Entscheidungen bei Störungen werden
   #          über einen kurzen Horizont bewertet und ggf. von der Basis-Policy überschrieben.
-  enabled: false
+  enabled: true
 
   # Anzahl Tage, über die jeder Drop-Kandidat simuliert wird
   horizon_days: 40
