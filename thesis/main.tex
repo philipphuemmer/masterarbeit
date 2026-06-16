@@ -69,7 +69,6 @@
     \includegraphics[width=2in]{siegel} \\
     \vspace*{\stretch{1}}
     \Large #5 \\
-
     \vspace*{\stretch{2}}
    \large Lehrstuhl f\"{u}r Wirtschaftsinformatik und Business Analytics\\
     \large Universität Würzburg\\
@@ -95,14 +94,14 @@
 \begin{document}
   \JMUTitle
       {TITEL }        % Titel der Arbeit
-      {VORNAME NACHNAME}                        % Vor- und Nachname des Autors
-      {MATRIKELNUMMER}
+      {Philipp Hümmer}                        % Vor- und Nachname des Autors
+      {2485927}
       
-      {Seminararbeit / Bachelorarbeit / Masterarbeit } % Art der Arbeit
+      {Masterarbeit} % Art der Arbeit
       {W"urzburg}                           % Ort der Erstellung
       {31.03.2018}                          % Tag der Abgabe
       {Prof. Dr. Christoph Flath}           % Name des Erstgutachters
-      {Dr. Nikolai Stein / Matthias Griebel / Toni Greif / ...} % Name des/der betreuenden Assistent/Assistentin
+      {Tim Lachner} % Name des/der betreuenden Assistent/Assistentin
       
   \clearpage
 
@@ -153,44 +152,164 @@ Allgemeine Merkmale
 %%  Hauptteil  %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Abschnitt} \label{einleitung}
-Ein Hauptabschnitt - idealerweise sollten keine Abschnitte leer sein.
-
-\subsection{Unterabschnitt}
-Ein Unterabschnitt - idealerweise sollten keine Abschnitte leer sein.
-
-\subsubsection{Unterunterabschnitt}
-Ein Unterunterabschnitt - idealerweise sollten keine Abschnitte leer sein.
-
-\section{Einfache Formatvorlagen}
-
-\textbf{Das ist fett gedruckter Text}.
-
-\textit{Das ist kursiver Text}.
+\section{Einleitung} \label{einleitung}
 
 
-Auflistungen sind oft hilfreich für die Strukturierung:
-\begin{itemize}
-    \item Erster Eintrag
-    \item Zweiter Eintrag
-\end{itemize}
+\clearpage
 
-Nummerierte Aufzählungen sind oft hilfreich für Reihenfolgen:
-\begin{enumerate}
-    \item Erster Eintrag
-    \item Zweiter Eintrag
-\end{enumerate}
+\section{Literature Review}
+
+\subsection{Maintenance Optimization in Infrastructure Systems}
+Maintenance optimization in infrastructure systems addresses the challenge of planning, scheduling,
+and executing maintenance activities to ensure system availability, reliability, and cost-efficiency
+over the lifecycle of technical assets.
+Unlike manufacturing or logistics contexts, infrastructure maintenance often involves geographically
+distributed assets, limited maintenance resources, and significant consequences of system failures
+(de Jonge \& Scarf, 2020; Dekker, 1996). \\
+This chapter provides the conceptual foundation for maintenance optimization.
+Section 2.1.1 defines maintenance optimization and its objectives.
+Section 2.1.2 reviews maintenance strategies: preventive, reactive, and condition-based.
+Section 2.1.3 discusses uncertainty, availability, and cost as central decision variables.
+Section 2.1.4 provides the transition to mobile maintenance and service interventions (de Jonge \&
+Scarf, 2020; Alaswad \& Xiang, 2017).
+
+
+\subsubsection{Concept and Objectives of Maintenance Optimization}
+Maintenance optimization refers to the systematic determination of when and what to maintain in
+order to achieve specific objectives such as minimizing costs, maximizing availability, or balancing
+both (de Jonge \& Scarf, 2020).
+The fundamental trade-off lies between the cost of maintenance activities and the cost of system
+failures or downtime (Dekker, 1996). \\
+Early work by Dekker (1996) identified six barriers preventing the application of maintenance
+optimization models in practice: models are difficult to understand, many papers are written only
+for mathematical purposes, maintenance activities consist of many different aspects, optimization is
+not always necessary, models often focus on the wrong type of maintenance, and there is a gap
+between theory and operational reality.
+Despite these challenges, maintenance optimization remains strategically important because
+continuous developments of technical systems and increasing reliance on equipment have resulted in
+growing importance of effective maintenance activities (de Jonge \& Scarf, 2020). \\
+In the context of charging infrastructure, maintenance optimization must address not only individual
+station failures but also fleet-level dispatching, resource allocation, and timing decisions under
+uncertainty (de Jonge \& Scarf, 2020).
+The objective is typically to minimize total expected costs (maintenance plus failure costs) while
+maintaining a required level of system availability (Alaswad \& Xiang, 2017; Dekker, 1996).
+
+
+\subsubsection{Maintenance Strategies: Preventive, Reactive, Condition-Based}
+Maintenance strategies can be broadly classified into three categories: reactive (corrective)
+maintenance, preventive (planned) maintenance, and condition-based (predictive) maintenance (Sarja
+\& Halilov, 2023; de Jonge \& Scarf, 2020). \\
+Reactive maintenance (also called corrective or run-to-failure maintenance) is performed only after
+a failure occurs (Sarja \& Halilov, 2023).
+This strategy is suitable for non-critical assets where downtime has minimal impact on operations.
+However, for critical infrastructure such as charging stations, reactive maintenance can lead to
+significant customer dissatisfaction, safety risks, and higher repair costs due to unanticipated
+failures (de Jonge \& Scarf, 2020). \\
+Preventive maintenance is performed according to a fixed schedule or usage-based interval,
+regardless of the actual condition of the asset (Sarja \& Halilov, 2023; Alaswad \& Xiang, 2017).
+Preventive maintenance aims to prevent failures before they occur by replacing or servicing
+components at predetermined times.
+This approach is well-established and widely applied, for example in vehicle maintenance or periodic
+inspections of technical systems (Dekker, 1996).
+However, preventive maintenance can lead to over-maintenance (replacing components that are still
+functional) or under-maintenance (failures occurring before the scheduled interval) (de Jonge \&
+Scarf, 2020). \\
+Condition-based maintenance (CBM) performs maintenance based on the actual condition of the asset,
+which is monitored through sensors, inspections, or performance data (Alaswad \& Xiang, 2017; Sarja
+\& Halilov, 2023).
+CBM enables maintenance to be performed exactly when needed, reducing unnecessary interventions and
+focusing resources on assets that actually require attention.
+In the literature, CBM is often extended to predictive maintenance, which uses data analytics,
+machine learning, or digital twins to predict when maintenance will be needed (Sarja \& Halilov,
+2023). \\
+The review by Alaswad and Xiang (2017) on condition-based maintenance optimization models for
+stochastically deteriorating systems shows that CBM is particularly suitable for systems where
+condition monitoring is feasible and failure consequences are significant.
+For charging infrastructure, this includes monitoring of charging power, error rates, temperature,
+or communication status (de Jonge \& Scarf, 2020). \\
+In practice, many organizations use a hybrid strategy, combining preventive maintenance for critical
+components with reactive maintenance for non-critical ones and condition-based maintenance for
+assets where monitoring is available (Sarja \& Halilov, 2023; de Jonge \& Scarf, 2020).
+For this thesis, the hybrid perspective is relevant because maintenance of charging infrastructure
+often involves both planned inspections and unplanned failure responses.
+
+
+\subsubsection{}
+Maintenance decisions are inherently made under uncertainty.
+Key uncertain parameters include failure times, service times, travel times, availability of spare
+parts, and arrival of new maintenance requests (de Jonge \& Scarf, 2020; Dekker, 1996).
+This uncertainty affects three central decision variables: \\
+Availability measures the proportion of time that a system is operational and able to fulfill its
+function (Sarja \& Halilov, 2023).
+For charging infrastructure, availability is a key performance indicator because failed stations
+directly reduce customer access and revenue.
+Predictive maintenance can increase availability by 5–15 \% according to McKinsey estimates, while
+reducing maintenance costs by 18–25 \% (Sarja \& Halilov, 2023). \\
+Cost includes maintenance costs (labor, materials, travel), failure costs (downtime, customer
+dissatisfaction, penalties), and inventory costs (spare parts, tools) (de Jonge \& Scarf, 2020;
+Dekker, 1996).
+The optimization objective is typically to minimize total expected cost over a planning horizon,
+subject to availability constraints (Alaswad \& Xiang, 2017). \\
+Uncertainty affects both the timing and the impact of maintenance decisions.
+For example, a failure may occur earlier or later than expected, service may take longer than
+planned, or travel to a site may be delayed by traffic (de Jonge \& Scarf, 2020).
+Decision-making under uncertainty follows a sequential process in which uncertainty realization
+(observation of the true values of previously uncertain parameters) and subsequent reactive
+decision-making alternate as time proceeds (de Jonge \& Scarf, 2020). \\
+In maintenance optimization, uncertainty is often modeled using stochastic deterioration processes,
+probability distributions for failure times, or scenario-based approaches (Alaswad \& Xiang, 2017;
+de Jonge \& Scarf, 2020).
+The choice of uncertainty model depends on the amount of available data, the complexity of the
+system, and the computational requirements of the optimization approach.
+
+
+\subsubsection{Transition to Mobile Maintenance and Service Interventions}
+The maintenance problems discussed in Sections 2.1.1–2.1.3 typically focus on when and what to
+maintain at individual assets.
+However, in many practical settings, maintenance is performed by mobile technicians who must travel
+between geographically distributed sites, which introduces routing and scheduling decisions (de
+Jonge \& Scarf, 2020). \\
+For charging infrastructure maintenance, this means that the optimization problem is not only about
+determining Maintenance intervals or failure thresholds but also about dispatching technicians,
+planning routes, and allocating limited resources (vehicles, spare parts, time) across multiple
+stations (de Jonge \& Scarf, 2020; Alaswad \& Xiang, 2017). \\
+This transition from single-asset maintenance optimization to mobile maintenance service planning
+introduces additional complexity: \\
+•       Spatial dependency: Maintenance decisions for one station affect the availability of
+resources for other stations (de Jonge \& Scarf, 2020).
+•       Temporal dependency: The order in which stations are visited affects total travel time and
+service availability (Alaswad \& Xiang, 2017).
+•       Uncertainty coupling: Failures, travel times, and service times are often stochastic and
+interdependent (de Jonge \& Scarf, 2020).
+The literature on maintenance optimization has traditionally focused on single-asset or multi-asset
+models without explicit routing (de Jonge \& Scarf, 2020; Dekker, 1996).
+More recent work begins to integrate maintenance planning with vehicle routing, especially in the
+context of dynamic and stochastic vehicle routing problems (SDVRP) (de Jonge \& Scarf, 2020).
+This integration is precisely the focus of the following chapters 2.2 and 2.3, which cover
+stochastic routing and approximate dynamic programming for dynamic service planning. \\
+For this thesis, the key insight from Chapter 2.1 is that maintenance optimization provides the
+decision objectives (cost, availability, uncertainty handling), while Chapters 2.2 and 2.3 provide
+the methodological framework (SDVRP, ADP) for implementing these objectives in a mobile, dynamic,
+and stochastic service environment (de Jonge \& Scarf, 2020; Alaswad \& Xiang, 2017).
+
 
 
 \section{Zitieren und Referenzieren}
 
-Beiträge in Fachzeitschriften wie \citet{clemen1989combining} oder Konferenzartikel wie \citet{he2017mask} werden auf diese Weise im Text zitiert. In anderen Fällen möchte man aber in Klammern zitieren \citep{clemen1989combining}, auch mit mehreren Autoren \citep{clemen1989combining,baumol1958warehouse,he2017mask}.
+Beiträge in Fachzeitschriften wie \citet{clemen1989combining} oder Konferenzartikel wie
+\citet{he2017mask} werden auf diese Weise im Text zitiert.
+In anderen Fällen möchte man aber in Klammern zitieren \citep{clemen1989combining}, auch mit
+mehreren Autoren \citep{clemen1989combining,baumol1958warehouse,he2017mask}.
 
 Bei Monographien muss eine Seitenzahl mit angegeben werden \citep[S. 28]{chollet2018deep}.
 
-So wird eine Webquelle zitiert: \citet{shiny1}. Es kann bei kurzen Informationen im Internet aber auch reichen die Adresse\footnote{\url{https://shiny.rstudio.com/tutorial/written-tutorial/lesson1/}} als Fußnote einzubetten.
+So wird eine Webquelle zitiert: \citet{shiny1}.
+Es kann bei kurzen Informationen im Internet aber auch reichen die
+Adresse\footnote{\url{https://shiny.rstudio.com/tutorial/written-tutorial/lesson1/}} als Fußnote
+einzubetten.
 
-So werden andere Teile der Arbeit referenziert: Kapitel \ref{einleitung}, Gleichung \ref{eq:1} zeigt...
+So werden andere Teile der Arbeit referenziert: Kapitel \ref{einleitung}, Gleichung \ref{eq:1}
+zeigt...
 
 So verweisen wir auf eine Fußnote \footnote{dies ist eine Fußnote}.
 
@@ -210,7 +329,8 @@ Eine gute Variante ist das Verwenden von PDFs.
 
 \section{Tabellen}
 
-Die Tabular-Umgebung gibt die Anzahl Spalten an, deren Orientierung, Breite und evtl. Zwischenlinien. 
+Die Tabular-Umgebung gibt die Anzahl Spalten an, deren Orientierung, Breite und evtl.
+Zwischenlinien.
 
 
 \begin{table}[ht]
