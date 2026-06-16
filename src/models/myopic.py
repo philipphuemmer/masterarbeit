@@ -91,9 +91,7 @@ class MyopicPolicy:
             self.node_to_power: dict[int, float] = {}
 
         # Drop-Score für PolicyAdapter (RH-Pfad): identisch zur drop_score_fn in handle_disruptions.
-        self._drop_score_fn = lambda node, dsm, rem_h, cur, det: (
-            _approx_km(self.all_coords[cur], self.all_coords[node])
-        )
+        self._drop_score_fn = lambda node, dsm, rem_h, cur, det: det
 
     # ------------------------------------------------------------------
     # Hilfsmethoden
@@ -169,9 +167,7 @@ class MyopicPolicy:
                 workday_minutes=self._workday_minutes,
                 cost_params=self.cost_params,
                 log=log,
-                drop_score_fn=lambda node, dsm, rem_h, cur, det: (
-                    _approx_km(self.all_coords[cur], self.all_coords[node])
-                ),
+                drop_score_fn=lambda node, dsm, rem_h, cur, det: det,
                 travel_time_only=True,
             )
         matrix = self._get_matrix(time_min)

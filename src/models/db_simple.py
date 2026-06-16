@@ -39,7 +39,6 @@ from src.models.simulator import (
     MaintenanceSimulator,
     SimRoute,
 )
-from src.planning.clustering import _approx_km
 from src.planning.greedy_routing import greedy_initial_plan, handle_disruptions_greedy
 from src.planning.vrp_solver import DailyPlan, MaintenanceTask, TeamState
 
@@ -262,7 +261,7 @@ class DBSimplePolicy(CFAFutureModel):
                 n_teams=self.solver.n_teams,
                 route_score_fn=lambda node, dsm, cur, mat: (
                     (self._value(node, dsm) + shift)
-                    / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node])) ** (2.0 * delta)
+                    / max(1.0, mat[cur, node]) ** (2.0 * delta)
                 ),
             )
 

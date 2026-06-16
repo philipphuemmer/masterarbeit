@@ -45,7 +45,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.data.loader import load_stations, get_coordinates, load_traffic_matrices
-from src.models.db import DBMaintenanceSimulator, DBModel
+from src.models.alt.db import DBMaintenanceSimulator, DBModel
 from src.models.simulator import MaintenanceSimulator
 from src.models.myopic import MyopicPolicy
 from src.planning.clustering import ZoneClusterer

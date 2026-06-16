@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.data.loader import load_stations, get_coordinates, load_traffic_matrices
 from src.models.cfa_future import CFAFutureModel
-from src.models.vfa import VFAModel, N_STATE_FEATURES, STATE_FEATURE_NAMES
+from src.models.alt.vfa import VFAModel, N_STATE_FEATURES, STATE_FEATURE_NAMES
 from src.models.simulator import MaintenanceSimulator
 from src.planning.clustering import ZoneClusterer, _approx_km
 from src.planning.selector import DailyZoneSelector

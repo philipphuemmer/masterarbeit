@@ -112,9 +112,9 @@ class MyopicPlusModel:
         # Exakte Drop-Score-Funktion für PolicyAdapter (RH-Kontext).
         # Muss identisch zur greedy-Pfad-Logik in handle_disruptions sein,
         # damit _find_best_drop_and_insert denselben Basiskandidaten wählt.
-        self._drop_score_fn = lambda node, dsm, rem_h, cur, det: (
+        self._drop_score_fn = lambda node, dsm, rem_h, _cur, det: (
             self.node_to_power.get(node, 22.0)
-            / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
+            / max(1.0, det)
         )
 
     # ------------------------------------------------------------------
@@ -265,9 +265,9 @@ class MyopicPlusModel:
                 workday_minutes=self.WORKDAY_MINUTES,
                 cost_params=self.cost_params,
                 log=log,
-                drop_score_fn=lambda node, dsm, rem_h, cur, det: (
+                drop_score_fn=lambda node, dsm, rem_h, _cur, det: (
                     self.node_to_power.get(node, 22.0)
-                    / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
+                    / max(1.0, det)
                 ),
             )
 

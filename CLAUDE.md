@@ -8,17 +8,22 @@ Master's thesis on **maintenance route optimization for EV charging stations in 
 
 **Key numbers**: 397 stations, 2 teams, 8:00–16:00 workday, 40 zones (configurable), 20 stations/team/day max.
 
-**Active policy tiers** (all in `src/models/`):
-1. **Myopic** — greedy cheapest-insertion everywhere; no learned components
-2. **MyopicPlus** — greedy everywhere; depot-distance sorted soft-deadlines, penalty ∝ `power_kW`
-3. **CFA** — greedy everywhere; V̂/depot-distance sorted soft-deadlines, penalty ∝ V̂; manual V̂-drop loop replan; θ ∈ ℝ⁴ learned via OLS
-4. **VFA** — greedy everywhere; ΔV̂ used for station prioritization; manual V̂-drop loop replan; θ learned via OLS
-5. **DB** — greedy everywhere; MLP α modulates soft-deadline penalties; trained via PPO
-6. **CFA-DB** — CFA-style U(k) soft-deadlines + DB's MLP α for drop-score; trained via PPO
+**Active base policies** (all in `src/models/`):
+1. **Myopic** (`myopic.py`) — greedy cheapest-insertion everywhere; no learned components
+2. **Myopic+** (`myopic_plus.py`) — greedy everywhere; depot-distance sorted soft-deadlines, penalty ∝ `power_kW`
+3. **CFA-Future** (`cfa_future.py`) — greedy everywhere; C̃/depot-distance sorted soft-deadlines, penalty ∝ C̃; manual C̃-drop loop replan; θ ∈ ℝ⁴ learned via contrastive suffix-simulation regression (`train_cfa_future.py`)
+4. **DB-Simple** (`db_simple.py`) — extends CFA-Future 1:1, but modulates the distance exponent in greedy scoring and the drop-score weighting via a state-dependent balance parameter δ ∈ [0,1] (`δ=0.5` ⇔ identical to CFA-Future); δ from a rule-based or learned model (`data/training/db_simple/model.pkl`)
+
+**"VFA" = Rolling-Horizon rollout of the base policies** (`src/models/rolling_horizon.py`):
+- `RollingHorizonRunner` + `PolicyAdapter` wrap **any** of the 4 base policies above (Myopic, Myopic+, CFA-Future, DB-Simple) without changing their initial-plan/replan logic.
+- At each disruption-driven drop decision, the top-`k` drop candidates (ranked by the base policy's own `drop_score_fn`) are evaluated via short-horizon (`horizon_days`) Monte-Carlo rollouts; the candidate with the lowest expected horizon cost is chosen, overriding the base policy's greedy choice if beneficial.
+- This rollout-based value approximation **is** the current VFA concept — activated via `rolling_horizon.enabled: true` in `configs/config.yaml`. Supported by `run_myopic_plus.py`, `run_cfa_future.py`, `run_db_simple.py`.
 
 > **Note:** OR-Tools (`src/planning/vrp_solver.py`) is legacy code — no longer used by any active model but kept for reference.
 
-**Deprecated** (in `src/models/alt/`, scripts in `scripts/alt/`): CFA-Light, CFA-Real, DB-Alt.
+> **Deprecated model classes** (superseded by CFA-Future / DB-Simple / Rolling-Horizon-"VFA"; moved to `src/models/alt/`, scripts in `scripts/alt/`): `cfa.py` (CFA, OLS-trained θ), `vfa.py` (Hybrid-VFA with separately learned global θ), `db.py` (DB, PPO-trained MLP α), `cfa_db.py` (CFA-DB), `db_base.py` (DB-Base, predecessor of DB-Simple).
+
+**Deprecated** (in `src/models/alt/`, scripts in `scripts/alt/`): CFA-Light, CFA-Real, DB-Alt, CFA, CFA-DB, DB, Hybrid-VFA, DB-Base.
 
 ## Setup
 
@@ -37,29 +42,23 @@ bash scripts/setup/start_osrm.sh   # start container on localhost:5000
 ## Common Commands
 
 ```bash
-# Single runs
+# Single runs — 4 active base policies
 python scripts/run/run_myopic.py [--max-days 10] [--log-day 1] [--verbose]
 python scripts/run/run_myopic_plus.py
-python scripts/run/run_cfa.py    # requires: python scripts/train/train_cfa.py first
-python scripts/run/run_vfa.py    # requires: python scripts/train/train_vfa.py first
-python scripts/run/run_db.py     # requires: python scripts/train/train_db.py first
-python scripts/run/run_cfa_db.py # requires: python scripts/train/train_cfa_db.py first
+python scripts/run/run_cfa_future.py # requires: python scripts/train/train_cfa_future.py first
+python scripts/run/run_db_simple.py  # requires CFA-Future θ + optional data/training/db_simple/model.pkl
+
+# "VFA" = Rolling-Horizon rollout on top of a base policy
+# rolling_horizon.enabled: true in configs/config.yaml (use run_myopic_plus.py / run_cfa_future.py / run_db_simple.py)
 
 # Training
-# CFA/VFA: learn θ from Monte Carlo rollouts via OLS
-python scripts/train/train_cfa.py   # → data/training/cfa/theta.json
-python scripts/train/train_vfa.py   # → data/training/vfa/theta.json
-# DB/CFA-DB: learn MLP α via PPO (requires failure_simulation.mode: stochastic)
-python scripts/train/train_db.py [--iterations 50 --rollouts 10 --max-days 200]
-python scripts/train/train_cfa_db.py
+python scripts/train/train_cfa_future.py  # → data/training/cfa_future/theta.json (contrastive suffix-simulation regression)
 
 # Monte Carlo (aggregate analysis → logs/<model>/log/<model>_overview.log)
 python scripts/monte_carlo/run_mc_myopic.py --runs 30
 python scripts/monte_carlo/run_mc_myopic_plus.py --runs 30
-python scripts/monte_carlo/run_mc_cfa.py --runs 30
-python scripts/monte_carlo/run_mc_vfa.py --runs 30
-python scripts/monte_carlo/run_mc_db.py --runs 30
-python scripts/monte_carlo/run_mc_cfa_db.py --runs 30
+python scripts/monte_carlo/run_mc_cfa_future.py --runs 30
+python scripts/monte_carlo/run_mc_db_simple.py --runs 30
 
 # Build travel/traffic matrices (requires OSRM or Google Maps API)
 python scripts/setup/build_travel_matrix.py
@@ -87,37 +86,39 @@ No formal test suite exists (tests/ is empty).
 
 ### Models
 
-**Common interface:** all models implement `create_initial_plan(tasks)` + `handle_disruptions(disruptions, sim_routes, time_min, hour, log)`.
+**Common interface:** all models implement `create_initial_plan(tasks)` + `handle_disruptions(disruptions, sim_routes, time_min, hour, log)`. The Rolling-Horizon ("VFA") runner wraps this interface via `PolicyAdapter` without altering it.
 
-**Initialplan — carryover disruptions:** MyopicPlus, CFA, CFA-DB all set `soft_deadline_min=0` + penalty ∝ `power_kW` for carryover disruption tasks so they are prioritized early in greedy insertion. Myopic and VFA do not use this mechanism.
+**Initialplan — carryover disruptions:** Myopic+ and CFA-Future (and thus DB-Simple, which inherits from CFA-Future) set `soft_deadline_min=0` + penalty ∝ `power_kW` for carryover disruption tasks so they are prioritized early in greedy insertion. Myopic does not use this mechanism.
 
 **Zone selection value functions** (set in run scripts when `value_based_zone_selection: true`):
 
 | Model | `selector.value_fn` | Zone value logic |
 |---|---|---|
 | Myopic | `policy._zone_value` | `power × recovery_curve(dsm)` |
-| MyopicPlus | `policy._zone_value` | `power × recovery_curve(dsm)` |
-| CFA | `policy._value` | `θᵀ × φ_scaled(k)` (4 features) |
-| VFA | `policy._station_value` | `θ[0]×power×dsm + θ[1]×failure_risk×power` |
-| DB | `policy._station_value` | `power × dsm` |
-| CFA-DB | `policy._station_value` | `power × dsm` |
+| Myopic+ | `policy._zone_value` | `power × recovery_curve(dsm)` |
+| CFA-Future | `policy._value` | `θᵀ × φ_scaled(k)` (4 features) |
+| DB-Simple | `policy._value` (inherited from CFA-Future) | `θᵀ × φ_scaled(k)` (4 features) |
+| "VFA" (Rolling-Horizon) | `policy._local_value` | local C̃ term of the wrapped base policy (zone selection is unaffected by the rollout layer) |
 
-**CFA details** (`src/models/cfa.py`):
+**CFA-Future details** (`src/models/cfa_future.py`):
 - `φ(k) = [power_kW, age_years, recovery_curve(dsm), mean_dist_to_others]`
 - `recovery_curve = initial_factor + (1 − initial_factor) × dsm / recovery_days`
 - `C̃(drop k) = θᵀ × φ_scaled(k)` (features z-scored with training μ, σ)
-- θ ∈ ℝ⁴ loaded from `data/training/cfa/theta.json`; always read `feature_means` and `feature_stds` from same file
-- Deadline-Sortierung: `C̃/depot_dist` ratio; Replan: manual V̂-drop loop (ascending C̃)
+- θ ∈ ℝ⁴ loaded from `data/training/cfa_future/theta.json`; always read `feature_means` and `feature_stds` from same file; θ learned via contrastive suffix-simulation regression (label: `cost_drop_k − cost_serve_k`, discounted, H=30 days), not OLS on Myopic rollouts
+- Deadline-Sortierung: `C̃/depot_dist` ratio; Replan: manual C̃-drop loop (ascending C̃)
 
-**VFA details** (`src/models/vfa.py`):
-- `φ(s) = [Σ(power×dsm), Σ(failure_risk×power), mean(dsm), max(power×dsm), n_remaining/n_stations, n_carryover]`
-- `V̂(s) = θᵀφ(s) + intercept`; `ΔV̂(k) = V̂(s) − V̂(s\k)` used for station prioritization in greedy insertion
-- `_station_value(node_idx, dsm)` uses only f0, f1 (no global context needed for zone scoring)
+**DB-Simple details** (`src/models/db_simple.py`):
+- Extends `CFAFutureModel` 1:1 — inherits `_phi()`, `_value()`, θ-loading, and OR-Tools paths unchanged
+- Initial plan (greedy): `score(k) = (C̃(k) + shift) / dist(cur, k)^(2δ)`
+- Replan drop-score: `drop_score(k) = C̃(k) − (2δ) × wage_per_min × detour(k)`
+- `δ = 0.5` ⇒ identical to CFA-Future; `δ < 0.5` weights C̃ (future value) more, `δ > 0.5` weights routing efficiency more
+- δ from `DBSimpleBalanceModel` (`data/training/db_simple/model.pkl`, rule-based `rule_delta()` or learned RF, fallback `default_delta=0.5`)
 
-**DB details** (`src/models/db.py`):
-- `φ(S) = [n_remaining/n_stations, frac(dsm>90), mean(dsm)/365, Σ(power×dsm)/norm, max(power×dsm)/norm, mean(dist_depot)/30km, std(dist_depot)/30km, n_carryover/10]`
-- `α = σ(MLP(φ(S)))` ∈ (0,1); `penalty = max(1, round((1−α) × MAX_ROUTINE_PENALTY))`
-- Initial plan: greedy cheapest-insertion; Replan: greedy cheapest-insertion
+**Rolling-Horizon ("VFA") details** (`src/models/rolling_horizon.py`):
+- `RollingHorizonRunner` drives the simulation day-by-day; `PolicyAdapter(base_policy)` exposes `get_drop_score_fn()`, `get_value_fn()`, and `get_route_score_fn_for_tasks()` derived from the base policy's own `_drop_score_fn`/`_value`
+- On each disruption replan, the top-`k` drop candidates (by base-policy `drop_score_fn`) are each rolled out for `horizon_days` over `n_scenarios` stochastic scenarios; the candidate with the lowest expected horizon cost is chosen
+- Config: `rolling_horizon.{enabled, horizon_days, n_scenarios, top_k_candidates, enable_replan, enable_initial, top_k_initial, fallback_to_legacy_on_timeout, time_budget_sec}`
+- `enabled: false` → behaves exactly like the unwrapped `MaintenanceSimulator`
 
 ### Simulation Loop (`MaintenanceSimulator`)
 `sim.run(mal_df, max_days)` drives the full year:
@@ -145,6 +146,6 @@ All parameters in `configs/config.yaml`. Key sections:
 - Depot is always **index 0** in all matrices and coordinate lists; `node_idx = station_index + 1`
 - Distance matrices and processed data are git-ignored; regenerate with the build scripts
 - `value_based_zone_selection` only has effect when `failure_simulation.mode: stochastic` (requires `_days_since_maintenance`); in `csv` mode it silently falls back to classical scoring
-- DB/CFA-DB MLP α **requires `failure_simulation.mode: stochastic`** (csv mode makes state features trivial)
-- CFA θ is trained on Myopic policy rollouts via OLS — no retraining needed when changing zone scoring only
+- DB-Simple's δ-model **requires `failure_simulation.mode: stochastic`** (csv mode makes state features trivial)
+- CFA-Future θ is trained via contrastive suffix-simulation regression (`train_cfa_future.py`) — no retraining needed when changing zone scoring only
 - `VRPSolver` is legacy — active models use greedy cheapest-insertion directly; drops from one team are never offered to the other team

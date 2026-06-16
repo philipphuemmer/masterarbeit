@@ -33,7 +33,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.data.loader import load_stations, get_coordinates, load_traffic_matrices, get_failure_rate_factors
-from src.models.db_base import DBBalanceModel, DBBaseMaintenanceSimulator, DBBasePolicy
+from src.models.alt.db_base import DBBalanceModel, DBBaseMaintenanceSimulator, DBBasePolicy
 from src.models.rolling_horizon import (
     DailyTaskGenerator,
     HorizonEvaluator,

@@ -42,7 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.data.loader import load_stations, get_coordinates, load_traffic_matrices
 from src.models.cost_params import CostParams
-from src.models.db_base import DBBalanceModel, DBBaseMaintenanceSimulator, DBBasePolicy
+from src.models.alt.db_base import DBBalanceModel, DBBaseMaintenanceSimulator, DBBasePolicy
 from src.models.simulator import DisruptionEvent, MaintenanceSimulator
 from src.planning.clustering import ZoneClusterer
 from src.planning.selector import DailyZoneSelector

@@ -240,7 +240,7 @@ class CFAFutureModel:
                 n_teams=self.solver.n_teams,
                 route_score_fn=lambda node, dsm, cur, mat: (
                     (self._value(node, dsm) + shift)
-                    / max(0.1, _approx_km(self.all_coords[cur], self.all_coords[node]))
+                    / max(1.0, mat[cur, node])
                 ),
             )
 
