@@ -168,7 +168,6 @@ class MyopicPolicy:
                 cost_params=self.cost_params,
                 log=log,
                 drop_score_fn=lambda node, dsm, rem_h, cur, det: det,
-                travel_time_only=True,
             )
         matrix = self._get_matrix(time_min)
         carryover: list[DisruptionEvent] = []

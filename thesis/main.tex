@@ -293,67 +293,53 @@ the methodological framework (SDVRP, ADP) for implementing these objectives in a
 and stochastic service environment (de Jonge \& Scarf, 2020; Alaswad \& Xiang, 2017).
 
 
-
-\section{Zitieren und Referenzieren}
-
-Beiträge in Fachzeitschriften wie \citet{clemen1989combining} oder Konferenzartikel wie
-\citet{he2017mask} werden auf diese Weise im Text zitiert.
-In anderen Fällen möchte man aber in Klammern zitieren \citep{clemen1989combining}, auch mit
-mehreren Autoren \citep{clemen1989combining,baumol1958warehouse,he2017mask}.
-
-Bei Monographien muss eine Seitenzahl mit angegeben werden \citep[S. 28]{chollet2018deep}.
-
-So wird eine Webquelle zitiert: \citet{shiny1}.
-Es kann bei kurzen Informationen im Internet aber auch reichen die
-Adresse\footnote{\url{https://shiny.rstudio.com/tutorial/written-tutorial/lesson1/}} als Fußnote
-einzubetten.
-
-So werden andere Teile der Arbeit referenziert: Kapitel \ref{einleitung}, Gleichung \ref{eq:1}
-zeigt...
-
-So verweisen wir auf eine Fußnote \footnote{dies ist eine Fußnote}.
-
-\section{Abbildungen}
-
-Abbildungen erfordern das package \textit{graphicx}. 
-Idealerweise verwendet man Vektorgrafiken oder hochaufgelöste Bitmaps. 
-Eine gute Variante ist das Verwenden von PDFs.
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.3\textwidth]{siegel.pdf}
-    \caption{Siegel der Universität}
-    \label{fig:my_label}
-\end{figure}
+\section{Problem Definition}
+This chapter introduces the practical planning problem addressed in the thesis: the maintenance and disturbance handling of a network of electric vehicle charging stations. The purpose of the chapter is to describe the operational environment, the sources of uncertainty, the relevant assumptions, and the cost structure in a way that motivates the later mathematical abstraction. The formal Markov decision process and the approximate dynamic programming framework are therefore not introduced here, but are prepared conceptually by clarifying the real-world planning context.\\
+The problem considered in this thesis involves the daily routing and scheduling of mobile maintenance teams responsible for servicing a geographically distributed network of charging stations. The planning problem is not static: in addition to regular preventive tasks, new disturbance events may occur during the day and require operational responses on short notice. As a result, the system combines elements of preventive maintenance, corrective maintenance, and dynamic routing.\\
+The decision process is organized on a daily basis. At the beginning of each day, an initial service plan is constructed for both teams. During the operating day, this plan may be revised in response to newly occurring faults. The detailed structure of the daily planning cycle, the types of disturbances encountered, and the cost model underlying the optimization problem are described in the following subsections.\\
+From a modeling perspective, the chapter establishes the practical structure of the system before any formal abstraction is introduced. In particular, it clarifies that the planning problem is not merely a vehicle routing problem with fixed customer requests, but a dynamic maintenance problem in which service requirements evolve over time, operational conditions change throughout the day, and routing decisions must be adapted repeatedly.
+\subsection{Operational Setting}
+The operational scenario considered in this thesis is based on the charging infrastructure of the city of Würzburg, consisting of 397 stations distributed across the urban service area. These charging stations form the service network that must be maintained by two mobile service teams. Each team starts its route at a central depot and is required to return to the depot by the end of the working day. The service region is represented as a graph whose node set consists of the depot and all charging stations. Travel between stations is therefore a core element of the problem, since every maintenance action requires physical movement through the network.\\
+The planning horizon is structured as a daily operational process. The working day runs from 8:00 to 17:00. At the beginning of the day, a full initial plan is generated. During the day, replanning decisions are triggered event-driven on an hourly grid whenever new disturbance events arrive. This means that routing decisions are not made once and then executed unchanged. Instead, they are revised as new information becomes available. Such a planning logic is essential in practice because maintenance operations in charging infrastructure are rarely fully predictable at the start of the day.\\
+A further operational characteristic is the presence of a deterministic lunch break between 12:00 and 13:00. In the route-based setup, this break is not treated as an independent decision variable. Instead, it is inserted according to a fixed operational rule and shifts all subsequent arrival and departure times accordingly. This reflects the idea that some daily routines are known in advance and need not be optimized explicitly, but still influence route feasibility and time consumption.\\
+The spatial structure of the system also plays an important role. Because the charging stations are distributed across the service region, route efficiency depends strongly on travel distances, travel times, and geographic clustering. For this reason, the operational logic uses zones as a practical pre-structuring device. The stations are grouped into zones which support the initial selection of promising service areas for the two teams. These zones reduce routing complexity and guide the daily assignment of work areas, though the formal zone selection mechanism is introduced in detail in a later chapter.\\
+Overall, the operational setting illustrates that the problem is a daily service planning task under operational constraints rather than a long-term static assignment problem. The interaction between limited team capacity, geographically dispersed stations, fixed working hours, and dynamically emerging disturbances creates a planning environment in which route design and real-time adaptation are equally important.
+\subsection{Environment and Disturbances}
+A defining feature of the planning problem is the presence of uncertainty. The maintenance teams operate in an environment in which service requirements are not fully known at the start of the day. New faults may occur while teams are already executing their planned routes, and the operational system therefore evolves over time. For this reason, a purely static routing approach is insufficient. Instead, the planning logic must account for the fact that the set of required service actions can change during execution.\\
+In this setting, disturbances are treated as exogenous operational events. They occur stochastically and may emerge at different charging stations at different times of the day. Once a disturbance occurs, it immediately creates an additional service requirement that competes for limited maintenance capacity. This means that service planning must continuously balance already scheduled preventive work with newly arriving corrective tasks. The problem is therefore not only about finding efficient routes, but also about deciding how to reallocate attention when the system state changes unexpectedly.\\
+The route-based model distinguishes between two types of disturbances. Type-1 faults are simple failures that can be resolved through standard repair actions with a fixed service time. Type-2 faults are more complex and require disassembly, a depot roundtrip, and reassembly, resulting in a significantly longer and station-dependent service time. This distinction is operationally important because the insertion of a short Type-1 job and the insertion of a long Type-2 repair do not have the same impact on the remainder of the day.\\
+Uncertainty is not limited to the occurrence of disturbances. Travel conditions also vary over time and are subject to uncertainty. Travel times depend on the time of day due to varying traffic conditions, and their actual realization is stochastic. This means that geographically similar routes may still differ substantially in execution quality depending on temporal traffic patterns and local congestion effects.\\
+Another relevant feature of the environment is that unresolved disturbance jobs do not disappear at the end of the day. If a newly occurring fault cannot be inserted feasibly into the remaining route of either team, it is transferred as a carryover job to the following day. These carryover disturbances are then prioritized in the next daily planning cycle. This mechanism introduces an intertemporal dependency into the operational system: today’s capacity shortage affects tomorrow’s workload. In practical terms, the planning problem therefore includes not only immediate routing consequences but also backlog management over multiple days.
+\subsection{Assumptions and Cost Model}
+To make the planning problem analytically tractable, the operational system is represented through a number of simplifying assumptions. First, not every real-world process is modeled in full physical detail. Some side processes associated with complex repairs are incorporated through aggregate service-time components instead of explicit intermediate route legs. In the current formulation, a Type-2 fault includes additional time components for disassembly, depot-related handling, and reassembly, but the team remains conceptually assigned to the affected station rather than physically traveling to and from the depot as a separate route segment. This simplification reduces model complexity while preserving the main operational time impact of such events.\\
+Second, service requirements are represented as operational jobs rather than as fully persistent technical condition states. Open regular maintenance tasks, new faults, and carryover disturbances are treated as actionable job sets. In addition, each charging station is associated with a maintenance-related status through the indicator of whether periodic maintenance has been completed and through the variable days since maintenance, which later drives failure risk. However, the binary distinction between “healthy” and “faulty” infrastructure is not carried as a separate persistent state variable in the operational problem description. This abstraction supports a cleaner transition into the route-based MDP in Chapter 4.\\
+The economic evaluation of the planning problem is based on three cost components. The first component consists of labor costs for the maintenance teams, set to 35 euros per hour. These costs capture the personnel resources committed to route execution. The second component consists of travel costs, set to 0.30 euros per kilometer, which reflect the logistical burden of moving between geographically distributed stations. The third component consists of downtime-related costs, set to 0.50 euros per kilowatt-hour, which quantify the service impact of unresolved disturbances. Together, these three components reflect that good operational performance depends not only on efficient routing, but also on timely fault resolution.\\
+The cost structure creates a clear trade-off. A route with low travel distance is not necessarily desirable if it leaves important faults unserved for too long. Conversely, a strongly service-oriented plan that aggressively inserts every disturbance may lead to high labor and travel expenditure or may jeopardize the timely return to the depot. The relevant operational objective is therefore not the minimization of a single physical quantity such as distance, but the minimization of total expected cost across labor use, mobility effort, and service delay consequences.\\
+This chapter has established the real-world planning setting, the uncertainty structure, and the economic logic underlying the maintenance problem. These elements provide the basis for the formal model in the next chapter. Chapter 4 translates the operational setting into a route-based Markov decision process and then connects that formulation to an approximate dynamic programming solution approach.\\
+At the same time, this chapter deliberately stops short of a full state-based technical representation of each charging station. The operational environment is described here at a conceptual level: faults occur, they generate service requirements, and they influence routing decisions. The precise mathematical representation of station-specific maintenance status, days since maintenance, and stochastic failure generation is introduced only in Chapter 4. This separation is intentional, because Chapter 3 is concerned with explaining the real decision environment, not yet with formalizing it.
 
 
-\section{Tabellen}
+\section{Theoretical Framework}
+This chapter develops the formal framework used to represent the maintenance routing problem as a route-based Markov decision process. Building on the operational setting introduced in Chapter 3, the objective is now to translate the planning problem into a mathematical structure that captures sequential decision-making under uncertainty. Particular emphasis is placed on the interaction between route construction, stochastic fault arrivals, time-dependent travel conditions, and limited daily service capacity. The chapter further explains why a state-action-value perspective is required and why approximate dynamic programming constitutes an appropriate solution methodology for the resulting problem.
 
-Die Tabular-Umgebung gibt die Anzahl Spalten an, deren Orientierung, Breite und evtl.
-Zwischenlinien.
+\subsection{Markov Decision Process}
 
 
-\begin{table}[ht]
-    \centering
-    \caption{Meine Tabelle}
-        \begin{tabular}{ cccc } 
-        \toprule
-        col1 & col2 & col3 \\
-        \midrule
-        \multirow{3}{4em}{Multiple row} & cell2 & cell3 \\ 
-        & cell5 & cell6 \\ 
-        & cell8 & cell9 \\ 
-        \bottomrule
-    \end{tabular}
-    \label{tab:countries}
-\end{table}
+\section{Solution Methodology}
 
-\section{Formeln}
 
-\begin{equation}
-    \sum_{i=1}^N x_i
-    \label{eq:1}
-\end{equation}
+\section{Experimental Setup}
+
+
+\section{Results and Analysis}
+
+
+\section{Discussion}
+
+
+\section{Outlook and Future Work}
+
+
 
 
 

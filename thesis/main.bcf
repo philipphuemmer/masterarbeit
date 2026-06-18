@@ -2345,19 +2345,6 @@
     <bcf:datasource type="file" datatype="bibtex">literatur.bib</bcf:datasource>
   </bcf:bibdata>
   <bcf:section number="0">
-    <bcf:citekey order="1">clemen1989combining</bcf:citekey>
-    <bcf:citekey order="2">he2017mask</bcf:citekey>
-    <bcf:citekey order="3">clemen1989combining</bcf:citekey>
-    <bcf:citekey order="4">clemen1989combining</bcf:citekey>
-    <bcf:citekey order="4">baumol1958warehouse</bcf:citekey>
-    <bcf:citekey order="4">he2017mask</bcf:citekey>
-    <bcf:citekey order="5">chollet2018deep</bcf:citekey>
-    <bcf:citekey order="6">shiny1</bcf:citekey>
-    <bcf:citekey order="7">clemen1989combining</bcf:citekey>
-    <bcf:citekey order="8">he2017mask</bcf:citekey>
-    <bcf:citekey order="9">baumol1958warehouse</bcf:citekey>
-    <bcf:citekey order="10">chollet2018deep</bcf:citekey>
-    <bcf:citekey order="11">shiny1</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nyt">
