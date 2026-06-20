@@ -25,6 +25,8 @@
 \usepackage[justification=centering]{caption}
 \usepackage[style=authoryear,natbib=true,backend=biber,maxbibnames=20]{biblatex}
 \usepackage{csquotes}
+\usepackage{amsmath}
+\usepackage{amssymb}
 \bibliography{literatur}
 
 \setlength{\parindent}{0em} 
@@ -234,7 +236,7 @@ For this thesis, the hybrid perspective is relevant because maintenance of charg
 often involves both planned inspections and unplanned failure responses.
 
 
-\subsubsection{}
+\subsubsection{Uncertainty, Availability, and Cost as Central Decision Variables}
 Maintenance decisions are inherently made under uncertainty.
 Key uncertain parameters include failure times, service times, travel times, availability of spare
 parts, and arrival of new maintenance requests (de Jonge \& Scarf, 2020; Dekker, 1996).
@@ -274,13 +276,12 @@ determining Maintenance intervals or failure thresholds but also about dispatchi
 planning routes, and allocating limited resources (vehicles, spare parts, time) across multiple
 stations (de Jonge \& Scarf, 2020; Alaswad \& Xiang, 2017). \\
 This transition from single-asset maintenance optimization to mobile maintenance service planning
-introduces additional complexity: \\
-•       Spatial dependency: Maintenance decisions for one station affect the availability of
-resources for other stations (de Jonge \& Scarf, 2020).
-•       Temporal dependency: The order in which stations are visited affects total travel time and
-service availability (Alaswad \& Xiang, 2017).
-•       Uncertainty coupling: Failures, travel times, and service times are often stochastic and
-interdependent (de Jonge \& Scarf, 2020).
+introduces additional complexity:
+\begin{itemize}
+    \item \textbf{Spatial dependency:} Maintenance decisions for one station affect the availability of resources for other stations (de Jonge \& Scarf, 2020).
+    \item \textbf{Temporal dependency:} The order in which stations are visited affects total travel time and service availability (Alaswad \& Xiang, 2017).
+    \item \textbf{Uncertainty coupling:} Failures, travel times, and service times are often stochastic and interdependent (de Jonge \& Scarf, 2020).
+\end{itemize}
 The literature on maintenance optimization has traditionally focused on single-asset or multi-asset
 models without explicit routing (de Jonge \& Scarf, 2020; Dekker, 1996).
 More recent work begins to integrate maintenance planning with vehicle routing, especially in the
@@ -320,15 +321,257 @@ At the same time, this chapter deliberately stops short of a full state-based te
 
 
 \section{Theoretical Framework}
-This chapter develops the formal framework used to represent the maintenance routing problem as a route-based Markov decision process. Building on the operational setting introduced in Chapter 3, the objective is now to translate the planning problem into a mathematical structure that captures sequential decision-making under uncertainty. Particular emphasis is placed on the interaction between route construction, stochastic fault arrivals, time-dependent travel conditions, and limited daily service capacity. The chapter further explains why a state-action-value perspective is required and why approximate dynamic programming constitutes an appropriate solution methodology for the resulting problem.
+This chapter develops the formal framework used to represent the maintenance routing problem as a route-based Markov decision process. Building on the operational setting introduced in Chapter 3, the objective is now to translate the planning problem into a mathematical structure that captures sequential decision-making under uncertainty. Particular emphasis is placed on the interaction between route construction, stochastic fault arrivals, time-dependent travel conditions, and limited daily service capacity. The chapter further explains why a state-action-value perspective is required and why approximate dynamic programming constitutes an appropriate solution methodology for the resulting problem. Table~\ref{tab:notation_ch4} summarizes the notation used throughout this chapter.
+
+\begin{table}[h!]
+\centering
+\caption{Summary of notation}
+\label{tab:notation_ch4}
+\begin{tabular}{ll}
+\toprule
+\textbf{Symbol} & \textbf{Description} \\
+\midrule
+\multicolumn{2}{l}{\textit{Sets and indices}} \\[2pt]
+$I = \{1, \ldots, 397\}$                          & Set of charging stations \\
+$K = \{1, 2\}$                                    & Set of service teams \\
+$V = \{0\} \cup I$                                & Complete node set (depot + stations) \\
+$Z = \{1, \ldots, N_Z\}$, $N_Z = 178$            & Set of zones \\
+$H = \{8, 9, \ldots, 16\}$                        & Hourly decision grid \\
+$i, j \in V$                                       & Node indices \\
+$k \in K$                                          & Team index \\
+$h \in H$                                          & Decision epoch \\
+$d_{ij}$                                           & Travel time from node $i$ to node $j$ \\[4pt]
+\multicolumn{2}{l}{\textit{State components}} \\[2pt]
+$s_h = (\tau_h,\, X_h,\, Y_h,\, J_h,\, \Pi_h)$ & System state at epoch $h$ \\
+$\tau_h$                                           & Elapsed workday time [min] \\
+$X_h$                                              & Team states at epoch $h$ \\
+$\quad v_h^k$                                      & Current location of team $k$ \\
+$\quad \sigma_h^k$                                 & Activity status of team $k$ \\
+$\quad b_h^k$                                      & Remaining time budget of team $k$ [min] \\
+$Y_h$                                              & Station maintenance states at epoch $h$ \\
+$\quad m_h^i \in \{0, 1\}$                        & Periodic maintenance completion indicator \\
+$\quad \mathit{dsm}_h^i$                           & Days since last maintenance of station $i$ \\
+$J_h = (W_h^{\mathrm{reg}},\, W_h^{\mathrm{fault}},\, W_h^{\mathrm{carry}})$ & Open maintenance jobs \\
+$W_h^{\mathrm{reg}}$                              & Regular maintenance jobs \\
+$W_h^{\mathrm{fault}}$                             & Newly arrived fault jobs \\
+$W_h^{\mathrm{carry}}$                             & Carryover fault jobs from previous day \\
+$\Pi_h$                                            & Planned routes for both teams \\[4pt]
+\multicolumn{2}{l}{\textit{Actions and dynamics}} \\[2pt]
+$A(s_h)$                                           & Feasible action set in state $s_h$ \\
+$a_h \in A(s_h)$                                  & Chosen action at epoch $h$ \\
+$P(s_{h+1} \mid s_h, a_h)$                        & Transition function \\[4pt]
+\multicolumn{2}{l}{\textit{Costs and value}} \\[2pt]
+$R = -(C_{\mathrm{op}} + C_{\mathrm{dt}})$       & Reward function \\
+$C_{\mathrm{op}}$                                  & Operational cost (labor + travel) \\
+$C_{\mathrm{dt}}$                                  & Downtime cost \\
+$p_i$                                              & Nominal charging power of station $i$ [kW] \\
+$Q(s, a)$                                          & State-action value function \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Markov Decision Process}
+The maintenance of electric vehicle charging infrastructure is inherently dynamic. At the start of the working day, not all information relevant for operational planning is yet known, because additional disturbances may occur during execution and traffic conditions may affect route feasibility. Consequently, the planning problem cannot be represented adequately by a purely static routing model. Instead, it is formulated as a Markov decision process (MDP), in which decisions are made sequentially and the system evolves stochastically over time. \\
+An MDP formulation is especially suitable in this context because route decisions have consequences beyond their immediate effect. Assigning a team to one area of the network influences the remaining time budget, the accessibility of future service jobs, and the ability to react to newly emerging disturbances. The purpose of the formulation is therefore not merely to choose the next stop, but to evaluate route decisions in light of their effect on the future development of the system.
+\subsubsection{Sets, indices, and temporal structure}
+The maintenance network consists of a set of charging stations $I = \{1, \ldots, 397\}$ and a set of service teams $K = \{1, 2\}$. A single depot is represented by node~$0$, and the overall node set is given by $V = \{0\} \cup I$. Travel times between locations are denoted by $d_{ij}$ for all $i, j \in V$ and may vary by time of day. In addition, the charging stations are partitioned into zones $Z = \{1, \ldots, N_Z\}$, with $N_Z = 178$, which serve as an operational pre-structuring mechanism for route generation. \\
+The decision process is embedded in a daily planning horizon. The working day begins at 8:00 and planning decisions are evaluated on an hourly grid $H = \{8, 9, \ldots, 16\}$. Within this structure, two types of decision points are distinguished. First, an initial planning decision is made at the beginning of the day, where a full route plan is constructed for both teams. Second, replanning decisions may occur during the day whenever new disturbances arise. This distinction between an initial plan and event-triggered route revisions reflects the operational logic of a maintenance system in which execution and planning must remain closely coupled. \\
+The lunch break between 12:00 and 13:00 is treated as a deterministic operational rule rather than as an explicit decision variable. It is inserted after the first stop with a departure time at or after noon and shifts all subsequent arrival and departure times accordingly. This design choice reduces model complexity while preserving an important operational timing restriction.
+\subsubsection{State representation}
+Let the system state at decision epoch $h \in H$ be denoted by
+\[
+  s_h = \bigl(\tau_h,\; X_h,\; Y_h,\; J_h,\; \Pi_h\bigr).
+\]
+This representation is designed so that the state contains all information required to make the next decision. In that sense, it satisfies the Markov property: the probability distribution of the next state depends on the current state and the chosen action, but not on earlier system history beyond what is already encoded in~$s_h$. \\
+The first component, $\tau_h$, captures the current time within the workday and is measured in minutes since 8:00. The second component, $X_h$, describes the state of the service teams. For each team $k \in K$, this includes its current location $v_h^k$, its activity status $\sigma_h^k$, and the remaining time budget $b_h^k$ available before the route must return to the depot. The activity status distinguishes whether a team is currently servicing a station, travelling, returning to the depot, or inactive. This part of the state is essential because route feasibility depends critically on the remaining usable time and on the team’s current physical position. \\
+The third component, $Y_h$, describes the station-related maintenance status. For each station $i \in I$, the state contains a maintenance indicator $m_h^i$, which records whether the required periodic maintenance has already been completed, and a variable $\mathit{dsm}_h^i$, representing the number of days since the last maintenance intervention. The latter variable plays a central role because it influences the probability of future disturbances. Importantly, the technical condition of a charging station is not represented here as a separate persistent binary or multi-level health state. Instead, disturbances are modeled as stochastic events that are immediately transformed into service requests. \\
+The fourth component, $J_h$, captures the set of open maintenance jobs. It consists of three subsets: regular maintenance jobs $W_h^{\mathrm{reg}}$, newly arrived fault jobs $W_h^{\mathrm{fault}}$, and carryover fault jobs $W_h^{\mathrm{carry}}$ transferred from the previous day. This distinction is operationally relevant because the planning problem must account simultaneously for preventive tasks, newly occurring corrective tasks, and accumulated backlog. \\
+Finally, $\Pi_h$ stores the planned routes of both service teams. For each team, the route plan contains a node sequence and the associated schedule of arrival and departure times. In a route-based formulation, including the route plan as part of the state is particularly useful because actions do not merely select an immediate successor node. Rather, they modify or reconstruct larger route segments and thereby influence the remaining structure of the entire working day.
+\subsubsection{Action space}
+The action space $A(s_h)$ depends on the type of decision point. At the start of the day, the decision consists of constructing an initial route plan for both teams. This process is divided into two stages. In the first stage, zones containing open stations are evaluated and filtered. The scoring can be based on classical geographic criteria such as average distance to the depot and zone area, or on a value-based priority measure reflecting maintenance urgency and station-specific relevance. Each team is then assigned a promising start zone, and the selected candidate set is expanded by a nearest-neighbor logic up to a predefined maximum number of stations. \\
+In the second stage, the actual route plan is constructed. Based on the candidate sets and the carryover jobs inherited from the previous day, a feasible route for each team is generated by a greedy cheapest-insertion heuristic. Stations that cannot be accommodated within the remaining working time are dropped from the current day and remain open. This route construction procedure yields the full-day action taken at the initial decision point. \\
+At replanning points during the day, the action space has a different interpretation. Newly arriving disturbance jobs are considered sequentially and inserted into the existing route of the team for which the additional insertion cost is smallest. If no feasible insertion exists because the remaining route time is insufficient, the disturbance is not ignored but transferred as a carryover job to the following day. In this way, the action space reflects a dynamic balance between responsiveness to new faults and adherence to the temporal feasibility of the current plan. \\
+All actions must satisfy three feasibility conditions. First, each route must be temporally feasible, meaning that the planned return to the depot must occur within the allowable time horizon. Second, each team is required to end its route at the depot. Third, each station may be served by at most one team at any given time. These constraints ensure that every action corresponds to an operationally executable route plan. The chosen action at decision epoch $h$ is denoted $a_h \in A(s_h)$.
+\subsubsection{Transition dynamics}
+The transition function $P(s_{h+1} \mid s_h, a_h)$ describes how the system evolves between two consecutive decision points. During that interval, teams execute the planned route, travel to stations, perform maintenance or repair tasks, and update the completion status of serviced stations. Simultaneously, new disturbances may occur and travel times may deviate from their nominal values. As a result, the transition dynamics are stochastic even if the chosen action is fixed. \\
+The route progression is determined by the planned arrival and departure schedule, but actual execution is affected by uncertain travel conditions. The formulation therefore allows for stochastic travel times, for example by using time-dependent lognormal travel-time realizations. This captures the operational reality that the duration of a trip depends not only on spatial distance but also on the time of day and traffic conditions. \\
+Service completion updates the maintenance-related station state. A completed routine maintenance task sets the maintenance indicator to one and resets the days-since-maintenance variable to zero. A type-1 fault requires a standard repair with fixed duration and likewise resets the maintenance age. A type-2 fault entails a more extensive service duration that incorporates additional handling and depot-related effort through an aggregated time term. In the current route-based approximation, this depot-related part is not modeled as a separate physical route leg but is embedded directly in the service time. This modeling choice preserves the operational impact on route feasibility without introducing additional state and routing complexity. \\
+At the end of the day, all stations that were serviced have their days-since-maintenance variable reset, whereas the value for all remaining stations increases by one. Disturbance generation is modeled stochastically and depends on station-specific baseline probabilities, maintenance age, and station-level scaling factors. Faults that cannot be scheduled feasibly in the current day are carried over and become part of the next day’s initial workload. Through this mechanism, unresolved work propagates over time and creates a dynamic coupling between successive planning periods.
+\subsubsection{Reward function}
+The optimization objective is formulated as a cost minimization problem. In MDP notation, the reward is therefore defined as the negative of the total cost incurred by an action and its resulting system evolution:
+\[
+  R = -\left(C_{\mathrm{op}} + C_{\mathrm{dt}}\right).
+\]
+The total cost consists of an operational component and a downtime component. \\
+The operational cost $C_{\mathrm{op}}$ includes labor and travel expenditures. Labor costs depend on the number of active teams and the effective duration of their deployment, while travel costs depend on the kilometers traveled between successive route segments. In the present formulation, the labor cost parameter is 35~EUR per hour and the travel cost parameter is 0.30~EUR per kilometer. \\
+The downtime-related cost $C_{\mathrm{dt}}$ is accounted for on a per-day basis. For a fault that arrives during the current workday but cannot be inserted into any team's route, a downtime cost equal to the remaining workday duration multiplied by the station's nominal charging power $p_i$ and a unit rate of 0.50~EUR per kilowatt-hour is incurred. For a carryover fault that is resolved on the following day, the downtime cost is computed as the elapsed workday time from the start of operations until service completion, again multiplied by $p_i$ and the unit rate. A fault that remains unresolved over multiple days therefore accumulates daily downtime costs on each affected day independently. This structure ensures that the objective does not reward short routes per se, but rather seeks an economically balanced compromise between efficient deployment and timely restoration of charging availability. \\
+Overall, the reward function reflects the central trade-off of the maintenance problem. A route that minimizes travel distance may still perform poorly if it postpones high-impact repairs, while an aggressively reactive policy may generate excessive operating cost. The chosen reward structure therefore evaluates actions in terms of their total contribution to operational efficiency and service quality.
+
+
+\subsection{State-Action-Value Structure}
+While the state representation describes the current condition of the system, it is not sufficient by itself to evaluate decision quality. In a dynamic maintenance routing problem, the attractiveness of a decision depends not only on its immediate cost, but also on how it shapes the future development of the system. This is the reason for adopting a state-action-value perspective. \\
+The state-action-value function $Q(s, a)$ assigns to each feasible action $a$ in state $s$ the expected total downstream value obtained when that action is chosen and the process then continues according to the decision policy. Conceptually, $Q(s, a)$ combines two elements: the immediate effect of the action, such as labor usage, travel effort, and delay consequences, and the future opportunities or restrictions induced by that action. The latter component is crucial because route decisions alter the set of feasible responses to later disturbances. \\
+This distinction is especially important in a route-based MDP. In a node-based formulation, an action might simply correspond to selecting the next customer or the next destination. In the present case, however, an action is more comprehensive: at the beginning of the day it defines a full route plan for both teams, and during the day it may modify substantial parts of the remaining route through a disturbance insertion. Consequently, the quality of an action cannot be assessed only by looking at its immediate incremental cost. It must instead be judged in terms of its impact on the remainder of the route and on the system’s future flexibility. \\
+The practical meaning of this is straightforward. Inserting a station into the route consumes time, changes the expected depot return time, affects accessibility of later jobs, and may either preserve or reduce the ability to react to future disturbances. A locally attractive decision may therefore be globally poor if it leaves too little slack for high-priority faults that are likely to appear later. Conversely, a locally more expensive insertion can be preferable when it maintains route adaptability and reduces expected future service delay. \\
+The $Q$-structure provides the conceptual foundation for evaluating such trade-offs. It translates the routing problem from a purely myopic assignment logic into a sequential decision problem in which future consequences are explicitly recognized. In this way, the state-action-value perspective forms the bridge between the route-based MDP formulation and the approximation strategy introduced in the next section.
+
+
+\subsection{ADP Foundations and the Offline-Online Approach}
+Although the route-based MDP provides an appropriate conceptual representation of the maintenance problem, solving it exactly is computationally infeasible. The dimensionality of the state space is very large because it combines temporal information, two vehicle states, station-specific maintenance information, multiple categories of open jobs, and the current route plan. The action space is equally large, since route construction and route modification decisions can take many feasible forms. In addition, the transition process is stochastic due to fault arrivals and uncertain travel times. \\
+For these reasons, the problem is addressed through approximate dynamic programming (ADP). The central idea of ADP is not to compute the exact optimal value function for every possible state, which would be impractical, but to approximate the value of future decisions in a computationally tractable way. This approximation can be based on simulation, parameterized value estimates, structured heuristics, or combinations thereof. The purpose is to obtain a policy that is sufficiently accurate to support high-quality operational decisions while remaining fast enough for day-to-day deployment. \\
+In the present context, ADP is particularly attractive because the decision problem unfolds in two distinct modes: planning at the beginning of the day and replanning during execution. A suitable framework must therefore support both anticipatory route construction and rapid reaction to new disturbances. This naturally leads to an offline-online structure. \\
+In the offline phase, the decision logic is prepared before actual daily operation. This can include calibration of scoring parameters, design of value surrogates, generation of representative simulation scenarios, and estimation of how route characteristics translate into future cost consequences. The offline phase is therefore the stage at which structural knowledge about the maintenance system is embedded into the approximation framework. \\
+In the online phase, the system observes the current state and must select a feasible action under tight time constraints. The precomputed or learned value information from the offline stage is then used to guide route construction or route revision. Instead of solving a large stochastic optimization problem from scratch whenever a new fault occurs, the online procedure relies on an informed evaluation of candidate actions. This is what makes the approach practical for operational use. \\
+The route-based logic of the present model fits this ADP structure particularly well. The zonal pre-selection, candidate generation, and greedy insertion rules should not be interpreted merely as ad hoc heuristics. Within the ADP framework, they can be viewed as operational policy components that exploit structural information about the value of different routing choices. Their role is to restrict the search space intelligently and to approximate the effect of decisions on future system performance. \\
+Taken together, ADP provides the methodological layer that makes the route-based MDP operationally usable. The MDP defines the decision problem rigorously, the state-action-value structure clarifies what has to be approximated, and the offline-online ADP scheme supplies a practical mechanism for producing fast and robust route decisions under uncertainty.
 
 
 \section{Solution Methodology}
+This chapter presents the solution methodology developed for the maintenance planning problem of electric charging stations. The methodological framework is designed to handle a dynamic and stochastic environment in which new failures may occur during the day and existing routes must be adjusted accordingly. Since the problem is too complex to solve exactly at the operational level, the thesis relies on a hierarchy of heuristic policies and approximate dynamic programming-based approaches. \\
+The methodology starts with a common spatial decision layer that determines which zones of the network are considered first. On top of this shared structure, different decision policies are applied. The simplest policy is the Myopic baseline, which relies only on the currently available information. Myopic+ extends this baseline by incorporating a stronger economic prioritization. Cost Function Approximation introduces a learned station value that captures the future cost of postponing service. Dynamic Balance extends this value-based structure by introducing a state-dependent routing parameter. Value Function Approximation extends this hierarchy by adding an online rollout layer that replaces the greedy drop decision with a simulation-based lookahead. \\
+The purpose of this chapter is to describe these policies in a consistent way and to make clear how they differ in terms of decision logic, prioritization, and replanning behavior. This structure also allows for a fair comparison of the methods in the computational experiments.
 
+\subsection{Shared Zone Selection Logic}
+The zone selection mechanism forms a preliminary decision layer that acts before the actual routing and disturbance handling logic. Its purpose is to structure the spatial search space and to determine which parts of the service area are addressed first on a given day. All policies in this thesis share the same underlying zone structure, based on a K-Means decomposition of the station network, but differ in how zones are prioritized. \\
+Zone selection is evaluated as an independent experimental dimension: each of the four base policies is tested under both a centrality-based and a value-based mode. This design allows the effect of the zone selection criterion to be isolated from the effect of the routing and replanning policy. \\
+In the centrality-based mode, zones are scored according to their geographic position within the network. Specifically, the score of a zone is derived from its mean distance to the centroids of all other zones:
+\[
+  \text{score}(z) = 1 - \frac{\bar{d}_z - \min_z \bar{d}_z}{\max_z \bar{d}_z - \min_z \bar{d}_z},
+\]
+where $\bar{d}_z$ denotes the mean distance from zone $z$'s centroid to the centroids of all other zones. Zones that are geographically central within the network, that is, close to many other zones, receive a high score and are therefore processed first. This criterion is policy-agnostic and serves as the baseline for zone prioritization. \\
+In the value-based mode, the zone score additionally incorporates the expected maintenance relevance of the stations it contains. Specifically, the score combines a policy-specific station value, aggregated over all open stations in the zone, with the depot distance term. The station value function differs by policy: Myopic and Myopic+ use a power-weighted urgency measure based on days since maintenance, while CFA and Dynamic Balance use the learned cost approximation $\tilde{C}$. This allows the zone selection to reflect not only geographic structure but also the anticipated cost consequences of postponing service at the stations within a zone.
+
+\subsection{Myopic}
+The Myopic policy serves as the baseline heuristic for all subsequent methods. It makes all decisions solely on the basis of currently available information and does not incorporate any form of lookahead or learned value approximation. This makes it a fast, transparent, and easily interpretable reference point for evaluating the added value of the more advanced policies.
+
+\subsubsection*{Initial Plan}
+At the beginning of the day, after zone selection and candidate set generation, the initial route is constructed by a greedy routing procedure. Starting from the depot, the next station is always chosen as the one with the highest score among all remaining candidates, where the score is defined as the inverse of the travel time from the current position:
+\[
+  \text{score}(i,\, \mathrm{cur}) = \frac{1}{\max(1,\, d_{\mathrm{cur},i})}.
+\]
+This rule prioritizes nearby stations and produces a compact, travel-time-efficient route without any economic weighting. Carryover tasks from previous days are always inserted first, using a nearest-neighbor rule, before any routine tasks are scheduled. This ensures that previously unresolved faults are addressed as early as possible in the new day. Routine stations that cannot be accommodated within the remaining workday are dropped and remain open for the following day.
+
+\subsubsection*{Disruption Handling}
+When new disruptions arrive during the day, each disruption is evaluated for insertion into the current route using a greedy cheapest-insertion procedure. For every combination of team and insertion position, the additional cost is computed as:
+\[
+  c_{\mathrm{ins}} = \frac{\Delta t_i + s_i}{60} \cdot w
+  + \max(0,\, \Delta \ell_i) \cdot f
+  + \frac{\max(0,\, a_i + s_i - r_i)}{60} \cdot p_i \cdot c_d,
+\]
+where the detour time and detour distance are defined as
+\[
+  \Delta t_i = d_{\mathrm{prev},i} + d_{i,\mathrm{next}} - d_{\mathrm{prev},\mathrm{next}}, \qquad
+  \Delta \ell_i = \ell_{\mathrm{prev},i} + \ell_{i,\mathrm{next}} - \ell_{\mathrm{prev},\mathrm{next}},
+\]
+$s_i$ is the service time of the disruption in minutes, $w = 35$~EUR/h the labor rate, $f = 0.30$~EUR/km the fuel rate, $a_i$ the arrival time at the disrupted station in minutes since 8:00, $r_i$ the fault report time in minutes since 8:00, $p_i$ the rated power in kW, and $c_d = 0.50$~EUR/kWh the downtime cost rate. Here $d_{ij}$ denotes travel time in minutes between nodes $i$ and $j$ as defined in Chapter~4, and $\ell_{ij}$ the corresponding travel distance in kilometers. Disruptions are processed in ascending order of their cheapest insertion cost, so the least expensive disruption is inserted first. \\
+If no feasible direct insertion exists, a drop-and-insert fallback is applied. All remaining routine stops are ranked by their detour time $\Delta t_i$, defined as the travel time saved by removing stop $i$ from the current route. Stops are dropped in ascending order of the score $1 / \max(1, \Delta t_i)$, meaning the stop that saves the largest detour is removed first. Drops are applied iteratively until the disruption can be feasibly inserted. Dropped stops are carried over to the following day. If no combination of drops creates sufficient capacity, the disruption itself becomes a carryover.
+
+\subsection{Myopic+}
+Myopic+ shares the same greedy architecture as Myopic but replaces the purely travel-time-based scoring with a power-weighted score. The central idea is that stations with higher rated power should be visited earlier in the day, since a failure at such a station incurs higher downtime costs. This economic weighting is applied consistently in both the initial plan and the drop decision during disruption handling.
+
+\subsubsection*{Initial Plan}
+Carryover tasks are inserted first using nearest-neighbor, identical to Myopic. For routine tasks, the next station is selected by the highest score among remaining candidates, where the score now weights travel time by rated power:
+\[
+  \text{score}(i,\, \mathrm{cur}) = \frac{p_i}{\max(1,\, d_{\mathrm{cur},i})}.
+\]
+A station with high rated power $p_i$ and short travel time $d_{\mathrm{cur},i}$ receives the highest priority. Compared to Myopic, a more distant high-power station can therefore be preferred over a nearby low-power station if the power advantage outweighs the travel penalty.
+
+\subsubsection*{Disruption Handling}
+The insertion cost formula for evaluating disruption candidates is identical to Myopic — the same full economic cost over detour time, distance, and downtime is computed for every (team, position) pair, and disruptions are processed in ascending order of insertion cost. \\
+The key difference lies in the drop score. When no direct insertion is feasible, remaining routine stops are ranked by:
+\[
+  \text{drop\_score}(i) = \frac{p_i}{\max(1,\, \Delta t_i)},
+\]
+where $\Delta t_i$ is the detour time saved by removing stop $i$. Stops are dropped in ascending order of this score — low-power stations with large detours are removed first, while high-power stations or those with small detours are protected. This ensures that economically important stations remain in the route whenever capacity is tight. Dropped stops are carried over to the following day; if no combination of drops resolves the capacity shortage, the disruption itself becomes a carryover.
+
+\subsection{Cost Function Approximation}
+CFA extends the greedy decision logic by introducing a learned approximation of the future cost of postponing a station. Instead of scoring stations purely by proximity or rated power, CFA estimates how costly it would be to leave a station unserved and uses this estimate as a prioritization signal throughout the planning day. The approximation is linear in a small set of station-specific features and trained offline, while all operational decisions remain fully greedy.
+
+\subsubsection*{Cost Approximation and Training}
+CFA represents the cost of leaving station $i$ unserved through a linear value function over four features:
+\[
+  \phi(i) = \bigl[p_i,\; a_i,\; \rho(\mathrm{dsm}_i),\; \bar{d}_i\bigr]^\top,
+\]
+where $p_i$ is the rated power, $a_i$ the station age in years, $\rho(\mathrm{dsm}_i)$ the recovery curve evaluated at the days since last maintenance, and $\bar{d}_i$ the mean distance from station $i$ to all other stations, precomputed statically at initialization. The recovery curve captures the temporal failure risk: it is lowest immediately after maintenance and rises back toward its maximum as time passes. Before entering the model, all features are standardized with training means and standard deviations, and the value function is:
+\[
+  \tilde{C}(i,\, \mathrm{dsm}_i) = \theta^\top \phi_{\text{scaled}}(i,\, \mathrm{dsm}_i).
+\]
+The weight vector $\theta \in \mathbb{R}^4$ is estimated offline via Ridge regression on contrastive training labels. Each label is the discounted cost difference between two simulated suffix trajectories for station $i$: one in which the station is served and one in which it is dropped. This makes $\tilde{C}$ a direct approximation of the marginal value of servicing a station rather than a fit to aggregate rollout costs. The standardization parameters $\mu$ and $\sigma$ are stored together with $\theta$ and loaded at inference time.
+
+\subsubsection*{Initial Plan}
+Carryover tasks are inserted first using nearest-neighbor, as in Myopic and Myopic+. For routine tasks, the station selection score combines the learned value with travel time:
+\[
+  \text{score}(i,\, \mathrm{dsm}_i,\, \mathrm{cur}) = \frac{\tilde{C}(i,\, \mathrm{dsm}_i) + s}{\max(1,\; d_{\mathrm{cur},i})},
+\]
+where $s = \max(0,\, -\min_i \tilde{C}) + 1$ is a shift that ensures all scores are strictly positive, preventing negative $\tilde{C}$ values from reversing the travel-time penalty. When value-based zone selection is active, CFA uses $\tilde{C}$ as the station value function passed to the zone selector, as described in Section~5.1.
+
+\subsubsection*{Disruption Handling}
+The insertion cost formula is identical to Myopic — full economic costs over detour time, distance, and downtime are evaluated for each (team, position) pair, and disruptions are processed in ascending order of insertion cost. When no direct insertion is feasible, remaining routine stops are ranked by a drop score that trades off future value against the detour savings from removal:
+\[
+  \text{drop\_score}(i,\, \mathrm{dsm}_i) = \tilde{C}(i,\, \mathrm{dsm}_i) - w_{\min} \cdot \Delta t_i,
+\]
+where $w_{\min} = 35/60$~EUR/min is the per-minute wage cost and $\Delta t_i$ is the detour time saved by removing stop $i$. Stops are dropped in ascending order — stations with low future value and large detour savings are removed first. Dropped stops become carryovers; if no combination of drops creates sufficient capacity, the disruption itself is carried over to the following day.
+
+\subsection{Dynamic Balance}
+Dynamic Balance builds directly on CFA and extends it by introducing a state-dependent balancing parameter $\delta$. The purpose of this policy is to dynamically trade off the economic importance of a station, captured by the approximated value $\tilde{C}(i)$, against routing efficiency, captured by the distance term in the greedy selection rules. In contrast to CFA, where this trade-off is fixed, Dynamic Balance allows the emphasis to shift with the state of the system.
+
+\subsubsection*{Balance Concept and Parameter}
+Following the Dynamic Balance concept of Stein, routing quality should not be determined by a single static priority rule. Instead, the decision logic should balance two competing objectives: the servicing of economically important stations and the maintenance of spatial efficiency in the route. This trade-off is particularly relevant in a dynamic maintenance setting, where the best choice early in the planning horizon may not be the best choice as the horizon closes. \\
+The balance parameter $\delta \in \{0.1,\, 0.3,\, 0.5,\, 0.7,\, 0.9\}$ controls the relative strength of the distance term in the greedy score. The special case $\delta = 0.5$ yields a routing score with a linear distance penalty, which is identical to CFA. Smaller values of $\delta$ reduce the importance of distance and shift the focus more strongly toward the approximated value $\tilde{C}(i)$. Larger values increase the distance penalty and thereby place greater emphasis on routing compactness. The parameter is determined once before the start of each day and remains constant throughout the day. In the rule-based mode used in the current setup, $\delta$ is set from the number of remaining open stations: as long as at least 130 stations remain unserved, the policy operates at $\delta = 0.5$ and behaves identically to CFA. Only in the late stage, when fewer than 130 stations remain, does it switch to $\delta = 0.9$.
+
+\subsubsection*{Initial Plan}
+Dynamic Balance inherits all core components from CFA without modification: the feature vector $\phi(i)$, the learned value function $\tilde{C}(i, \mathrm{dsm}_i)$, the shift $s$, the carryover nearest-neighbor insertion, and the value-based zone selection. The only change is in the routing score, where the distance exponent is now controlled by $\delta$:
+\[
+  \text{score}(i,\, \mathrm{dsm}_i,\, \mathrm{cur}) = \frac{\tilde{C}(i,\, \mathrm{dsm}_i) + s}{\max(1,\; d_{\mathrm{cur},i})^{2\delta}}.
+\]
+When $\delta = 0.5$, the exponent equals one and the formula reduces exactly to the CFA score. For $\delta < 0.5$, distance is penalized less than linearly, so high-value stations can be reached at a greater travel cost. For $\delta > 0.5$, the distance penalty grows super-linearly, favoring compact routing over value-based prioritization.
+
+\subsubsection*{Disruption Handling}
+The insertion cost formula is identical to CFA and Myopic. When no direct insertion is feasible, routine stops are removed according to a drop score that mirrors the same $\delta$-controlled balance:
+\[
+  \text{drop\_score}(i,\, \mathrm{dsm}_i) = \tilde{C}(i,\, \mathrm{dsm}_i) - 2\delta \cdot w_{\min} \cdot \Delta t_i,
+\]
+where $\Delta t_i$ is the detour time saved by removing stop $i$ and $w_{\min} = 35/60$~EUR/min. The factor $2\delta$ scales the weight of the detour savings relative to the future value. At $\delta = 0.5$ this reduces to the CFA drop score. For larger $\delta$, stops with high detour savings are dropped more aggressively, improving feasibility at the cost of dropping potentially valuable stations.
+
+\subsection{Value Function Approximation}
+Value Function Approximation is not an independent planning algorithm in this thesis, but an online rollout layer that is placed on top of an existing base heuristic. The base policy remains fully intact and continues to generate the operational plan. VFA only intervenes at selected decision points, where a rollout simulation indicates that an alternative action yields a better expected future outcome. In this sense, VFA is an offline-online hybrid strategy in which the heuristic structure is defined in advance and the improvement is obtained online through simulation-based evaluation.
+
+\subsubsection*{Offline-Online Architecture}
+The VFA framework is based on a strict separation between a static offline component and a dynamic online decision component. In the offline part, the chosen base policy is fixed and prepared for use in the rollout layer. In the online part, the current decision state is evaluated by simulating alternative actions and comparing their expected future consequences over a finite horizon. The central idea is not to replace the base policy, but to complement it with a future-oriented evaluation mechanism. This separation allows the method to combine computational tractability with a stronger anticipation of future events. \\
+The offline-online structure is important because it keeps the operational logic simple while still enabling more informed decisions at critical points. The offline policy provides the reference behavior, whereas the online rollout approximates the value of different actions by simulating their downstream effects. This is consistent with the general ADP principle that a good heuristic base policy can be improved by a local lookahead layer. In the context of this thesis, this architecture makes it possible to retain the strengths of the previously defined policies while adding a more anticipatory decision mechanism.
+
+\subsubsection*{Offline Phase: Base Policy}
+In the offline phase, a base policy is selected as the foundation for the rollout layer. Depending on the experimental setup, this base policy may be Myopic, Myopic+, CFA, or Dynamic Balance. The chosen policy remains unchanged during the rollout process and continues to handle the standard operational planning. The role of the offline phase is therefore to provide a stable and fully specified heuristic structure on which the rollout can build. \\
+The base policy is accessed through a unified interface, which allows the VFA layer to remain independent of the concrete heuristic used underneath. This is important because it makes the rollout mechanism modular and transferable across different policy classes. For the initial plan, the base policy remains fully responsible in the standard configuration. In the standard setting, the offline phase does not perform any additional optimization itself; rather, it defines the behavior that will later be evaluated and, if necessary, overridden by the online layer. \\
+This means that VFA does not construct routes from scratch. Instead, it uses the base policy as the default operational rule and improves it only when the rollout suggests a better local alternative. The offline phase is therefore best understood as the structural backbone of the method. It guarantees that the system always has a feasible and interpretable default behavior, even if the rollout layer is not activated or cannot find a superior candidate.
+
+\subsubsection*{Online Phase: Rollout}
+The actual value approximation takes place in the online phase through rollout simulations. VFA is activated when a newly reported disturbance cannot be inserted directly and a drop decision must be made. The base policy ranks all remaining routine stops by its drop score and identifies the top-$k$ candidates. For each candidate, the system constructs a post-decision state — the system state after that drop has been applied but before future uncertainty materializes — and simulates the remaining planning horizon using the base policy. \\
+To ensure a fair comparison across candidates, all candidates are evaluated under the same set of stochastic scenarios, generated using common random numbers. This reduces sampling noise and makes the cost estimates statistically comparable. The candidate with the lowest expected horizon cost is selected and applied, overriding the base-policy choice whenever a better alternative is found. If the rollout computation exceeds a predefined time budget, the system falls back to the greedy base-policy decision. \\
+Overall, VFA represents the highest level in the methodological hierarchy of this thesis. It combines the robustness of a heuristic base policy with the anticipatory power of simulation-based lookahead. Compared with CFA and Dynamic Balance, it is more strongly future-oriented because it does not merely approximate station relevance, but directly evaluates the expected downstream cost of alternative drop decisions. At the same time, it remains operationally feasible because rollout is applied only at drop decision points rather than throughout the entire planning process.
 
 \section{Experimental Setup}
+This chapter specifies the simulation environment, data basis, and evaluation metrics used to compare the maintenance policies. The setup is designed to capture both the operational structure of the charging-station maintenance problem and the stochastic effects that influence routing, service times, and downtime.
+
+
+\subsection{Simulation Design}
+The policy evaluation is based on an event-driven day simulation that represents the daily operations of a maintenance service for electric charging stations in Würzburg over a horizon of up to 365 days. The simulation is repeated in Monte Carlo experiments so that random disruptions and travel times can be assessed statistically rather than through a single deterministic run. This is necessary because both failure generation and travel times contain stochastic elements.
+Each simulation day begins at 8:00 a.m. with route initialization for two maintenance teams. The daily planning process first assigns starting zones and incorporates unresolved tasks from the previous day, after which a policy-specific initial route is constructed. During the working period, new disruptions may occur, the teams advance along their routes, and the current plan may be updated if the selected policy triggers a re-optimization step. The day ends with the calculation and logging of operational and downtime-related costs.
+For robustness, each policy is evaluated across multiple independent runs with separate random seeds. The random streams for disruption generation and travel times are kept separate to avoid unintended dependence between these uncertainty sources. After all runs have been completed, the results are aggregated by policy using descriptive statistics such as mean, standard deviation, minimum, and maximum.
+
+
+\subsection{Routing and Travel Times}
+Travel times between the depot and the 397 charging stations are derived from Open Source Routing Machine data based on OpenStreetMap extracts for Bavaria. A complete 398 by 398 travel-time matrix is precomputed for the depot and all stations and then reused during simulation to avoid repeated routing requests. In addition, hourly traffic matrices are generated to reflect time-dependent congestion effects during the workday from 8:00 to 17:00.
+To represent short-term variability in traffic conditions, the deterministic travel times are further perturbed by a log-normal stochastic component. This makes it possible to evaluate whether a route remains feasible under realistic travel-time fluctuations rather than only under average conditions. The resulting route robustness is summarized through indicators such as mean return time, 95th-percentile return time, overtime probability, and expected overtime minutes.
+
+
+\subsection{Data Basis}
+The simulation is based on a real data set of publicly available charging infrastructure in the city of Würzburg. After filtering for operational stations, the data set contains 397 charging stations, consisting of both normal charging stations and fast-charging stations. For each station, relevant attributes include its location, charging power, number of charging points, commissioning date, and inferred age.
+The depot is located at the WVV maintenance facility in Sanderau, which serves as the operational base for both maintenance teams. To support the daily planning process, the city area is additionally structured into 178 spatial zones using clustering-based preprocessing. These zones provide a geographical abstraction that helps select promising daily work areas and organize station visits efficiently.
+Disruptions are modeled stochastically on a station-by-station and hour-by-hour basis. The probability of failure increases with time since the last maintenance intervention and is further modified by station-specific characteristics such as charger type and age. In this way, the simulation reflects both operational deterioration and heterogeneity across the charging network.
+
+
+\subsection{Evaluation Metrics}
 
 
 \section{Results and Analysis}
