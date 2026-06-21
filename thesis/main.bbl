@@ -16,5 +16,41 @@
   {}
 \endgroup
 
+
+\refsection{0}
+  \datalist[entry]{nyt/global//global/global}
+    \entry{wuerzburg_opendata}{online}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=96fbf2c409ec862e57100a47088ffc9c}{%
+           family={{Stadt Würzburg}},
+           familyi={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{96fbf2c409ec862e57100a47088ffc9c}
+      \strng{fullhash}{96fbf2c409ec862e57100a47088ffc9c}
+      \strng{bibnamehash}{96fbf2c409ec862e57100a47088ffc9c}
+      \strng{authorbibnamehash}{96fbf2c409ec862e57100a47088ffc9c}
+      \strng{authornamehash}{96fbf2c409ec862e57100a47088ffc9c}
+      \strng{authorfullhash}{96fbf2c409ec862e57100a47088ffc9c}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Ladesäulen in Würzburg -- Open Data Portal}
+      \field{urlday}{20}
+      \field{urlmonth}{6}
+      \field{urlyear}{2026}
+      \field{year}{2024}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://wuerzburg.opendatasoft.com/explore/dataset/10001wuerzburg-stadt/information/
+      \endverb
+      \verb{url}
+      \verb https://wuerzburg.opendatasoft.com/explore/dataset/10001wuerzburg-stadt/information/
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
 \endinput
 

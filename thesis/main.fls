@@ -964,6 +964,13 @@ INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf-t1.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/vf/paratype/ptsans/PTSans-Regular-tlf-t1.vf
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf-t1--base.tfm
+INPUT /usr/share/texlive/texmf-dist/tex/latex/paratype/T1PTMono-TLF.fd
+INPUT /usr/share/texlive/texmf-dist/tex/latex/paratype/T1PTMono-TLF.fd
+INPUT /usr/share/texlive/texmf-dist/tex/latex/paratype/T1PTMono-TLF.fd
+INPUT /usr/share/texlive/texmf-dist/tex/latex/paratype/T1PTMono-TLF.fd
+INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptmono/PTMono-Regular-tlf-t1.tfm
+INPUT /usr/share/texlive/texmf-dist/fonts/vf/paratype/ptmono/PTMono-Regular-tlf-t1.vf
+INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptmono/PTMono-Regular-tlf-t1--base.tfm
 INPUT ./Erklaerung.tex
 INPUT Erklaerung.tex
 INPUT ./Erklaerung.tex
@@ -973,8 +980,10 @@ INPUT ./main.out
 INPUT ./main.out
 INPUT main.run.xml
 OUTPUT main.run.xml
+INPUT /usr/share/texlive/texmf-dist/fonts/enc/dvips/paratype/ptmono_t1.enc
 INPUT /usr/share/texlive/texmf-dist/fonts/enc/dvips/paratype/ptsans_t1.enc
 INPUT /usr/share/texlive/texmf-dist/fonts/enc/dvips/paratype/ptsans_ts1.enc
+INPUT /usr/share/texlive/texmf-dist/fonts/type1/paratype/ptmono/PTM55F.pfb
 INPUT /usr/share/texlive/texmf-dist/fonts/type1/paratype/ptsans/PTS55F.pfb
 INPUT /usr/share/texlive/texmf-dist/fonts/type1/paratype/ptsans/PTS56F.pfb
 INPUT /usr/share/texlive/texmf-dist/fonts/type1/paratype/ptsans/PTS75F.pfb
