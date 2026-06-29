@@ -96,13 +96,13 @@
 
 \begin{document}
   \JMUTitle
-      {TITEL }        % Titel der Arbeit
+      {Optimization of Maintenance Operations for Urban EV Charging Infrastructure under Uncertainty}        % Titel der Arbeit
       {Philipp Hümmer}                        % Vor- und Nachname des Autors
       {2485927}
       
       {Masterarbeit} % Art der Arbeit
       {W"urzburg}                           % Ort der Erstellung
-      {31.03.2018}                          % Tag der Abgabe
+      {23.07.2026}                          % Tag der Abgabe
       {Prof. Dr. Christoph Flath}           % Name des Erstgutachters
       {Tim Lachner} % Name des/der betreuenden Assistent/Assistentin
       
@@ -214,12 +214,7 @@ over the lifecycle of technical assets.
 Unlike manufacturing or logistics contexts, infrastructure maintenance often involves geographically
 distributed assets, limited maintenance resources, and significant consequences of system failures
 (de Jonge \& Scarf, 2020; Dekker, 1996). \\
-This chapter provides the conceptual foundation for maintenance optimization.
-Section 3.1.1 defines maintenance optimization and its objectives.
-Section 3.1.2 reviews maintenance strategies: preventive, reactive, and condition-based.
-Section 3.1.3 discusses uncertainty, availability, and cost as central decision variables.
-Section 3.1.4 provides the transition to mobile maintenance and service interventions (de Jonge \&
-Scarf, 2020; Alaswad \& Xiang, 2017).
+The following subsections trace this progression: from the core objectives and trade-offs of maintenance optimization, through the dominant maintenance strategies and their limits, to the specific complications that arise when technicians must travel between geographically distributed sites — the operational structure directly relevant to this thesis.
 
 
 \subsubsection{Concept and Objectives of Maintenance Optimization}
@@ -267,37 +262,20 @@ While CBM is well-studied in the literature, it requires continuous condition mo
 In practice, many organizations use a hybrid strategy, combining preventive maintenance for critical
 components with reactive maintenance for non-critical ones and condition-based maintenance for
 assets where monitoring is available (Sarja \& Halilov, 2023; de Jonge \& Scarf, 2020).
-For this thesis, the hybrid perspective is relevant because maintenance of charging infrastructure
-often involves both planned inspections and unplanned failure responses.
+The charging infrastructure context falls naturally into this hybrid territory: routine inspections address predictable deterioration, while spontaneous hardware failures demand immediate reactive response — a combination that motivates the dynamic replanning logic developed in Chapter~5.
 
 
 \subsubsection{Uncertainty, Availability, and Cost as Central Decision Variables}
 Maintenance decisions are inherently made under uncertainty.
 Key uncertain parameters include failure times, service times, travel times, availability of spare
 parts, and arrival of new maintenance requests (de Jonge \& Scarf, 2020; Dekker, 1996).
-This uncertainty affects three central decision variables: \\
-Availability measures the proportion of time that a system is operational and able to fulfill its
-function (Sarja \& Halilov, 2023).
-For charging infrastructure, availability is a key performance indicator because failed stations
-directly reduce customer access and revenue.
-Predictive maintenance can increase availability by 5–15 \% according to McKinsey estimates, while
-reducing maintenance costs by 18–25 \% (Sarja \& Halilov, 2023). \\
-Cost includes maintenance costs (labor, materials, travel), failure costs (downtime, customer
-dissatisfaction, penalties), and inventory costs (spare parts, tools) (de Jonge \& Scarf, 2020;
-Dekker, 1996).
-The optimization objective is typically to minimize total expected cost over a planning horizon,
-subject to availability constraints (Alaswad \& Xiang, 2017). \\
-Uncertainty affects both the timing and the impact of maintenance decisions.
-For example, a failure may occur earlier or later than expected, service may take longer than
-planned, or travel to a site may be delayed by traffic (de Jonge \& Scarf, 2020).
-Decision-making under uncertainty follows a sequential process in which uncertainty realization
-(observation of the true values of previously uncertain parameters) and subsequent reactive
-decision-making alternate as time proceeds (de Jonge \& Scarf, 2020). \\
-In maintenance optimization, uncertainty is often modeled using stochastic deterioration processes,
-probability distributions for failure times, or scenario-based approaches (Alaswad \& Xiang, 2017;
-de Jonge \& Scarf, 2020).
-The choice of uncertainty model depends on the amount of available data, the complexity of the
-system, and the computational requirements of the optimization approach.
+These three dimensions — availability, cost, and uncertainty — jointly define the scope of maintenance optimization:
+\begin{itemize}
+  \item \textbf{Availability} measures the proportion of time that a system is operational and able to fulfill its function (Sarja \& Halilov, 2023). For charging infrastructure, failed stations directly reduce customer access and revenue, making availability a primary performance indicator. Predictive maintenance can increase availability by 5--15\,\% according to McKinsey estimates, while reducing maintenance costs by 18--25\,\% (Sarja \& Halilov, 2023).
+  \item \textbf{Cost} encompasses maintenance expenditures (labor, materials, travel), failure costs (downtime, customer dissatisfaction, penalties), and inventory costs (spare parts, tools) (de Jonge \& Scarf, 2020; Dekker, 1996). The optimization objective is typically to minimize total expected cost over a planning horizon, subject to availability constraints (Alaswad \& Xiang, 2017).
+  \item \textbf{Uncertainty} affects both the timing and the magnitude of maintenance consequences. A failure may occur earlier or later than expected, service may take longer than planned, or travel to a site may be delayed by traffic (de Jonge \& Scarf, 2020). Decision-making therefore follows a sequential process in which uncertainty gradually resolves and decisions are revised in response (de Jonge \& Scarf, 2020).
+\end{itemize}
+In maintenance optimization, uncertainty is typically modeled through stochastic deterioration processes, probability distributions for failure times, or scenario-based approaches, with the choice depending on data availability, system complexity, and computational requirements (Alaswad \& Xiang, 2017; de Jonge \& Scarf, 2020).
 
 
 \subsubsection{Transition to Mobile Maintenance and Service Interventions}
@@ -323,10 +301,7 @@ More recent work begins to integrate maintenance planning with vehicle routing, 
 context of dynamic and stochastic vehicle routing problems (SDVRP) (de Jonge \& Scarf, 2020).
 This integration is precisely the focus of the following Sections 3.2 and 3.3, which cover
 stochastic routing and approximate dynamic programming for dynamic service planning. \\
-For this thesis, the key insight from Section 3.1 is that maintenance optimization provides the
-decision objectives (cost, availability, uncertainty handling), while Sections 3.2 and 3.3 provide
-the methodological framework (SDVRP, ADP) for implementing these objectives in a mobile, dynamic,
-and stochastic service environment (de Jonge \& Scarf, 2020; Alaswad \& Xiang, 2017).
+Section~3.1 has thus established \emph{what} needs to be optimized: cost, availability, and service responsiveness under uncertainty. The remaining two streams — stochastic vehicle routing (Section~3.2) and approximate dynamic programming (Section~3.3) — provide the methodological tools for implementing these objectives in a mobile, spatially distributed, and dynamically evolving service environment (de Jonge \& Scarf, 2020; Alaswad \& Xiang, 2017).
 
 
 \subsection{Stochastic Vehicle Routing Problems and Dynamic Service Planning}
