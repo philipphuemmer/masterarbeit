@@ -1,0 +1,67 @@
+A,B,n_common_seeds,mean_diff_A_minus_B,cohens_d,t_test_p,wilcoxon_p
+Myopic (centrality),Myopic+ (centrality),500,266.01,0.068,0.1281,0.1371
+Myopic (centrality),CFA (centrality),500,223.12,0.06,0.1807,0.1573
+Myopic (centrality),DB (centrality),500,227.16,0.055,0.2182,0.369
+Myopic (centrality),Myopic (value-based),500,5524.96,1.288,0.0,0.0
+Myopic (centrality),Myopic+ (value-based),500,6097.49,1.484,0.0,0.0
+Myopic (centrality),CFA (value-based),500,6617.19,1.558,0.0,0.0
+Myopic (centrality),DB (value-based),500,6739.05,1.613,0.0,0.0
+Myopic (centrality),Myopic+Rollout,500,5520.04,1.304,0.0,0.0
+Myopic (centrality),Myopic++Rollout,500,6116.44,1.516,0.0,0.0
+Myopic (centrality),CFA+Rollout,500,6681.33,1.587,0.0,0.0
+Myopic (centrality),DB+Rollout,500,6783.23,1.625,0.0,0.0
+Myopic+ (centrality),CFA (centrality),500,-42.89,-0.013,0.7747,0.7392
+Myopic+ (centrality),DB (centrality),500,-38.85,-0.01,0.8182,0.4879
+Myopic+ (centrality),Myopic (value-based),500,5258.95,1.292,0.0,0.0
+Myopic+ (centrality),Myopic+ (value-based),500,5831.48,1.37,0.0,0.0
+Myopic+ (centrality),CFA (value-based),500,6351.17,1.501,0.0,0.0
+Myopic+ (centrality),DB (value-based),500,6473.04,1.504,0.0,0.0
+Myopic+ (centrality),Myopic+Rollout,500,5254.03,1.295,0.0,0.0
+Myopic+ (centrality),Myopic++Rollout,500,5850.43,1.383,0.0,0.0
+Myopic+ (centrality),CFA+Rollout,500,6415.32,1.519,0.0,0.0
+Myopic+ (centrality),DB+Rollout,500,6517.22,1.511,0.0,0.0
+CFA (centrality),DB (centrality),500,4.04,0.001,0.9799,0.7322
+CFA (centrality),Myopic (value-based),500,5301.84,1.294,0.0,0.0
+CFA (centrality),Myopic+ (value-based),500,5874.37,1.331,0.0,0.0
+CFA (centrality),CFA (value-based),500,6394.06,1.497,0.0,0.0
+CFA (centrality),DB (value-based),500,6515.93,1.516,0.0,0.0
+CFA (centrality),Myopic+Rollout,500,5296.92,1.307,0.0,0.0
+CFA (centrality),Myopic++Rollout,500,5893.32,1.346,0.0,0.0
+CFA (centrality),CFA+Rollout,500,6458.21,1.511,0.0,0.0
+CFA (centrality),DB+Rollout,500,6560.11,1.526,0.0,0.0
+DB (centrality),Myopic (value-based),500,5297.8,1.224,0.0,0.0
+DB (centrality),Myopic+ (value-based),500,5870.33,1.324,0.0,0.0
+DB (centrality),CFA (value-based),500,6390.02,1.484,0.0,0.0
+DB (centrality),DB (value-based),500,6511.89,1.488,0.0,0.0
+DB (centrality),Myopic+Rollout,500,5292.88,1.232,0.0,0.0
+DB (centrality),Myopic++Rollout,500,5889.28,1.349,0.0,0.0
+DB (centrality),CFA+Rollout,500,6454.17,1.502,0.0,0.0
+DB (centrality),DB+Rollout,500,6556.07,1.498,0.0,0.0
+Myopic (value-based),Myopic+ (value-based),500,572.53,0.174,0.0001,0.0
+Myopic (value-based),CFA (value-based),500,1092.22,0.308,0.0,0.0
+Myopic (value-based),DB (value-based),500,1214.09,0.365,0.0,0.0
+Myopic (value-based),Myopic+Rollout,500,-4.92,-0.006,0.9003,0.3103
+Myopic (value-based),Myopic++Rollout,500,591.48,0.181,0.0001,0.0
+Myopic (value-based),CFA+Rollout,500,1156.37,0.333,0.0,0.0
+Myopic (value-based),DB+Rollout,500,1258.27,0.37,0.0,0.0
+Myopic+ (value-based),CFA (value-based),500,519.7,0.158,0.0005,0.002
+Myopic+ (value-based),DB (value-based),500,641.56,0.199,0.0,0.0
+Myopic+ (value-based),Myopic+Rollout,500,-577.45,-0.177,0.0001,0.0
+Myopic+ (value-based),Myopic++Rollout,500,18.95,0.024,0.5899,0.6256
+Myopic+ (value-based),CFA+Rollout,500,583.84,0.18,0.0001,0.0002
+Myopic+ (value-based),DB+Rollout,500,685.74,0.213,0.0,0.0
+CFA (value-based),DB (value-based),500,121.86,0.051,0.2578,0.5679
+CFA (value-based),Myopic+Rollout,500,-1097.15,-0.311,0.0,0.0
+CFA (value-based),Myopic++Rollout,500,-500.74,-0.153,0.0006,0.002
+CFA (value-based),CFA+Rollout,500,64.14,0.08,0.073,0.0001
+CFA (value-based),DB+Rollout,500,166.05,0.069,0.1231,0.2934
+DB (value-based),Myopic+Rollout,500,-1219.01,-0.366,0.0,0.0
+DB (value-based),Myopic++Rollout,500,-622.61,-0.197,0.0,0.0
+DB (value-based),CFA+Rollout,500,-57.72,-0.025,0.5838,0.8298
+DB (value-based),DB+Rollout,500,44.18,0.05,0.268,0.0003
+Myopic+Rollout,Myopic++Rollout,500,596.4,0.184,0.0,0.0
+Myopic+Rollout,CFA+Rollout,500,1161.29,0.334,0.0,0.0
+Myopic+Rollout,DB+Rollout,500,1263.19,0.371,0.0,0.0
+Myopic++Rollout,CFA+Rollout,500,564.89,0.176,0.0001,0.0003
+Myopic++Rollout,DB+Rollout,500,666.79,0.21,0.0,0.0
+CFA+Rollout,DB+Rollout,500,101.9,0.043,0.3361,0.4778

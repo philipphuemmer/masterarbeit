@@ -101,37 +101,38 @@ Alle 8 Varianten. Pro Modell zwei Zeilen (centrality, value_based), Δ-Spalten z
 
 ## 7.3 VFA Rollout: Performance and Limitations (2 S.)
 
-**Kernaussage:** Der Rollout greift bei ~1 % der Carryover-Entscheidungen ein; der Kosteneffekt ist statistisch nicht signifikant. Die Override-Quote ist zu gering für einen messbaren Gesamteffekt.
+**Kernaussage:** Der Rollout-Effekt hängt stark von der Qualität der Basis-Policy ab. Für Myopic (schwache Drop-Entscheidung) spart der Rollout −5.706 € (−14,0 %) und bringt es auf das Niveau der fortgeschrittenen Modelle. Für Myopic+, CFA-Future und DB-Simple (bereits gute Drop-Scores) ist der Effekt < 0,2 % und statistisch nicht signifikant.
 
 ### Tab. 4 — Rollout-Effekt pro Modell
 
-Vorläuferwerte für CFA-Future und DB-Simple aus `logs/ergebnisse/alt/`; alle 4 finale Läufe ausstehend.
-
 | Modell | MW ohne Rollout (€) | MW mit Rollout (€) | Δ (€) | Δ (%) | Ø Replan-Overrides | Override-Quote¹ |
 |---|---|---|---|---|---|---|
-| Myopic | — | — | — | — | — | — |
-| Myopic+ | — | — | — | — | — | — |
-| CFA-Future | 33.793 | 33.749 | −44 | −0,13 % | 1,30 | ~2,7 % |
-| DB-Simple | 33.671 | 33.734 | +63 | +0,19 % | 1,35 | ~2,8 % |
+| Myopic | 40.596 | 34.890 | −5.706 | −14,0 % | 0,78 | ~1,6 % |
+| Myopic+ | 34.313 | 34.294 | −19 | −0,06 % | 0,81 | ~1,7 % |
+| CFA-Future | 33.793 | 33.729 | −64 | −0,19 % | 1,27 | ~2,7 % |
+| DB-Simple | 33.671 | 33.627 | −44 | −0,13 % | 1,20 | ~2,5 % |
 
 ¹ Override-Quote = Ø Replan-Overrides / Ø total_carryover (~48)
+
+**Schlüsselbefund:** Myopic+Rollout (34.890 €) erreicht fast das Niveau von Myopic+ ohne Rollout (34.313 €) — der Rollout kompensiert die schwache Basis-Policy fast vollständig. Für die drei fortgeschrittenen Modelle gibt es kaum noch Verbesserungspotenzial, da ihre Drop-Score-Funktionen bereits nah am Optimum liegen.
 
 ### Abb. 5 — Histogramm Replan-Overrides pro Lauf
 
 - Separate Histogramme für alle 4 Rollout-Varianten (oder überlagert)
 - X-Achse: Anzahl Overrides (0, 1, 2, 3, …), Y-Achse: Häufigkeit über 500 Läufe
-- Zeigt: Mehrheit der Läufe hat 0–2 Overrides — erklärt direkt warum Gesamteffekt gering ist
+- Auffällig: Myopic hat weniger Overrides (Ø 0,78) als CFA/DB (Ø 1,2–1,3), erzielt aber viel größere Einsparung — jeder Override hat bei Myopic mehr Wirkung
 
 ### Abb. 6 — Boxplot Δ-Kosten (gepaart, base vs. base+Rollout)
 
 - Pro Seed: Δ = Kosten_base − Kosten_rollout (positiv = Rollout hat geholfen)
 - X-Achse: 4 Modelle, Y-Achse: Δ in €
-- Referenzlinie bei 0; Verteilung zeigt: Rollout hilft manchmal, schadet manchmal, im Mittel neutral
+- Myopic zeigt deutlich positive Verteilung (systematische Verbesserung); Myopic+/CFA/DB verteilen sich um Null
+- Referenzlinie bei 0 einzeichnen
 
 ### Abb. 7 — Δ-Kosten nach Override-Häufigkeit (optional)
 
 - Läufe in 3 Gruppen: 0 Overrides / 1–2 / 3+
-- Boxplot Δ-Kosten pro Gruppe: prüft ob Rollout systematisch besser abschneidet wenn er öfter eingreift
+- Boxplot Δ-Kosten pro Gruppe: prüft ob Rollout bei Myopic stärker hilft wenn er öfter eingreift
 
 **Script-Aufruf:**
 ```bash
@@ -147,13 +148,11 @@ Vorläuferwerte für CFA-Future und DB-Simple aus `logs/ergebnisse/alt/`; alle 4
   --out results/analysis/rollout_comparison
 ```
 
-> Pfade anpassen sobald die 4 neuen Rollout-Läufe abgeschlossen sind.
-
 ---
 
 ## 7.4 Statistical Validation (2 S.)
 
-**Kernaussage:** Zone-Selection-Effekte sind hochsignifikant mit großer Effektstärke (Cohen's d > 1,2). Policy- und Rollout-Unterschiede sind nicht signifikant (d < 0,05).
+**Kernaussage:** Zwei Effekte sind hochsignifikant mit großer Effektstärke: Zone-Selection (d > 1,2 für alle Modelle) und Rollout bei Myopic (d ~1,18). Rollout bei Myopic+/CFA/DB sowie alle Policy-Vergleiche innerhalb gleicher Zone-Selection sind nicht signifikant (d < 0,12).
 
 ### Methodik (kurz im Text)
 
@@ -176,10 +175,12 @@ Vorläuferwerte für CFA-Future und DB-Simple aus `logs/ergebnisse/alt/`; alle 4
 | Myopic+: centrality → value_based | 500 | −5.831 | ~1,23 | < 0,001 | < 0,001 | *** groß |
 | CFA-Future: centrality → value_based | 500 | −6.394 | ~1,41 | < 0,001 | < 0,001 | *** groß |
 | DB-Simple: centrality → value_based | 500 | −6.512 | ~1,43 | < 0,001 | < 0,001 | *** groß |
+| Myopic: value_based → +Rollout | 500 | −5.706 | ~1,18 | < 0,001 | < 0,001 | *** groß |
+| Myopic+: value_based → +Rollout | 500 | −19 | ~0,00 | n.s. | n.s. | nicht sig. |
+| CFA-Future: value_based → +Rollout | 500 | −64 | ~0,01 | n.s. | n.s. | nicht sig. |
+| DB-Simple: value_based → +Rollout | 500 | −44 | ~0,01 | n.s. | n.s. | nicht sig. |
 | CFA-Future vs. DB-Simple (value_based) | 500 | −122 | ~0,03 | n.s. | n.s. | nicht sig. |
 | Myopic+ vs. CFA-Future (value_based) | 500 | −520 | ~0,11 | — | — | nicht sig. |
-| CFA-Future: value_based vs. +Rollout | 500 | −44 | ~0,01 | n.s. | n.s. | nicht sig. |
-| DB-Simple: value_based vs. +Rollout | 500 | +63 | ~0,01 | n.s. | n.s. | nicht sig. |
 
 > Cohen's d-Werte sind Schätzungen; exakte Werte kommen aus `paired_tests.csv`.
 

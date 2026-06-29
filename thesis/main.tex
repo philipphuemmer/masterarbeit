@@ -12,6 +12,7 @@
 \usepackage{booktabs}
 \usepackage{titlesec}
 \usepackage{enumitem}% http://ctan.org/pkg/enumitem
+\usepackage{float}
 
 %folgende Zeile auskommentieren für englische Arbeiten
 \usepackage[ngerman]{babel}
@@ -183,6 +184,24 @@ The economic evaluation of the planning problem is based on three cost component
 The cost structure creates a clear trade-off. A route with low travel distance is not necessarily desirable if it leaves important faults unserved for too long. Conversely, a strongly service-oriented plan that aggressively inserts every disturbance may lead to high labor and travel expenditure or may jeopardize the timely return to the depot. The relevant operational objective is therefore not the minimization of a single physical quantity such as distance, but the minimization of total expected cost across labor use, mobility effort, and service delay consequences.\\
 This chapter has established the real-world planning setting, the uncertainty structure, and the economic logic underlying the maintenance problem. Chapter 3 reviews the relevant literature on maintenance optimization, stochastic vehicle routing, and approximate dynamic programming, providing the theoretical foundation for the solution approach. Building on both, Chapter 4 translates the operational setting into a route-based Markov decision process and connects that formulation to an approximate dynamic programming solution approach.\\
 At the same time, this chapter deliberately stops short of a full state-based technical representation of each charging station. The operational environment is described here at a conceptual level: faults occur, they generate service requirements, and they influence routing decisions. The precise mathematical representation of station-specific maintenance status, days since maintenance, and stochastic failure generation is introduced only in Chapter 4. This separation is intentional, because Chapter 2 is concerned with explaining the real decision environment, not yet with formalizing it.
+\subsection{Motivating Example}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{../notebooks/images/initialplan.png}
+\caption{Two initial plan strategies for the same set of stations. Left: routing-efficiency approach visits A second despite low urgency. Right: maintenance-urgency approach defers A to last, ensuring critical stations are covered first.}
+\label{fig:initialplan}
+\end{figure}
+To illustrate why both the initial plan and the replanning decision require more than routing efficiency, consider a simplified scenario with four stations — A, B, C, and D — and a central depot. Station B has not been serviced in 365 days and operates at 80 kW, placing it at maximum failure risk. Station A was serviced only 30 days ago and carries only 11 kW — still non-critical. Stations C and D have intermediate maintenance states with 100 and 200 days since last service respectively.\\
+Figure~\ref{fig:initialplan} contrasts two approaches to constructing the initial route. The left panel shows a routing-efficiency approach: stations are ordered primarily by geographic convenience, resulting in Depot~$\to$~B~$\to$~A~$\to$~C~$\to$~D. While B is correctly visited first, A is scheduled second despite its low urgency, consuming an early slot that could have served a more critical station. The right panel shows a maintenance-urgency approach: stations are ordered by their criticality, deferring A to the last position. The route becomes Depot~$\to$~B~$\to$~D~$\to$~C~$\to$~A. The key advantage becomes apparent when a disruption arrives later in the day and forces a drop: in the right panel, the critical stations B, D, and C have already been serviced, so A is the natural candidate for removal with negligible consequences. In the left panel, a disruption arriving after A might force the drop of C or D — stations with considerably higher maintenance urgency.\\
+This shows that even the initial plan is a decision with future consequences: the order in which stations are visited determines which ones remain at risk if capacity is unexpectedly consumed by a disruption later in the day.\\
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{../notebooks/images/replan.png}
+\caption{Two replanning decisions under the same incoming disruption E. Left: dropping B (largest detour) leaves the most critical station unserviced. Right: dropping A (recently serviced, low power) allows B to be serviced and averts failure risk.}
+\label{fig:replan}
+\end{figure}
+Figure~\ref{fig:replan} illustrates the replanning situation. Starting from the planned route, disturbance E occurs during execution and is inserted as the first stop after the depot. One station must be dropped to keep the route feasible. The left panel shows a purely distance-driven choice: B is dropped because it causes the largest routing detour, resulting in E~$\to$~A~$\to$~C~$\to$~D. B remains unserviced, its days since maintenance increases to 366, and its failure risk reaches a critical level — a cost that will likely materialize the following day. The right panel shows a state-aware decision: A is dropped instead, as its low days since maintenance and low rated power make a one-day delay negligible. The route becomes E~$\to$~B~$\to$~D~$\to$~C, B is visited, and its maintenance counter resets to zero, averting the failure risk entirely.\\
+Both examples point to the same insight: good maintenance routing requires knowledge of each station's state — days since maintenance and rated power — not just geographic distance. A purely distance-driven approach ignores this information and can systematically produce worse outcomes. The central idea of the solution approaches developed in this thesis is therefore to assign an explicit value to each station based on its current maintenance state, and to use this value as a scoring criterion in both the initial plan construction and the replanning decision. This shifts the problem from a purely geometric routing task to a state-dependent optimization problem, in which the expected future cost of leaving a station unserved is weighed against the immediate routing detour required to serve it.
 
 
 \section{Literature Review}
@@ -664,8 +683,269 @@ Taken together, these metrics provide a structured basis for comparing the consi
 
 \section{Results and Analysis}
 
+This chapter evaluates the performance of the four policies developed in Chapter~5 across two experimental dimensions. Section~7.1 compares the four policy mechanisms under a controlled zone-selection setting to isolate the effect of the routing and prioritization logic. Section~7.2 then examines the role of zone selection itself, which turns out to be the dominant cost driver. Section~7.3 evaluates the Rolling Horizon rollout layer, and Section~7.4 provides statistical validation of all key comparisons. All results are based on 500~Monte Carlo runs per variant using seeds~1--500. Because each seed generates an identical stochastic disturbance sequence across all variants, pairwise comparisons are matched by seed, which substantially reduces noise.
+
+\subsection{Policy Mechanism Comparison}
+
+\subsubsection*{Setup}
+
+Four policies are compared: Myopic (greedy cheapest insertion, no value weighting), Myopic+ (routine tasks and drop decisions scored by station power), CFA (cost function approximation with learned parameter vector~$\theta$, scoring by $\tilde{C}/\text{distance}$), and DB (CFA extended by a state-dependent balance parameter~$\delta$ that modulates the distance exponent). To isolate the effect of the routing and prioritization logic from zone-selection effects, all four policies are evaluated under the same centrality-based zone selection in this section. Centrality assigns zones by geographic proximity to the depot and convex hull area, without any policy-specific value signal.
+
+\subsubsection*{Results}
+
+Table~\ref{tab:policy_centrality} summarizes the results. Under centrality-based zone selection, all four policies perform nearly identically. Mean total costs range from €\,40{,}183 (DB) to €\,40{,}410 (Myopic) -- a spread of just €\,227 or 0.6\,\%, which is well within stochastic noise. Same-day rates differ by less than 0.3 percentage points across all policies (67.3\,\%--67.6\,\%), and mean carryover tasks per simulation are similarly close (52.8--53.4). The entire cost difference is driven by downtime costs, yet even here the range is narrow (€\,16{,}642--€\,17{,}141). Labor and travel costs are virtually identical across all four policies.
+
+\begin{table}[H]
+\centering
+\caption{Policy comparison under centrality-based zone selection (500 runs each).}
+\label{tab:policy_centrality}
+\begin{tabular}{lrrrr}
+\toprule
+Policy & Mean Total Cost (€) & SD (€) & Mean Downtime Cost (€) & Same-Day Rate \\
+\midrule
+Myopic      & 40{,}410 & 5{,}134 & 17{,}141 & 67.3\,\% \\
+Myopic+     & 40{,}144 & 5{,}197 & 16{,}642 & 67.5\,\% \\
+CFA         & 40{,}187 & 5{,}156 & 16{,}695 & 67.6\,\% \\
+DB          & 40{,}183 & 5{,}128 & 16{,}702 & 67.4\,\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:policy_boxplot} visualizes the cost distributions. The four policies show almost completely overlapping distributions; no consistent separation is visible. Figure~\ref{fig:policy_scatter} plots the same-day rate against total cost per run. All four policies occupy essentially the same region, with no policy forming a distinct cluster.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.78\textwidth]{figures/fig71_boxplot.pdf}
+    \caption{Total cost distributions for all four policies under centrality-based zone selection (500 runs each). Boxes show interquartile range; whiskers extend to 1.5$\times$IQR.}
+    \label{fig:policy_boxplot}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\textwidth]{figures/fig71_scatter.pdf}
+    \caption{Same-day rate versus total cost for all individual runs under centrality-based zone selection. Each point represents one Monte Carlo run; color indicates policy.}
+    \label{fig:policy_scatter}
+\end{figure}
+
+\subsubsection*{Discussion}
+
+The near-identical performance of all four policies under centrality is the central finding of this section. All four share the same greedy cheapest-insertion backbone and differ in two respects: how routine tasks are scored in the initial daily plan (the \texttt{route\_score\_fn}), and how drop candidates are ranked during replanning (the \texttt{drop\_score\_fn}). Under centrality-based zone selection, both teams are assigned the same type of zone regardless of policy, so the station pool available to each team is essentially identical. In this setting, a more sophisticated value-weighted scoring function yields essentially no benefit: the zone already determines which stations are available, and the different orderings produced by power-weighted versus distance-only scoring have little aggregate effect. The decisive question is therefore not \emph{how} a policy routes within a zone, but \emph{which} zone it selects.
+
+Even Myopic, which assigns no priority to high-power stations during replanning, performs within 0.6\,\% of the advanced policies. While its lack of a prioritization mechanism causes slightly higher downtime costs on the most economically valuable stations, this effect is small when the policy has no influence over which zones are visited at all. This observation motivates the analysis in Section~7.2.
+
+\subsection{Impact of Zone Selection on Cost}
+
+\subsubsection*{Setup}
+
+Section~7.1 showed that all four policies perform nearly identically under centrality-based zone selection. This section asks whether the choice of zone-selection strategy itself matters -- and if so, by how much. Both zone-selection modes are evaluated for all four policies: centrality (geographic proximity to depot and convex hull area) and value-based (zones ranked by expected economic impact, computed via the policy's own value signal). All other simulation parameters are held constant.
+
+\subsubsection*{Results}
+
+Table~\ref{tab:zone_selection} reports mean total costs and cost components for all eight variants. Switching from centrality to value-based zone selection reduces mean total costs substantially across all four policies: by €\,5{,}525 (13.7\,\%) for Myopic, €\,5{,}831 (14.5\,\%) for Myopic+, €\,6{,}394 (15.9\,\%) for CFA, and €\,6{,}512 (16.2\,\%) for DB. In absolute terms, all four policies converge on costs of €\,33{,}671--€\,34{,}885 under value-based selection, compared to €\,40{,}144--€\,40{,}410 under centrality.
+
+\begin{table}[H]
+\centering
+\caption{Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta$ is computed relative to centrality for each policy.}
+\label{tab:zone_selection}
+\begin{tabular}{llrrrrr}
+\toprule
+Policy & Zone Selection & Mean Total (€) & SD (€) & Mean Downtime (€) & Mean Labor (€) & $\Delta$ (\%) \\
+\midrule
+Myopic  & centrality  & 40{,}410 & 5{,}134 & 17{,}141 & 22{,}098 & ---          \\
+Myopic  & value-based & 34{,}885 & 4{,}824 & 12{,}114 & 21{,}577 & $-$13.7\,\% \\
+\addlinespace
+Myopic+ & centrality  & 40{,}144 & 5{,}197 & 16{,}642 & 22{,}286 & ---          \\
+Myopic+ & value-based & 34{,}313 & 4{,}727 & 11{,}556 & 21{,}546 & $-$14.5\,\% \\
+\addlinespace
+CFA     & centrality  & 40{,}187 & 5{,}156 & 16{,}695 & 22{,}271 & ---          \\
+CFA     & value-based & 33{,}793 & 4{,}525 & 11{,}111 & 21{,}520 & $-$15.9\,\% \\
+\addlinespace
+DB      & centrality  & 40{,}183 & 5{,}128 & 16{,}702 & 22{,}267 & ---          \\
+DB      & value-based & 33{,}671 & 4{,}546 & 11{,}022 & 21{,}491 & $-$16.2\,\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:zone_boxplot} shows the full cost distributions. The downward shift from centrality to value-based is consistent across all 500 runs and all four policies, confirming that the effect is not driven by a small subset of favorable scenarios. Figure~\ref{fig:zone_stacked} decomposes mean costs into labor, travel, and downtime components. Labor and travel costs are virtually unchanged across all eight variants (approximately €\,22{,}000 and €\,1{,}200 respectively). The entire reduction comes from downtime costs, which fall by roughly 29--34\,\% across all policies.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{figures/fig72_grouped_boxplot.pdf}
+    \caption{Total cost distributions for all four policies under centrality (light) and value-based (dark) zone selection (500 runs each). Boxes show interquartile range; whiskers extend to 1.5$\times$IQR.}
+    \label{fig:zone_boxplot}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig72_stacked_bar.pdf}
+    \caption{Mean cost components (labor, travel, downtime) per policy and zone-selection mode. Bars with black border correspond to value-based selection. Dashed vertical lines separate policy groups.}
+    \label{fig:zone_stacked}
+\end{figure}
+
+\subsubsection*{Discussion}
+
+The mechanism behind the zone-selection effect is straightforward: value-based selection prioritizes zones containing stations with high rated power and long elapsed time since last maintenance, which are precisely the stations generating the highest downtime costs per hour of unavailability. By visiting these zones earlier in the simulation, the policies resolve high-cost faults before they accumulate multiple days of downtime charges. The routing effort -- labor and travel -- is unaffected because the total number of stations visited per day remains the same.
+
+A striking aspect of the results is that Myopic captures most of the zone-selection gain despite having no learned value function: it saves 13.7\,\% versus 16.2\,\% for DB. This confirms that the dominant effect operates at the zone-selection level, not within the routing logic. Even a policy that is agnostic to station value at the routing stage captures most of the available gain simply by being directed toward the right zones. A residual gap between Myopic and the advanced policies remains under value-based selection (€\,34{,}885 versus €\,33{,}671--€\,34{,}313); statistical analysis in Section~7.4 shows this gap is detectable but small.
+
+Compared to the policy differences observed in Section~7.1 (less than 1\,\% among all four policies under centrality), the zone-selection effect of 14--16\,\% is dramatically larger. Zone selection completely dominates the policy mechanism as a cost driver in this setting. Section~7.3 examines whether the Rolling Horizon rollout layer can provide additional gains on top of value-based zone selection.
+
+\subsection{VFA Rollout: Performance and Limitations}
+
+\subsubsection*{Setup}
+
+Sections 7.1 and 7.2 established that value-based zone selection is the dominant cost driver, and that all four policies perform nearly identically under centrality-based zone selection. This section evaluates the Rolling Horizon rollout layer, which wraps each base policy and overrides its drop decision whenever a short-horizon Monte Carlo evaluation identifies a better candidate. The rollout is evaluated on top of value-based zone selection for all four policies. Each rollout run uses the same seed as its corresponding base run, enabling paired cost comparisons.
+
+\subsubsection*{Results}
+
+Table~\ref{tab:rollout} summarizes the rollout effect for each policy. The rollout provides no meaningful benefit for any of the four policies. Myopic's mean cost changes by only +€\,5 (+0.01\,\%) -- negligibly worse with the rollout. For the three advanced policies the effect is equally small: Myopic+ saves €\,19 (0.06\,\%), CFA saves €\,64 (0.19\,\%), and DB saves €\,44 (0.13\,\%). None of these differences exceed 0.2\,\% of mean total costs.
+
+\begin{table}[H]
+\centering
+\caption{Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx$48).}
+\label{tab:rollout}
+\begin{tabular}{lrrrrrr}
+\toprule
+Policy & Without Rollout (€) & With Rollout (€) & $\Delta$ (€) & $\Delta$ (\%) & Ø Overrides & Override Rate \\
+\midrule
+Myopic  & 34{,}885 & 34{,}890 & $+$5       & $+$0.01\,\% & 0.78 & 1.6\,\% \\
+Myopic+ & 34{,}313 & 34{,}294 & $-$19      & $-$0.06\,\% & 0.81 & 1.7\,\% \\
+CFA     & 33{,}793 & 33{,}729 & $-$64      & $-$0.19\,\% & 1.27 & 2.7\,\% \\
+DB      & 33{,}671 & 33{,}627 & $-$44      & $-$0.13\,\% & 1.20 & 2.5\,\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:rollout_delta} shows the paired cost difference (base minus rollout) per run for each policy. All four distributions are centered tightly on zero with roughly symmetric spread, confirming that the rollout neither systematically helps nor hurts any policy. Figure~\ref{fig:rollout_overrides} shows the distribution of replan overrides per run. Across all four policies, most runs involve zero to two overrides; runs with more than four overrides are rare. CFA and DB trigger more overrides on average (1.20--1.27) than Myopic and Myopic+ (0.78--0.81). This is because CFA's and DB's value-weighted drop scores ($\tilde{C} - \text{wage} \times \text{detour}$) produce more differentiated candidate rankings, giving the Monte Carlo evaluation more opportunities to disagree; Myopic's uniform $1/\text{detour}$ score results in more equally-ranked candidates where the rollout finds no clear alternative. Yet even the more frequently overriding policies show no meaningful cost improvement.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.80\textwidth]{figures/fig73_delta_boxplot.pdf}
+    \caption{Paired cost reduction (base minus rollout) per run for each policy. Positive values indicate the rollout lowered cost. Dashed line marks zero. All variants use value-based zone selection (500 runs each).}
+    \label{fig:rollout_delta}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig73_overrides_hist.pdf}
+    \caption{Distribution of replan overrides per run for all four rollout variants (500 runs each). Dashed vertical line shows the mean.}
+    \label{fig:rollout_overrides}
+\end{figure}
+
+\subsubsection*{Discussion}
+
+The absence of any rollout benefit has a clear structural explanation. The rollout intervenes exclusively at the \emph{drop decision}: when a new disruption cannot be inserted without dropping a routine task, the rollout evaluates the top-$k$ drop candidates via Monte Carlo lookahead and may override the base policy's choice. It does not affect how the initial daily plan is constructed.
+
+For the advanced policies (Myopic+, CFA, DB), the rollout rarely disagrees with the base policy's drop choice (override rates of 1.2--1.3 per run), and when it does, the cost consequence is too small to accumulate into a measurable aggregate difference. Their drop-score functions already incorporate station value, so the Monte Carlo evaluation confirms rather than corrects their choices.
+
+Myopic's situation is different in structure but leads to the same outcome. Myopic's drop-score uses $1/\text{detour}$ -- routing efficiency only, ignoring station power -- and one might expect the rollout to systematically correct this. In practice, however, only 0.78 overrides per run occur, and they yield no net improvement. A contributing factor is that the rollout cannot address Myopic's initial-plan scoring function, which also ignores station power ($1/\text{distance}$ versus Myopic+'s $\text{power}/\text{distance}$). Even if every drop decision were perfectly corrected, the ordering of routine stations within the initial plan would remain power-agnostic. The small remaining gap between Myopic and the advanced policies observed in Section~7.4 ($d = 0.17$--$0.37$) likely reflects this combined effect.
+
+A practical implication follows: the rollout adds computational overhead without producing measurable cost improvements when paired with value-based zone selection. The dominant lever identified in Section~7.2 essentially saturates the available improvement potential before the rollout can contribute. Statistical validation of all findings in Sections 7.1--7.3 is provided in Section~7.4.
+
+\subsection{Statistical Validation}
+
+\subsubsection*{Setup}
+
+All comparisons in Sections 7.1--7.3 are validated using paired statistical tests. Because each seed generates an identical stochastic disturbance sequence across all variants, runs sharing the same seed form natural pairs. This pairing eliminates the between-run variance due to the stochastic environment and substantially increases test power. Two complementary tests are applied: a paired $t$-test (parametric, assumes normally distributed differences) and a Wilcoxon signed-rank test (non-parametric, robust to non-normality and outliers). With $n = 500$ paired observations, even very small differences can yield statistically significant $p$-values. Cohen's $d$ (standardized mean difference of paired deltas) is therefore used as the primary criterion for practical relevance: $d < 0.20$ is considered negligible, $0.20$--$0.50$ small, $0.50$--$0.80$ medium, and $d > 0.80$ large.
+
+\subsubsection*{Results}
+
+Table~\ref{tab:paired_tests} reports the key paired comparisons. Three distinct patterns emerge.
+
+\begin{table}[H]
+\centering
+\caption{Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance; $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.}
+\label{tab:paired_tests}
+\begin{tabular}{lrrrll}
+\toprule
+Comparison & Mean $\Delta$ (€) & $d$ & $t$-test $p$ & Wilcoxon $p$ & Finding \\
+\midrule
+\multicolumn{6}{l}{\textit{Zone selection: centrality $\to$ value-based}} \\
+Myopic      & $-$5{,}525 & 1.29 & $< 0.001$ & $< 0.001$ & *** large \\
+Myopic+     & $-$5{,}831 & 1.37 & $< 0.001$ & $< 0.001$ & *** large \\
+CFA         & $-$6{,}394 & 1.50 & $< 0.001$ & $< 0.001$ & *** large \\
+DB          & $-$6{,}512 & 1.49 & $< 0.001$ & $< 0.001$ & *** large \\
+\addlinespace
+\multicolumn{6}{l}{\textit{Policy comparison under centrality}} \\
+Myopic vs.\ Myopic+     & $+$266 & 0.07 & 0.128 & 0.137 & n.s. \\
+Myopic vs.\ CFA         & $+$223 & 0.06 & 0.181 & 0.157 & n.s. \\
+Myopic vs.\ DB          & $+$227 & 0.06 & 0.218 & 0.369 & n.s. \\
+CFA vs.\ DB             & $+$4   & 0.00 & 0.980 & 0.732 & n.s. \\
+\addlinespace
+\multicolumn{6}{l}{\textit{Policy comparison under value-based zone selection}} \\
+Myopic vs.\ DB          & $+$1{,}214 & 0.37 & $< 0.001$ & $< 0.001$ & ** small \\
+Myopic vs.\ CFA         & $+$1{,}092 & 0.31 & $< 0.001$ & $< 0.001$ & ** small \\
+Myopic vs.\ Myopic+     & $+$573     & 0.17 & $< 0.001$ & $< 0.001$ & * negligible \\
+Myopic+ vs.\ DB         & $+$642     & 0.20 & $< 0.001$ & $< 0.001$ & * negligible \\
+Myopic+ vs.\ CFA        & $+$520     & 0.16 & $< 0.001$ & 0.002     & * negligible \\
+CFA vs.\ DB             & $+$122     & 0.05 & 0.258     & 0.568     & n.s. \\
+\addlinespace
+\multicolumn{6}{l}{\textit{Rollout effect (value-based base $\to$ +Rollout)}} \\
+Myopic      & $+$5  & 0.01 & 0.900 & 0.310 & n.s. \\
+Myopic+     & $-$19 & 0.02 & 0.590 & 0.626 & n.s. \\
+CFA         & $-$64 & 0.08 & 0.073 & $< 0.001$ & negligible\textsuperscript{\dag} \\
+DB          & $-$44 & 0.05 & 0.268 & $< 0.001$ & negligible\textsuperscript{\dag} \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize\textsuperscript{\dag} Wilcoxon detects a statistically significant but practically negligible systematic shift ($d < 0.10$).
+\end{table}
+
+\textbf{Zone selection (d = 1.29--1.50):} The strongest effect in the entire study. For all four policies, switching from centrality to value-based zone selection produces differences of 1.3--1.5 standard deviations, significant at $p < 0.001$ under both tests. This is the only effect with a large Cohen's $d$.
+
+\textbf{Policy differences under centrality (d = 0.00--0.07):} All comparisons are statistically non-significant ($p > 0.10$) with negligible effect sizes. No policy outperforms any other in a practically meaningful way when zone selection is held constant at centrality.
+
+\textbf{Policy differences under value-based zone selection (d = 0.05--0.37):} Myopic differs significantly from all three advanced policies (d = 0.17--0.37, $p < 0.001$). Myopic+ also differs significantly from CFA and DB (d = 0.16--0.20, $p < 0.001$), though the effect sizes are negligible by Cohen's convention. The one non-significant comparison is CFA vs.\ DB (d = 0.05, $p = 0.26$), confirming these two policies are effectively equivalent once zone selection is optimized.
+
+\textbf{Rollout (d = 0.01--0.08):} No rollout comparison exceeds $d = 0.10$. For Myopic and Myopic+ the $t$-test and Wilcoxon both return non-significant results. For CFA and DB, the Wilcoxon detects a statistically significant but practically negligible systematic shift ($d = 0.08$ and $d = 0.05$ respectively) -- a consequence of the large sample size ($n = 500$) rather than an economically meaningful effect.
+
+Figure~\ref{fig:cohens_d} summarizes all comparisons by Cohen's $d$. The zone-selection effects stand apart clearly; all other effects fall below the $d = 0.50$ threshold, and most are below $d = 0.20$.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{figures/fig74_cohens_d.pdf}
+    \caption{Cohen's $d$ for all key comparisons. Dashed vertical lines mark conventional thresholds (small: 0.20, medium: 0.50, large: 0.80). Zone-selection effects are the only comparisons with a large effect size; all other comparisons fall below $d = 0.40$.}
+    \label{fig:cohens_d}
+\end{figure}
+
+\subsubsection*{Discussion}
+
+The statistical analysis confirms and sharpens the findings from Sections 7.1--7.3. Three conclusions stand out.
+
+First, zone selection is the only intervention with a large and robust effect. The $d > 1.2$ values for all four policies place this effect firmly in the ``large'' category by any standard, and the consistency across policies (all four show similar magnitudes) rules out policy-specific confounders. With $n = 500$ matched pairs, the $p$-values are effectively zero, and both parametric and non-parametric tests agree.
+
+Third, the absence of a meaningful rollout effect is confirmed statistically, not just descriptively. For Myopic and Myopic+, neither test detects any systematic improvement. The Wilcoxon does flag CFA and DB rollouts as statistically significant -- but with $d < 0.10$, this reflects the sensitivity of large-sample tests to trivially small effects, not a practically relevant finding. Given the computational cost of Monte Carlo rollouts at every disruption event, the rollout layer does not justify its overhead in this setting.
+
+Second, under value-based zone selection, policy differences become detectable though remain small. Myopic differs significantly from all three advanced policies ($d = 0.17$--$0.37$), and Myopic+ differs from CFA and DB ($d = 0.16$--$0.20$), even though all four policies were statistically indistinguishable under centrality. The residual gap reflects the within-zone scoring logic: Myopic uses $1/\text{distance}$ and $1/\text{detour}$ (power-agnostic), while Myopic+, CFA, and DB weight decisions by station value. Once zone selection directs teams to high-value zones, these within-zone differences become visible -- but given effect sizes between 0.16 and 0.37, the practical magnitude is limited.
+
 
 \section{Discussion}
+
+\subsection{Interpretation of Results}
+
+The experimental results admit a clear, hierarchical reading. Three effects are present in the data, and they differ substantially in magnitude.\\
+Switching from centrality-based to value-based zone selection reduces mean total costs by 13.7--16.2\,\% across all four policies, corresponding to Cohen's $d$ values of 1.29--1.50. This is the only effect in the study that qualifies as large by conventional standards, and it is fully consistent across policies and scenarios. The mechanism is straightforward: centrality-based selection steers teams toward zones that are geographically convenient but may contain stations with low economic urgency. Value-based selection directs teams toward zones where the expected downtime cost avoided is highest. Because downtime costs depend jointly on rated station power and days since last maintenance, a pure distance proxy systematically misallocates service capacity. The 29--34\,\% reduction in downtime costs observed across all policies confirms that the zone assignment itself, rather than the routing logic within zones, is the primary cost driver in this problem.\\
+Policy differences are secondary and context-dependent. Under centrality-based zone selection, all four policies perform within 0.6\,\% of each other and no pairwise comparison is statistically significant ($d = 0.00$--$0.07$). The reason is structural: when zone selection does not differentiate between economically relevant and irrelevant stations, the value-weighted scoring functions of Myopic+, CFA, and DB have no meaningful signal to act on. The four policies share the same greedy cheapest-insertion backbone and differ only in how they score routine tasks and drop candidates. If the assigned station pool is economically homogeneous, different orderings produce similar aggregate costs.\\
+Under value-based zone selection, policy differences become statistically detectable but remain practically limited. Myopic differs from the three advanced policies by $d = 0.17$--$0.37$; Myopic+ differs from CFA and DB by $d = 0.16$--$0.20$. The residual gap reflects Myopic's power-agnostic scoring ($1/\text{distance}$ in the initial plan, $1/\text{detour}$ in replanning): once high-value zones are assigned, routing within those zones in a value-blind manner forgoes a small but statistically detectable improvement. Notably, CFA and DB are statistically indistinguishable ($d = 0.05$, $p = 0.26$): the additional flexibility introduced by DB's distance-weighting parameter $\delta$ provides no measurable benefit over CFA's fixed formulation in the current experimental setting.\\
+The Rolling Horizon layer overrides the base policy's drop choice in at most 1.3 events per run on average, and the resulting cost changes ($d = 0.01$--$0.08$) are economically negligible. The Wilcoxon test detects a statistically significant directional shift for CFA and DB, but with $d < 0.10$ and $n = 500$ observations, this reflects the sensitivity of large-sample tests to trivially small systematic differences rather than a practically relevant finding. The structural explanation is that the base policies' drop-score functions -- especially the value-weighted ones -- already incorporate the economic information that the Monte Carlo rollout is designed to capture. When the base policy's greedy choice is already well-calibrated, lookahead rarely disagrees, and when it does, the cost difference is small.\\
+Taken together, the results point to a clear priority ordering for practitioners: invest in zone-selection quality first, routing policy sophistication second. A well-chosen zone assignment with the simplest policy (Myopic) outperforms a poorly chosen zone assignment with the most sophisticated policy (DB) by a wide margin.
+
+\subsection{Limitations}
+
+The results reported in this thesis rest on a set of modelling and data assumptions that bound both their validity and their generalizability. This section identifies the most consequential limitations.\\
+The entire experimental design assumes one central depot in Würzburg and 397 spatially concentrated charging stations. All routing and clustering logic is calibrated to this geometry. Operators with multiple depots, distributed vehicle fleets, or spatially sparse networks would face a substantially different problem structure. The K-Means zone partitioning and the greedy cheapest-insertion backbone are not inherently limited to single-depot settings, but the zone-selection scoring -- which rewards proximity to depot as a proxy for team reachability -- would require rethinking in a multi-depot context.\\
+The stochastic failure simulation uses a parametric model in which failure probability is a function of days since last maintenance and rated station power, governed by four scalar parameters ($p_1$, $p_2$, $\lambda$, and the initial recovery factor). These parameters were set to produce plausible failure rates rather than estimated from historical WVV records. An attempt to obtain operational data from WVV for calibration was made but did not receive a response. The quantitative cost figures reported in Chapter~7 therefore reflect the synthetic distribution rather than actual field conditions. Relative comparisons between policies remain valid under this assumption, since all policies face identical failure sequences, but absolute cost magnitudes should not be read as predictions of real operating costs.\\
+The model fixes the number of maintenance teams at two and the daily service capacity at 20 stations per team. In practice, operators may adjust staffing levels, deploy temporary support teams during peak fault periods, or subcontract overflow tasks. None of these options are represented in the current model. Similarly, the model does not account for vehicle range constraints, spare part availability, or technician skill heterogeneity -- all of which affect real-world maintenance planning.\\
+Hourly traffic matrices are used to represent time-dependent travel conditions, computed from the OSRM routing engine using OpenStreetMap data. While this is a reasonable approximation, OSRM does not model real-time congestion, road closures, or seasonal variation. The routing component therefore represents a simplified but not unrealistic version of actual travel conditions in Würzburg.\\
+The rollout layer evaluates the top-$k$ drop candidates via Monte Carlo simulation at each disruption event. In the current setting ($k = 3$, 30-day horizon, 5 scenarios per candidate), this adds modest computational overhead. However, the cost scales linearly with the number of disruptions per day, the number of candidates $k$, and the simulation depth. For operators with larger fleets, higher disruption rates, or tighter replanning time budgets, the overhead could become prohibitive. The negligible performance benefit observed here makes this a moot point for the current problem instance, but scalability remains a concern if the approach is extended to more dynamic settings.\\
+The optimization target is a scalar cost composed of labor, travel, and downtime cost components. In practice, maintenance operators face multi-objective trade-offs: service level agreements may impose hard response-time constraints, equity considerations may require balanced workloads across teams, and customer satisfaction may be a metric distinct from pure economic downtime cost. The model does not represent these objectives, and results may differ under alternative objective specifications.
+
+\subsection{Practical Relevance and Transferability}
+
+The thesis was motivated by a concrete operational problem: how should a maintenance team for a growing EV charging network plan and adapt its daily routes under uncertainty? The Würzburg charging network operated by the Würzburg Versorgungs- und Verkehrs-GmbH (WVV) served as the reference case. An attempt to obtain operational data and benchmark figures directly from WVV was made during the preparation of this thesis but received no response. A direct empirical comparison between the modelled policies and the operator's current scheduling practice is therefore not possible. The following discussion addresses the practical relevance of the findings at a conceptual level and considers the conditions under which the approach could be deployed or transferred to other settings.\\
+Deploying the system in a real maintenance operation would require three types of input data that are not always readily available. Historical failure records per station are needed to calibrate the stochastic failure model -- specifically to estimate per-station failure rates and the relationship between maintenance recency and subsequent failure probability. Station-level metadata (rated power, installation date, precise GPS coordinates) must be available in structured form. Finally, real-time fault notifications must be routable to the planning system, either via sensor telemetry or a fault-reporting interface. None of these requirements are technically prohibitive for an operator of WVV's scale, but they imply a data management infrastructure that may not exist in its current form.\\
+The approach is best suited to operators with a centralized depot structure, a stable fleet of two to four maintenance teams, and a medium-density station network in a single metropolitan area. These conditions match the WVV setting and also describe many municipal or regional charging network operators in Germany. The core computational cost is low: the greedy routing policies run in milliseconds, and even the zone-selection logic adds negligible overhead. The only computationally intensive component -- the Rolling Horizon rollout -- was shown to provide no meaningful benefit in this setting and can be omitted without loss.\\
+Three structural features of the current model constrain transferability to other contexts. The zone-selection scoring function assumes a single depot; operators with spatially distributed vehicle pools would need to replace the depot-distance term with a fleet-assignment-aware proximity measure. The CFA cost approximation $\tilde{C}$ was trained on synthetic data from the Würzburg network, and its learned weights $\theta$ are unlikely to transfer directly to networks with substantially different station densities, power distributions, or failure dynamics. Retraining on local data is straightforward given the offline regression procedure, but requires sufficient historical observations. The model also assumes homogeneous service times; operators with a mix of hardware generations or station types requiring different maintenance procedures would need to extend the time-window logic accordingly.\\
+Despite these constraints, the central finding -- that zone selection quality dominates routing policy sophistication -- is likely to transfer beyond the specific experimental setting. It implies that a maintenance operator's most impactful intervention is not algorithmic refinement of the routing heuristic, but rather the development of a zone-value signal that incorporates station power and maintenance recency. This information is typically available to operators from internal maintenance records alone. A simple rule-based implementation of value-based zone selection, without any of the ADP machinery developed in this thesis, could plausibly capture a substantial fraction of the cost improvement observed here. The more sophisticated policies (CFA, DB) provide incremental benefits that are statistically detectable but economically modest -- on the order of 3--4\,\% relative to a well-configured Myopic+ baseline under value-based zone selection.
 
 
 \section{Outlook and Future Work}

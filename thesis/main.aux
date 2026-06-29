@@ -29,61 +29,95 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Operational Setting}{2}{subsection.2.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Environment and Disturbances}{3}{subsection.2.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Assumptions and Cost Model}{4}{subsection.2.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3}Literature Review}{5}{section.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Maintenance Optimization in Infrastructure Systems}{5}{subsection.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Concept and Objectives of Maintenance Optimization}{6}{subsubsection.3.1.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}Maintenance Strategies: Preventive, Reactive, Condition-Based}{6}{subsubsection.3.1.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}Uncertainty, Availability, and Cost as Central Decision Variables}{7}{subsubsection.3.1.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.4}Transition to Mobile Maintenance and Service Interventions}{7}{subsubsection.3.1.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Stochastic Vehicle Routing Problems and Dynamic Service Planning}{8}{subsection.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Basic Concepts of VRP and DVRP}{8}{subsubsection.3.2.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.2}Uncertainties in Routing: Requests, Service Times, Travel Times, Capacities}{9}{subsubsection.3.2.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.3}Modeling Approaches: MDP, Multi-Stage Stochastic Programming, Look-ahead}{9}{subsubsection.3.2.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.4}Solution Families: Exact Methods, Heuristics, Metaheuristics}{10}{subsubsection.3.2.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.5}Route-based MDPs and Their Relevance for This Thesis}{11}{subsubsection.3.2.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.6}Limits of Classical SDVRP Models for Maintenance Tasks}{11}{subsubsection.3.2.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.7}Spatial Clustering as a Pre-Structuring Mechanism}{12}{subsubsection.3.2.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Approximate Dynamic Programming for Dynamic Routing Problems}{12}{subsection.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}Motivation: Why Exact Dynamic Programming Does Not Scale}{13}{subsubsection.3.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Basic Idea of ADP: States, Actions, Value Functions}{13}{subsubsection.3.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.3}Important ADP Approaches: Rollout, VFA, Offline-Online ADP, Post-decision States}{14}{subsubsection.3.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.4}Distinction from Reinforcement Learning}{14}{subsubsection.3.3.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.5}Relevance of ADP for Dynamic Maintenance Decisions}{15}{subsubsection.3.3.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4}Theoretical Framework}{15}{section.4}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Summary of notation\relax }}{16}{table.caption.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Motivating Example: The Replanning Decision}{5}{subsection.2.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Two initial plan strategies for the same set of stations. Left: routing-efficiency approach visits A second despite low urgency. Right: maintenance-urgency approach defers A to last, ensuring critical stations are covered first.\relax }}{5}{figure.caption.1}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{tab:notation_ch4}{{1}{16}{Summary of notation\relax }{table.caption.1}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Markov Decision Process}{17}{subsection.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.1}Sets, indices, and temporal structure}{17}{subsubsection.4.1.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.2}State representation}{17}{subsubsection.4.1.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.3}Action space}{18}{subsubsection.4.1.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.4}Transition dynamics}{19}{subsubsection.4.1.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.5}Reward function}{20}{subsubsection.4.1.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}State-Action-Value Structure}{20}{subsection.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}ADP Foundations and the Offline-Online Approach}{21}{subsection.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5}Solution Methodology}{22}{section.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Shared Zone Selection Logic}{23}{subsection.5.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Myopic}{23}{subsection.5.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Myopic+}{25}{subsection.5.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Cost Function Approximation}{25}{subsection.5.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Dynamic Balance}{27}{subsection.5.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}Value Function Approximation}{28}{subsection.5.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {6}Experimental Setup}{29}{section.6}\protected@file@percent }
+\newlabel{fig:initialplan}{{1}{5}{Two initial plan strategies for the same set of stations. Left: routing-efficiency approach visits A second despite low urgency. Right: maintenance-urgency approach defers A to last, ensuring critical stations are covered first.\relax }{figure.caption.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Two replanning decisions under the same incoming disruption E. Left: dropping B (largest detour) leaves the most critical station unserviced. Right: dropping A (recently serviced, low power) allows B to be serviced and averts failure risk.\relax }}{6}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:replan}{{2}{6}{Two replanning decisions under the same incoming disruption E. Left: dropping B (largest detour) leaves the most critical station unserviced. Right: dropping A (recently serviced, low power) allows B to be serviced and averts failure risk.\relax }{figure.caption.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Literature Review}{7}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Maintenance Optimization in Infrastructure Systems}{7}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Concept and Objectives of Maintenance Optimization}{8}{subsubsection.3.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}Maintenance Strategies: Preventive, Reactive, Condition-Based}{8}{subsubsection.3.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}Uncertainty, Availability, and Cost as Central Decision Variables}{9}{subsubsection.3.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.4}Transition to Mobile Maintenance and Service Interventions}{9}{subsubsection.3.1.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Stochastic Vehicle Routing Problems and Dynamic Service Planning}{10}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Basic Concepts of VRP and DVRP}{10}{subsubsection.3.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.2}Uncertainties in Routing: Requests, Service Times, Travel Times, Capacities}{11}{subsubsection.3.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.3}Modeling Approaches: MDP, Multi-Stage Stochastic Programming, Look-ahead}{11}{subsubsection.3.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.4}Solution Families: Exact Methods, Heuristics, Metaheuristics}{12}{subsubsection.3.2.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.5}Route-based MDPs and Their Relevance for This Thesis}{13}{subsubsection.3.2.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.6}Limits of Classical SDVRP Models for Maintenance Tasks}{13}{subsubsection.3.2.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.7}Spatial Clustering as a Pre-Structuring Mechanism}{14}{subsubsection.3.2.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Approximate Dynamic Programming for Dynamic Routing Problems}{14}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}Motivation: Why Exact Dynamic Programming Does Not Scale}{15}{subsubsection.3.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Basic Idea of ADP: States, Actions, Value Functions}{15}{subsubsection.3.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.3}Important ADP Approaches: Rollout, VFA, Offline-Online ADP, Post-decision States}{16}{subsubsection.3.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.4}Distinction from Reinforcement Learning}{16}{subsubsection.3.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.5}Relevance of ADP for Dynamic Maintenance Decisions}{17}{subsubsection.3.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Theoretical Framework}{17}{section.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Summary of notation\relax }}{18}{table.caption.3}\protected@file@percent }
+\newlabel{tab:notation_ch4}{{1}{18}{Summary of notation\relax }{table.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Markov Decision Process}{19}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.1}Sets, indices, and temporal structure}{19}{subsubsection.4.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.2}State representation}{19}{subsubsection.4.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.3}Action space}{20}{subsubsection.4.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.4}Transition dynamics}{21}{subsubsection.4.1.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.5}Reward function}{22}{subsubsection.4.1.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}State-Action-Value Structure}{22}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}ADP Foundations and the Offline-Online Approach}{23}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Solution Methodology}{24}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Shared Zone Selection Logic}{25}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Myopic}{25}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Myopic+}{27}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Cost Function Approximation}{27}{subsection.5.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Dynamic Balance}{29}{subsection.5.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}Value Function Approximation}{30}{subsection.5.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Experimental Setup}{31}{section.6}\protected@file@percent }
 \abx@aux@cite{0}{wuerzburg_opendata}
 \abx@aux@segm{0}{0}{wuerzburg_opendata}
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Simulation Design}{30}{subsection.6.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Routing and Travel Times}{30}{subsection.6.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Data Basis}{30}{subsection.6.3}\protected@file@percent }
-\abx@aux@page{1}{30}
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}Evaluation Metrics}{31}{subsection.6.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7}Results and Analysis}{32}{section.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {8}Discussion}{32}{section.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {9}Outlook and Future Work}{32}{section.9}\protected@file@percent }
-\abx@aux@page{2}{33}
-\@writefile{toc}{\contentsline {section}{Literatur}{33}{section.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {A}Anhang A}{34}{appendix.A}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Simulation Design}{32}{subsection.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Routing and Travel Times}{32}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Data Basis}{32}{subsection.6.3}\protected@file@percent }
+\abx@aux@page{1}{32}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}Evaluation Metrics}{33}{subsection.6.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Results and Analysis}{34}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Policy Mechanism Comparison}{34}{subsection.7.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Policy comparison under centrality-based zone selection (500 runs each).\relax }}{34}{table.caption.4}\protected@file@percent }
+\newlabel{tab:policy_centrality}{{2}{34}{Policy comparison under centrality-based zone selection (500 runs each).\relax }{table.caption.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Total cost distributions for all four policies under centrality-based zone selection (500 runs each). Boxes show interquartile range; whiskers extend to 1.5$\times $IQR.\relax }}{35}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:policy_boxplot}{{3}{35}{Total cost distributions for all four policies under centrality-based zone selection (500 runs each). Boxes show interquartile range; whiskers extend to 1.5$\times $IQR.\relax }{figure.caption.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Same-day rate versus total cost for all individual runs under centrality-based zone selection. Each point represents one Monte Carlo run; color indicates policy.\relax }}{36}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:policy_scatter}{{4}{36}{Same-day rate versus total cost for all individual runs under centrality-based zone selection. Each point represents one Monte Carlo run; color indicates policy.\relax }{figure.caption.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Impact of Zone Selection on Cost}{37}{subsection.7.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta $ is computed relative to centrality for each policy.\relax }}{37}{table.caption.7}\protected@file@percent }
+\newlabel{tab:zone_selection}{{3}{37}{Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta $ is computed relative to centrality for each policy.\relax }{table.caption.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Total cost distributions for all four policies under centrality (light) and value-based (dark) zone selection (500 runs each). Boxes show interquartile range; whiskers extend to 1.5$\times $IQR.\relax }}{38}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:zone_boxplot}{{5}{38}{Total cost distributions for all four policies under centrality (light) and value-based (dark) zone selection (500 runs each). Boxes show interquartile range; whiskers extend to 1.5$\times $IQR.\relax }{figure.caption.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Mean cost components (labor, travel, downtime) per policy and zone-selection mode. Bars with black border correspond to value-based selection. Dashed vertical lines separate policy groups.\relax }}{38}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:zone_stacked}{{6}{38}{Mean cost components (labor, travel, downtime) per policy and zone-selection mode. Bars with black border correspond to value-based selection. Dashed vertical lines separate policy groups.\relax }{figure.caption.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}VFA Rollout: Performance and Limitations}{39}{subsection.7.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx $48).\relax }}{40}{table.caption.10}\protected@file@percent }
+\newlabel{tab:rollout}{{4}{40}{Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx $48).\relax }{table.caption.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Paired cost reduction (base minus rollout) per run for each policy. Positive values indicate the rollout lowered cost. Dashed line marks zero. All variants use value-based zone selection (500 runs each).\relax }}{40}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:rollout_delta}{{7}{40}{Paired cost reduction (base minus rollout) per run for each policy. Positive values indicate the rollout lowered cost. Dashed line marks zero. All variants use value-based zone selection (500 runs each).\relax }{figure.caption.11}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Distribution of replan overrides per run for all four rollout variants (500 runs each). Dashed vertical line shows the mean.\relax }}{41}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:rollout_overrides}{{8}{41}{Distribution of replan overrides per run for all four rollout variants (500 runs each). Dashed vertical line shows the mean.\relax }{figure.caption.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.4}Statistical Validation}{42}{subsection.7.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance; $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }}{43}{table.caption.13}\protected@file@percent }
+\newlabel{tab:paired_tests}{{5}{43}{Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance; $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }{table.caption.13}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Cohen's $d$ for all key comparisons. Dashed vertical lines mark conventional thresholds (small: 0.20, medium: 0.50, large: 0.80). Zone-selection effects are the only comparisons with a large effect size; all other comparisons fall below $d = 0.40$.\relax }}{44}{figure.caption.14}\protected@file@percent }
+\newlabel{fig:cohens_d}{{9}{44}{Cohen's $d$ for all key comparisons. Dashed vertical lines mark conventional thresholds (small: 0.20, medium: 0.50, large: 0.80). Zone-selection effects are the only comparisons with a large effect size; all other comparisons fall below $d = 0.40$.\relax }{figure.caption.14}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Discussion}{45}{section.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Interpretation of Results}{45}{subsection.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.2}Limitations}{46}{subsection.8.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Practical Relevance and Transferability}{47}{subsection.8.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9}Outlook and Future Work}{48}{section.9}\protected@file@percent }
+\abx@aux@page{2}{49}
+\@writefile{toc}{\contentsline {section}{Literatur}{49}{section.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {A}Anhang A}{50}{appendix.A}\protected@file@percent }
 \babel@aux{ngerman}{}
 \babel@aux{ngerman}{}
 \abx@aux@read@bbl@mdfivesum{E118A9BDC20C049037694740877D0157}
 \abx@aux@defaultrefcontext{0}{wuerzburg_opendata}{nyt/global//global/global}
-\gdef \@abspage@last{40}
+\gdef \@abspage@last{56}

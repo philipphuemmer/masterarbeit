@@ -9,10 +9,10 @@ Master's thesis on **maintenance route optimization for EV charging stations in 
 **Key numbers**: 397 stations, 2 teams, 8:00–16:00 workday, 40 zones (configurable), 20 stations/team/day max.
 
 **Active base policies** (all in `src/models/`):
-1. **Myopic** (`myopic.py`) — greedy cheapest-insertion everywhere; no learned components
-2. **Myopic+** (`myopic_plus.py`) — greedy everywhere; depot-distance sorted soft-deadlines, penalty ∝ `power_kW`
-3. **CFA-Future** (`cfa_future.py`) — greedy everywhere; C̃/depot-distance sorted soft-deadlines, penalty ∝ C̃; manual C̃-drop loop replan; θ ∈ ℝ⁴ learned via contrastive suffix-simulation regression (`train_cfa_future.py`)
-4. **DB-Simple** (`db_simple.py`) — extends CFA-Future 1:1, but modulates the distance exponent in greedy scoring and the drop-score weighting via a state-dependent balance parameter δ ∈ [0,1] (`δ=0.5` ⇔ identical to CFA-Future); δ from a rule-based or learned model (`data/training/db_simple/model.pkl`)
+1. **Myopic** (`myopic.py`) — all greedy; carryover first (nearest-neighbor), routine by `1/dist`; drop score: `1/detour`
+2. **Myopic+** (`myopic_plus.py`) — all greedy; carryover first (nearest-neighbor), routine by `power/dist`; drop score: `power/detour`
+3. **CFA-Future** (`cfa_future.py`) — all greedy; carryover first (nearest-neighbor), routine by `(C̃+shift)/dist`; drop score: `C̃(k) − wage_per_min × detour`; θ ∈ ℝ⁴ learned via contrastive suffix-simulation regression (`train_cfa_future.py`)
+4. **DB-Simple** (`db_simple.py`) — extends CFA-Future; routine scored by `(C̃+shift)/dist^(2δ)`; drop score: `C̃(k) − 2δ × wage_per_min × detour`; `δ=0.5` ⇔ identical to CFA-Future; δ from rule-based or learned model (`data/training/db_simple/model.pkl`)
 
 **"VFA" = Rolling-Horizon rollout of the base policies** (`src/models/rolling_horizon.py`):
 - `RollingHorizonRunner` + `PolicyAdapter` wrap **any** of the 4 base policies above (Myopic, Myopic+, CFA-Future, DB-Simple) without changing their initial-plan/replan logic.
@@ -88,7 +88,7 @@ No formal test suite exists (tests/ is empty).
 
 **Common interface:** all models implement `create_initial_plan(tasks)` + `handle_disruptions(disruptions, sim_routes, time_min, hour, log)`. The Rolling-Horizon ("VFA") runner wraps this interface via `PolicyAdapter` without altering it.
 
-**Initialplan — carryover disruptions:** Myopic+ and CFA-Future (and thus DB-Simple, which inherits from CFA-Future) set `soft_deadline_min=0` + penalty ∝ `power_kW` for carryover disruption tasks so they are prioritized early in greedy insertion. Myopic does not use this mechanism.
+**Initialplan — carryover disruptions:** In the greedy path (always active), carryover tasks are inserted **first** for all models via nearest-neighbor before routine tasks are scored. The policy-specific `route_score_fn` applies only to routine tasks. Myopic uses `1/dist` (power-blind); Myopic+, CFA, and DB use value-weighted scores (`power/dist` or `C̃/dist`) so routine tasks are greedily ordered by value/distance.
 
 **Zone selection value functions** (set in run scripts when `value_based_zone_selection: true`):
 
@@ -105,10 +105,11 @@ No formal test suite exists (tests/ is empty).
 - `recovery_curve = initial_factor + (1 − initial_factor) × dsm / recovery_days`
 - `C̃(drop k) = θᵀ × φ_scaled(k)` (features z-scored with training μ, σ)
 - θ ∈ ℝ⁴ loaded from `data/training/cfa_future/theta.json`; always read `feature_means` and `feature_stds` from same file; θ learned via contrastive suffix-simulation regression (label: `cost_drop_k − cost_serve_k`, discounted, H=30 days), not OLS on Myopic rollouts
-- Deadline-Sortierung: `C̃/depot_dist` ratio; Replan: manual C̃-drop loop (ascending C̃)
+- Initial plan (greedy): routine tasks scored by `(C̃(node,dsm) + shift) / dist(cur, node)`; carryover always first
+- Replan (greedy): drop score `C̃(k) − wage_per_min × detour(k)`
 
 **DB-Simple details** (`src/models/db_simple.py`):
-- Extends `CFAFutureModel` 1:1 — inherits `_phi()`, `_value()`, θ-loading, and OR-Tools paths unchanged
+- Extends `CFAFutureModel` 1:1 — inherits `_phi()`, `_value()`, θ-loading
 - Initial plan (greedy): `score(k) = (C̃(k) + shift) / dist(cur, k)^(2δ)`
 - Replan drop-score: `drop_score(k) = C̃(k) − (2δ) × wage_per_min × detour(k)`
 - `δ = 0.5` ⇒ identical to CFA-Future; `δ < 0.5` weights C̃ (future value) more, `δ > 0.5` weights routing efficiency more
