@@ -58,6 +58,7 @@
       <file>authoryear.bbx</file>
       <file>authoryear.cbx</file>
       <file>biblatex.cfg</file>
+      <file>english.lbx</file>
       <file>german.lbx</file>
       <file>ngerman.lbx</file>
     </requires>

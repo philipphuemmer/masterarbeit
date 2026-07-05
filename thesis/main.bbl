@@ -19,6 +19,99 @@
 
 \refsection{0}
   \datalist[entry]{nyt/global//global/global}
+    \entry{bmf2024}{online}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=b5600d23cdf0d4d8215c5226567cc95a}{%
+           family={{Bundesministerium der Finanzen}},
+           familyi={B\bibinitperiod}}}%
+      }
+      \strng{namehash}{b5600d23cdf0d4d8215c5226567cc95a}
+      \strng{fullhash}{b5600d23cdf0d4d8215c5226567cc95a}
+      \strng{bibnamehash}{b5600d23cdf0d4d8215c5226567cc95a}
+      \strng{authorbibnamehash}{b5600d23cdf0d4d8215c5226567cc95a}
+      \strng{authornamehash}{b5600d23cdf0d4d8215c5226567cc95a}
+      \strng{authorfullhash}{b5600d23cdf0d4d8215c5226567cc95a}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Reisekosten: Kilometerpauschale für Dienstreisen}
+      \field{urlday}{1}
+      \field{urlmonth}{11}
+      \field{urlyear}{2024}
+      \field{year}{2024}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://www.bundesfinanzministerium.de
+      \endverb
+      \verb{url}
+      \verb https://www.bundesfinanzministerium.de
+      \endverb
+    \endentry
+    \entry{bdew2024}{online}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=736a6b498e8b6ceb88c2acc757587062}{%
+           family={{Bundesverband der Energie- und Wasserwirtschaft}},
+           familyi={B\bibinitperiod}}}%
+      }
+      \strng{namehash}{736a6b498e8b6ceb88c2acc757587062}
+      \strng{fullhash}{736a6b498e8b6ceb88c2acc757587062}
+      \strng{bibnamehash}{736a6b498e8b6ceb88c2acc757587062}
+      \strng{authorbibnamehash}{736a6b498e8b6ceb88c2acc757587062}
+      \strng{authornamehash}{736a6b498e8b6ceb88c2acc757587062}
+      \strng{authorfullhash}{736a6b498e8b6ceb88c2acc757587062}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{BDEW-Ladeinfrastruktur-Monitor}
+      \field{urlday}{1}
+      \field{urlmonth}{11}
+      \field{urlyear}{2024}
+      \field{year}{2024}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://www.bdew.de/energie/elektromobilitaet-daten-und-fakten/
+      \endverb
+      \verb{url}
+      \verb https://www.bdew.de/energie/elektromobilitaet-daten-und-fakten/
+      \endverb
+    \endentry
+    \entry{jobvector2024}{online}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=4506cb2c069fe4b8871b7edef64e442d}{%
+           family={{jobvector GmbH}},
+           familyi={j\bibinitperiod}}}%
+      }
+      \strng{namehash}{4506cb2c069fe4b8871b7edef64e442d}
+      \strng{fullhash}{4506cb2c069fe4b8871b7edef64e442d}
+      \strng{bibnamehash}{4506cb2c069fe4b8871b7edef64e442d}
+      \strng{authorbibnamehash}{4506cb2c069fe4b8871b7edef64e442d}
+      \strng{authornamehash}{4506cb2c069fe4b8871b7edef64e442d}
+      \strng{authorfullhash}{4506cb2c069fe4b8871b7edef64e442d}
+      \field{sortinit}{j}
+      \field{sortinithash}{b2f54a9081ace9966a7cb9413811edb4}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Gehalt Elektroinstallateur Bayern}
+      \field{urlday}{1}
+      \field{urlmonth}{11}
+      \field{urlyear}{2024}
+      \field{year}{2024}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://www.jobvector.de/gehalt/elektroinstallateur/bayern/
+      \endverb
+      \verb{url}
+      \verb https://www.jobvector.de/gehalt/elektroinstallateur/bayern/
+      \endverb
+    \endentry
     \entry{wuerzburg_opendata}{online}{}
       \name{author}{1}{}{%
         {{un=0,uniquepart=base,hash=96fbf2c409ec862e57100a47088ffc9c}{%

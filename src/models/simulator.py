@@ -1361,7 +1361,6 @@ class MaintenanceSimulator:
         Generiert stochastische Störungen für einen ganzen Simulationstag.
 
         Für jede Stunde (8–16 Uhr) und jede Säule wird unabhängig gewürfelt.
-        Eine Säule kann pro Tag maximal eine Störung erhalten.
         Die Ausfallwahrscheinlichkeit skaliert mit der Zeit seit letzter Wartung:
 
             p(t) = p_base * (initial_factor + (1 - initial_factor) * min(t, recovery_days) / recovery_days)
