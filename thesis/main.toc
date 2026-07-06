@@ -48,11 +48,11 @@
 \contentsline {subsection}{\numberline {6.1}Simulation Design}{33}{subsection.6.1}%
 \contentsline {subsection}{\numberline {6.2}Routing and Travel Times}{34}{subsection.6.2}%
 \contentsline {subsection}{\numberline {6.3}Data Basis}{34}{subsection.6.3}%
-\contentsline {subsection}{\numberline {6.4}Evaluation Metrics}{34}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.4}Evaluation Metrics}{35}{subsection.6.4}%
 \contentsline {section}{\numberline {7}Results and Analysis}{35}{section.7}%
-\contentsline {subsection}{\numberline {7.1}Policy Mechanism Comparison}{35}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.1}Policy Mechanism Comparison}{36}{subsection.7.1}%
 \contentsline {subsection}{\numberline {7.2}Impact of Zone Selection on Cost}{38}{subsection.7.2}%
-\contentsline {subsection}{\numberline {7.3}VFA Rollout: Performance and Limitations}{40}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.3}VFA Rollout: Performance and Limitations}{41}{subsection.7.3}%
 \contentsline {subsection}{\numberline {7.4}Statistical Validation}{43}{subsection.7.4}%
 \contentsline {section}{\numberline {8}Discussion}{46}{section.8}%
 \contentsline {subsection}{\numberline {8.1}Interpretation of Results}{46}{subsection.8.1}%
