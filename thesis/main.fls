@@ -1030,6 +1030,11 @@ INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf-t1.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/vf/paratype/ptsans/PTSans-Regular-tlf-t1.vf
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf-t1--base.tfm
+INPUT ./figures/fig63_benchmark_k.png
+INPUT ./figures/fig63_benchmark_k.png
+INPUT figures/fig63_benchmark_k.png
+INPUT ./figures/fig63_benchmark_k.png
+INPUT ./figures/fig63_benchmark_k.png
 INPUT ./figures/fig71_boxplot.pdf
 INPUT ./figures/fig71_boxplot.pdf
 INPUT figures/fig71_boxplot.pdf
@@ -1084,10 +1089,12 @@ INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf-ts1.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/vf/paratype/ptsans/PTSans-Regular-tlf-ts1.vf
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf-ts1--base.tfm
-INPUT /usr/share/texlive/texmf-dist/fonts/vf/paratype/ptsans/PTSans-Regular-tlf-ts1.vf
-INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf-ts1--base.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/vf/paratype/ptsans/PTSans-Regular-tlf-t1.vf
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf-t1--base.tfm
+INPUT /usr/share/texlive/texmf-dist/fonts/vf/paratype/ptsans/PTSans-Regular-tlf-t1.vf
+INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf-t1--base.tfm
+INPUT /usr/share/texlive/texmf-dist/fonts/vf/paratype/ptsans/PTSans-Regular-tlf-ts1.vf
+INPUT /usr/share/texlive/texmf-dist/fonts/tfm/paratype/ptsans/PTSans-Regular-tlf-ts1--base.tfm
 INPUT ./figures/fig74_cohens_d.pdf
 INPUT ./figures/fig74_cohens_d.pdf
 INPUT figures/fig74_cohens_d.pdf

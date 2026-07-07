@@ -48,18 +48,18 @@
 \contentsline {subsection}{\numberline {6.1}Simulation Design}{33}{subsection.6.1}%
 \contentsline {subsection}{\numberline {6.2}Routing and Travel Times}{34}{subsection.6.2}%
 \contentsline {subsection}{\numberline {6.3}Data Basis}{34}{subsection.6.3}%
-\contentsline {subsection}{\numberline {6.4}Evaluation Metrics}{35}{subsection.6.4}%
-\contentsline {section}{\numberline {7}Results and Analysis}{35}{section.7}%
-\contentsline {subsection}{\numberline {7.1}Policy Mechanism Comparison}{36}{subsection.7.1}%
-\contentsline {subsection}{\numberline {7.2}Impact of Zone Selection on Cost}{38}{subsection.7.2}%
-\contentsline {subsection}{\numberline {7.3}VFA Rollout: Performance and Limitations}{41}{subsection.7.3}%
-\contentsline {subsection}{\numberline {7.4}Statistical Validation}{43}{subsection.7.4}%
-\contentsline {section}{\numberline {8}Discussion}{46}{section.8}%
-\contentsline {subsection}{\numberline {8.1}Interpretation of Results}{46}{subsection.8.1}%
-\contentsline {subsection}{\numberline {8.2}Limitations}{47}{subsection.8.2}%
-\contentsline {subsection}{\numberline {8.3}Practical Relevance and Transferability}{48}{subsection.8.3}%
-\contentsline {section}{\numberline {9}Outlook and Future Work}{49}{section.9}%
-\contentsline {section}{Bibliography}{50}{section.9}%
-\contentsline {section}{\numberline {A}Anhang A}{51}{appendix.A}%
+\contentsline {subsection}{\numberline {6.4}Evaluation Metrics}{36}{subsection.6.4}%
+\contentsline {section}{\numberline {7}Results and Analysis}{37}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Policy Mechanism Comparison}{37}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Impact of Zone Selection on Cost}{39}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}VFA Rollout: Performance and Limitations}{42}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Statistical Validation}{45}{subsection.7.4}%
+\contentsline {section}{\numberline {8}Discussion}{48}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Interpretation of Results}{48}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Limitations}{50}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Practical Relevance and Transferability}{51}{subsection.8.3}%
+\contentsline {section}{\numberline {9}Outlook and Future Work}{52}{section.9}%
+\contentsline {section}{Bibliography}{53}{section.9}%
+\contentsline {section}{\numberline {A}Anhang A}{54}{appendix.A}%
 \babel@toc {ngerman}{}\relax 
 \babel@toc {english}{}\relax 
