@@ -77,36 +77,42 @@ df_delta     = pd.DataFrame(delta_rows)
 df_overrides = pd.DataFrame(override_rows)
 
 # ---------------------------------------------------------------------------
-# Figure 1 — Boxplot Δ-Kosten (gepaart)
+# Figure 1 — 2×2 Histogram Δ-Kosten (gepaart)
 # ---------------------------------------------------------------------------
 
-fig, ax = plt.subplots(figsize=(7, 4.5))
+X_LIM = 4000
+bins = np.arange(-X_LIM, X_LIM + 500, 500)
 
-sns.boxplot(
-    data=df_delta,
-    x="model", y="delta",
-    hue="model",
-    order=MODEL_ORDER,
-    hue_order=MODEL_ORDER,
-    palette=MODEL_COLORS,
-    width=0.5,
-    flierprops={"marker": "o", "markersize": 2, "alpha": 0.4},
-    linewidth=0.8,
-    legend=False,
-    ax=ax,
-)
+fig, axes = plt.subplots(2, 2, figsize=(10, 6), sharex=True, sharey=True)
+axes_flat = axes.flatten()
 
-ax.axhline(0, color="black", linewidth=0.9, linestyle="--", alpha=0.7)
-ax.set_xlabel("")
-ax.set_ylabel("Cost Reduction via Rollout (€)\n(base − rollout, per run)", fontsize=10)
-ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x/1000:.1f}k"))
-ax.tick_params(labelsize=10)
-ax.grid(axis="y", linewidth=0.4, alpha=0.6)
-ax.set_axisbelow(True)
-sns.despine(ax=ax)
-fig.tight_layout()
-fig.savefig(OUT_DIR / "fig73_delta_boxplot.pdf", dpi=300)
-fig.savefig(OUT_DIR / "fig73_delta_boxplot.png", dpi=200)
+for ax, model in zip(axes_flat, MODEL_ORDER):
+    vals = df_delta[df_delta["model"] == model]["delta"].values
+    pct_better = (vals > 0).mean() * 100
+    ax.hist(vals, bins=bins, color=MODEL_COLORS[model], edgecolor="white", linewidth=0.5, zorder=2)
+    ax.axvline(0, color="black", linewidth=1.1, linestyle="--", alpha=0.85, zorder=3)
+    ax.set_xlim(-X_LIM, X_LIM)
+    ax.set_title(model, fontsize=11, fontweight="bold")
+    ax.annotate(
+        f"{pct_better:.0f}% of runs: rollout better",
+        xy=(0.97, 0.95), xycoords="axes fraction",
+        ha="right", va="top", fontsize=8.5,
+        color="#333333",
+    )
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x/1000:.1f}k"))
+    ax.tick_params(labelsize=9)
+    ax.grid(axis="y", linewidth=0.4, alpha=0.5, zorder=1)
+    ax.set_axisbelow(True)
+    sns.despine(ax=ax)
+
+for ax in axes[1]:
+    ax.set_xlabel("Cost Reduction via Rollout (€)\n(base − rollout, positive = rollout cheaper)", fontsize=9)
+for ax in axes[:, 0]:
+    ax.set_ylabel("Number of Runs", fontsize=9)
+
+fig.tight_layout(h_pad=2.5, w_pad=2.0)
+fig.savefig(OUT_DIR / "fig73_delta_boxplot.pdf", dpi=300, bbox_inches="tight")
+fig.savefig(OUT_DIR / "fig73_delta_boxplot.png", dpi=200, bbox_inches="tight")
 plt.close(fig)
 print("Saved fig73_delta_boxplot")
 

@@ -292,7 +292,7 @@ def _build_static_figure(label: str, zone_visits: np.ndarray, zone_avg_day: np.n
         avg_day = zone_avg_day[z]
         colors.append(cmap(norm(avg_day)) if not np.isnan(avg_day) else (0.85, 0.85, 0.85, 1.0))
 
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=(7, 7))
     pc = PolyCollection(zone_polygons, facecolors=colors, edgecolors="#666666", linewidths=0.3)
     ax.add_collection(pc)
 
@@ -303,7 +303,6 @@ def _build_static_figure(label: str, zone_visits: np.ndarray, zone_avg_day: np.n
     cbar = fig.colorbar(sm, ax=ax, shrink=0.8)
     cbar.set_label("Ø Bearbeitungstag (über alle Runs)")
 
-    ax.set_title(label)
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
     ax.legend(loc="upper right")
@@ -362,6 +361,7 @@ def main() -> None:
         fig = _build_static_figure(label, zone_visits, zone_avg_day, zone_polygons, n_zones, max_day)
         fig_path = FIG_DIR / f"{label}.png"
         fig.savefig(fig_path, dpi=200)
+        fig.savefig(FIG_DIR / f"{label}.pdf")
         plt.close(fig)
 
         print(f"[ok]   {label}: {n_stations} Stationen, {n_zones} Zonen -> {out_path}, {fig_path}")
