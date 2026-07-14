@@ -19,6 +19,163 @@
 
 \refsection{0}
   \datalist[entry]{nyt/global//global/global}
+    \entry{abbatecola2016review}{inproceedings}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=ceaa1c25f7bfd174e98ae78c45cca5c8}{%
+           family={Abbatecola},
+           familyi={A\bibinitperiod},
+           given={Lorenzo},
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=464ba9760ea4a12669d1a57725939c86}{%
+           family={Fanti},
+           familyi={F\bibinitperiod},
+           given={Maria\bibnamedelima Pia},
+           giveni={M\bibinitperiod\bibinitdelim P\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e179418409b4a0249a03d1a23042db18}{%
+           family={Ukovich},
+           familyi={U\bibinitperiod},
+           given={Walter},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{organization}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{7fb353421730efdba22b19e77ed6a641}
+      \strng{fullhash}{7fb353421730efdba22b19e77ed6a641}
+      \strng{bibnamehash}{7fb353421730efdba22b19e77ed6a641}
+      \strng{authorbibnamehash}{7fb353421730efdba22b19e77ed6a641}
+      \strng{authornamehash}{7fb353421730efdba22b19e77ed6a641}
+      \strng{authorfullhash}{7fb353421730efdba22b19e77ed6a641}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2016 IEEE International Conference on Automation Science and Engineering (CASE)}
+      \field{title}{A review of new approaches for dynamic vehicle routing problem}
+      \field{year}{2016}
+      \field{pages}{361\bibrangedash 366}
+      \range{pages}{6}
+    \endentry
+    \entry{akhmetbek2023stochastic}{article}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=4dabcef0221e4fcce71e26c8ab09518d}{%
+           family={Akhmetbek},
+           familyi={A\bibinitperiod},
+           given={Yernar},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{4dabcef0221e4fcce71e26c8ab09518d}
+      \strng{fullhash}{4dabcef0221e4fcce71e26c8ab09518d}
+      \strng{bibnamehash}{4dabcef0221e4fcce71e26c8ab09518d}
+      \strng{authorbibnamehash}{4dabcef0221e4fcce71e26c8ab09518d}
+      \strng{authornamehash}{4dabcef0221e4fcce71e26c8ab09518d}
+      \strng{authorfullhash}{4dabcef0221e4fcce71e26c8ab09518d}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Emerging Technologies and Computing}
+      \field{number}{1}
+      \field{title}{Stochastic dynamic vehicle routing problem survey}
+      \field{volume}{62}
+      \field{year}{2023}
+      \field{pages}{75\bibrangedash 87}
+      \range{pages}{13}
+    \endentry
+    \entry{alaswad2017review}{article}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=58f2aeb7ffb08617ca28414824ce6bf5}{%
+           family={Alaswad},
+           familyi={A\bibinitperiod},
+           given={Suzan},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c467374869b2b38fa17f9754c3a5abfa}{%
+           family={Xiang},
+           familyi={X\bibinitperiod},
+           given={Yisha},
+           giveni={Y\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Elsevier}%
+      }
+      \strng{namehash}{ad9114dd09882d56a7a9b7a38f1233b6}
+      \strng{fullhash}{ad9114dd09882d56a7a9b7a38f1233b6}
+      \strng{bibnamehash}{ad9114dd09882d56a7a9b7a38f1233b6}
+      \strng{authorbibnamehash}{ad9114dd09882d56a7a9b7a38f1233b6}
+      \strng{authornamehash}{ad9114dd09882d56a7a9b7a38f1233b6}
+      \strng{authorfullhash}{ad9114dd09882d56a7a9b7a38f1233b6}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Reliability Engineering \& System Safety}
+      \field{title}{A Review on Condition-Based Maintenance Optimization Models for Stochastically Deteriorating System}
+      \field{volume}{157}
+      \field{year}{2017}
+      \field{pages}{54\bibrangedash 63}
+      \range{pages}{10}
+    \endentry
+    \entry{basso2022dynamic}{article}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=e5123230b77174eb647dddd339ef4440}{%
+           family={Basso},
+           familyi={B\bibinitperiod},
+           given={Rafael},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=bb1077e4f17e1d1de227ee5b60569b80}{%
+           family={Kulcsár},
+           familyi={K\bibinitperiod},
+           given={Balázs},
+           giveni={B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=148bf8f84b16cf0858717b35d01f9805}{%
+           family={Sanchez-Diaz},
+           familyi={S\bibinithyphendelim D\bibinitperiod},
+           given={Ivan},
+           giveni={I\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e8085aeeff3936ff6933771128749654}{%
+           family={Qu},
+           familyi={Q\bibinitperiod},
+           given={Xiaobo},
+           giveni={X\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Elsevier}%
+      }
+      \strng{namehash}{5a9b467fd8bf420e0e26362bb3c6ed1d}
+      \strng{fullhash}{3c892d8bd31012ee842b50f5b6be57cd}
+      \strng{bibnamehash}{3c892d8bd31012ee842b50f5b6be57cd}
+      \strng{authorbibnamehash}{3c892d8bd31012ee842b50f5b6be57cd}
+      \strng{authornamehash}{5a9b467fd8bf420e0e26362bb3c6ed1d}
+      \strng{authorfullhash}{3c892d8bd31012ee842b50f5b6be57cd}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Transportation research part E: logistics and transportation review}
+      \field{title}{Dynamic stochastic electric vehicle routing with safe reinforcement learning}
+      \field{volume}{157}
+      \field{year}{2022}
+      \field{pages}{102496}
+      \range{pages}{1}
+    \endentry
     \entry{bmf2024}{online}{}
       \name{author}{1}{}{%
         {{un=0,uniquepart=base,hash=b5600d23cdf0d4d8215c5226567cc95a}{%
@@ -81,6 +238,119 @@
       \verb https://www.bdew.de/energie/elektromobilitaet-daten-und-fakten/
       \endverb
     \endentry
+    \entry{dejonge2020review}{article}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=801589ad715fe6bcf82536d417289b51}{%
+           family={De\bibnamedelima Jonge},
+           familyi={D\bibinitperiod\bibinitdelim J\bibinitperiod},
+           given={Bram},
+           giveni={B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=39c6a5640445c62c8f6ec8969233b657}{%
+           family={Scarf},
+           familyi={S\bibinitperiod},
+           given={Philip\bibnamedelima A.},
+           giveni={P\bibinitperiod\bibinitdelim A\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Elsevier}%
+      }
+      \strng{namehash}{8c6d4fab412a5561a3c05dbc4a9f1347}
+      \strng{fullhash}{8c6d4fab412a5561a3c05dbc4a9f1347}
+      \strng{bibnamehash}{8c6d4fab412a5561a3c05dbc4a9f1347}
+      \strng{authorbibnamehash}{8c6d4fab412a5561a3c05dbc4a9f1347}
+      \strng{authornamehash}{8c6d4fab412a5561a3c05dbc4a9f1347}
+      \strng{authorfullhash}{8c6d4fab412a5561a3c05dbc4a9f1347}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{European Journal of Operational Research}
+      \field{number}{3}
+      \field{title}{A Review on Maintenance Optimization}
+      \field{volume}{285}
+      \field{year}{2020}
+      \field{pages}{805\bibrangedash 824}
+      \range{pages}{20}
+    \endentry
+    \entry{dekker1996applications}{article}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=1fa9968dfc5dfdb635fd29d3bc586404}{%
+           family={Dekker},
+           familyi={D\bibinitperiod},
+           given={Rommert},
+           giveni={R\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Elsevier}%
+      }
+      \strng{namehash}{1fa9968dfc5dfdb635fd29d3bc586404}
+      \strng{fullhash}{1fa9968dfc5dfdb635fd29d3bc586404}
+      \strng{bibnamehash}{1fa9968dfc5dfdb635fd29d3bc586404}
+      \strng{authorbibnamehash}{1fa9968dfc5dfdb635fd29d3bc586404}
+      \strng{authornamehash}{1fa9968dfc5dfdb635fd29d3bc586404}
+      \strng{authorfullhash}{1fa9968dfc5dfdb635fd29d3bc586404}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Reliability Engineering \& System Safety}
+      \field{number}{3}
+      \field{title}{Applications of Maintenance Optimization Models: A Review and Analysis}
+      \field{volume}{51}
+      \field{year}{1996}
+      \field{pages}{229\bibrangedash 240}
+      \range{pages}{12}
+    \endentry
+    \entry{hildebrandt2023opportunities}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=3f8c8d4fa6caeb3c5b94244f5e7fa287}{%
+           family={Hildebrandt},
+           familyi={H\bibinitperiod},
+           given={Florentin\bibnamedelima D},
+           giveni={F\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=dbdb79d5a22e9e0d0758e0e921dea2fe}{%
+           family={Thomas},
+           familyi={T\bibinitperiod},
+           given={Barrett\bibnamedelima W},
+           giveni={B\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=65a8d8c43c0c376d4b3380b4c06c3b07}{%
+           family={Ulmer},
+           familyi={U\bibinitperiod},
+           given={Marlin\bibnamedelima W},
+           giveni={M\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Elsevier}%
+      }
+      \strng{namehash}{67fbfbd9b9720a227c4e203012779192}
+      \strng{fullhash}{67fbfbd9b9720a227c4e203012779192}
+      \strng{bibnamehash}{67fbfbd9b9720a227c4e203012779192}
+      \strng{authorbibnamehash}{67fbfbd9b9720a227c4e203012779192}
+      \strng{authornamehash}{67fbfbd9b9720a227c4e203012779192}
+      \strng{authorfullhash}{67fbfbd9b9720a227c4e203012779192}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Computers \& operations research}
+      \field{title}{Opportunities for reinforcement learning in stochastic dynamic vehicle routing}
+      \field{volume}{150}
+      \field{year}{2023}
+      \field{pages}{106071}
+      \range{pages}{1}
+    \endentry
     \entry{jobvector2024}{online}{}
       \name{author}{1}{}{%
         {{un=0,uniquepart=base,hash=4506cb2c069fe4b8871b7edef64e442d}{%
@@ -112,6 +382,290 @@
       \verb https://www.jobvector.de/gehalt/elektroinstallateur/bayern/
       \endverb
     \endentry
+    \entry{joe2020deep}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=8ad7797ae911d9b126911b014f86b06d}{%
+           family={Joe},
+           familyi={J\bibinitperiod},
+           given={Waldy},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=cdf926d65c1891ac087aaa99f1411fe3}{%
+           family={Lau},
+           familyi={L\bibinitperiod},
+           given={Hoong\bibnamedelima Chuin},
+           giveni={H\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{3a28495efa915aa0657bad9cb3f6bbec}
+      \strng{fullhash}{3a28495efa915aa0657bad9cb3f6bbec}
+      \strng{bibnamehash}{3a28495efa915aa0657bad9cb3f6bbec}
+      \strng{authorbibnamehash}{3a28495efa915aa0657bad9cb3f6bbec}
+      \strng{authornamehash}{3a28495efa915aa0657bad9cb3f6bbec}
+      \strng{authorfullhash}{3a28495efa915aa0657bad9cb3f6bbec}
+      \field{sortinit}{J}
+      \field{sortinithash}{b2f54a9081ace9966a7cb9413811edb4}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the international conference on automated planning and scheduling}
+      \field{title}{Deep reinforcement learning approach to solve dynamic vehicle routing problem with stochastic customers}
+      \field{volume}{30}
+      \field{year}{2020}
+      \field{pages}{394\bibrangedash 402}
+      \range{pages}{9}
+    \endentry
+    \entry{mardevsic2023review}{article}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=35c90198beb81b224ee061261dfd79be}{%
+           family={Mardešić},
+           familyi={M\bibinitperiod},
+           given={Nikola},
+           giveni={N\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=34005c2331f8dc44b4376854e1de6bb0}{%
+           family={Erdelić},
+           familyi={E\bibinitperiod},
+           given={Tomislav},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=153162af9d41fe6730662a764b0be634}{%
+           family={Carić},
+           familyi={C\bibinitperiod},
+           given={Tonči},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ea32015d6292fd3b9df0f37fdcc5b5b8}{%
+           family={{Đ}urasević},
+           familyi={Đ\bibinitperiod},
+           given={Marko},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {MDPI}%
+      }
+      \strng{namehash}{ce7b12c48e7899a228784a10df3a44f6}
+      \strng{fullhash}{4e5effb5c09b859338e2e7fbb3dfd2d8}
+      \strng{bibnamehash}{4e5effb5c09b859338e2e7fbb3dfd2d8}
+      \strng{authorbibnamehash}{4e5effb5c09b859338e2e7fbb3dfd2d8}
+      \strng{authornamehash}{ce7b12c48e7899a228784a10df3a44f6}
+      \strng{authorfullhash}{4e5effb5c09b859338e2e7fbb3dfd2d8}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Mathematics}
+      \field{number}{1}
+      \field{title}{Review of stochastic dynamic vehicle routing in the evolving urban logistics environment}
+      \field{volume}{12}
+      \field{year}{2023}
+      \field{pages}{28}
+      \range{pages}{1}
+    \endentry
+    \entry{molkeda2023corrective}{article}{}
+      \name{author}{5}{}{%
+        {{un=0,uniquepart=base,hash=2f2c10ae745cb24dea209297cec6fae4}{%
+           family={Molęda},
+           familyi={M\bibinitperiod},
+           given={Marek},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=4218712cf4c98ab3e6c513901fb8fa88}{%
+           family={Ma{ł}ysiak-Mrozek},
+           familyi={M\bibinithyphendelim M\bibinitperiod},
+           given={Bożena},
+           giveni={B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=dcb9bfdd6ee59653374e77fa7f8c55ec}{%
+           family={Ding},
+           familyi={D\bibinitperiod},
+           given={Weiping},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=aac031fd773e95865a9d0454bc488375}{%
+           family={Sunderam},
+           familyi={S\bibinitperiod},
+           given={Vaidy},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=91704df390c5d9f978e6d0639b7c48e2}{%
+           family={Mrozek},
+           familyi={M\bibinitperiod},
+           given={Dariusz},
+           giveni={D\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {MDPI}%
+      }
+      \strng{namehash}{6d99909b225630d931d6873b5357dc72}
+      \strng{fullhash}{aa1c84b858cc3f40ff4d7ad28d2d6695}
+      \strng{bibnamehash}{aa1c84b858cc3f40ff4d7ad28d2d6695}
+      \strng{authorbibnamehash}{aa1c84b858cc3f40ff4d7ad28d2d6695}
+      \strng{authornamehash}{6d99909b225630d931d6873b5357dc72}
+      \strng{authorfullhash}{aa1c84b858cc3f40ff4d7ad28d2d6695}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Sensors}
+      \field{number}{13}
+      \field{title}{From corrective to predictive maintenance---A review of maintenance approaches for the power industry}
+      \field{volume}{23}
+      \field{year}{2023}
+      \field{pages}{5970}
+      \range{pages}{1}
+    \endentry
+    \entry{pillac2013review}{article}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=3bb00de24f4f2bbb0d1b16d52596000e}{%
+           family={Pillac},
+           familyi={P\bibinitperiod},
+           given={Victor},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=d4ebdd3fdc985c36f68c8295c5664c74}{%
+           family={Gendreau},
+           familyi={G\bibinitperiod},
+           given={Michel},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3e695c551961b496c8e1daa5453d6f23}{%
+           family={Guéret},
+           familyi={G\bibinitperiod},
+           given={Christelle},
+           giveni={C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=57d14eca34788bfedcc12edfd8626b93}{%
+           family={Medaglia},
+           familyi={M\bibinitperiod},
+           given={Andrés\bibnamedelima L},
+           giveni={A\bibinitperiod\bibinitdelim L\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Elsevier}%
+      }
+      \strng{namehash}{30ef5165447c66b9b913b38fbecc66a5}
+      \strng{fullhash}{ec6b904f6f90b5a4434b3c46459c5432}
+      \strng{bibnamehash}{ec6b904f6f90b5a4434b3c46459c5432}
+      \strng{authorbibnamehash}{ec6b904f6f90b5a4434b3c46459c5432}
+      \strng{authornamehash}{30ef5165447c66b9b913b38fbecc66a5}
+      \strng{authorfullhash}{ec6b904f6f90b5a4434b3c46459c5432}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{European Journal of Operational Research}
+      \field{number}{1}
+      \field{title}{A review of dynamic vehicle routing problems}
+      \field{volume}{225}
+      \field{year}{2013}
+      \field{pages}{1\bibrangedash 11}
+      \range{pages}{11}
+    \endentry
+    \entry{ritzinger2016survey}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=4503b6ada7f339cee2f9dce9c2f98b04}{%
+           family={Ritzinger},
+           familyi={R\bibinitperiod},
+           given={Ulrike},
+           giveni={U\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c7ebd503aa9ee127ee3eff0e1179a41a}{%
+           family={Puchinger},
+           familyi={P\bibinitperiod},
+           given={Jakob},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=6a8397aac8989afcd2d7d756f79aade1}{%
+           family={Hartl},
+           familyi={H\bibinitperiod},
+           given={Richard\bibnamedelima F},
+           giveni={R\bibinitperiod\bibinitdelim F\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Taylor \& Francis}%
+      }
+      \strng{namehash}{2c0de86e7d852473812a322171c589af}
+      \strng{fullhash}{2c0de86e7d852473812a322171c589af}
+      \strng{bibnamehash}{2c0de86e7d852473812a322171c589af}
+      \strng{authorbibnamehash}{2c0de86e7d852473812a322171c589af}
+      \strng{authornamehash}{2c0de86e7d852473812a322171c589af}
+      \strng{authorfullhash}{2c0de86e7d852473812a322171c589af}
+      \field{sortinit}{R}
+      \field{sortinithash}{5e1c39a9d46ffb6bebd8f801023a9486}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{International Journal of Production Research}
+      \field{number}{1}
+      \field{title}{A survey on dynamic and stochastic vehicle routing problems}
+      \field{volume}{54}
+      \field{year}{2016}
+      \field{pages}{215\bibrangedash 231}
+      \range{pages}{17}
+    \endentry
+    \entry{sarasola2016variable}{article}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=df69534c3bace761cb96ace93ae26bd0}{%
+           family={Sarasola},
+           familyi={S\bibinitperiod},
+           given={Briseida},
+           giveni={B\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=0ac9c5b7601eeca5a8ee1f0c2e55f121}{%
+           family={Doerner},
+           familyi={D\bibinitperiod},
+           given={Karl\bibnamedelima F},
+           giveni={K\bibinitperiod\bibinitdelim F\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=ed15b04ed0e40d22c19fa5aa8b419967}{%
+           family={Schmid},
+           familyi={S\bibinitperiod},
+           given={Verena},
+           giveni={V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3bba57c9b13d5773e34ff8bf341727f7}{%
+           family={Alba},
+           familyi={A\bibinitperiod},
+           given={Enrique},
+           giveni={E\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Springer}%
+      }
+      \strng{namehash}{52957baeeba34b751537d0171797d646}
+      \strng{fullhash}{bd7d92fad271112112ea929b4639e176}
+      \strng{bibnamehash}{bd7d92fad271112112ea929b4639e176}
+      \strng{authorbibnamehash}{bd7d92fad271112112ea929b4639e176}
+      \strng{authornamehash}{52957baeeba34b751537d0171797d646}
+      \strng{authorfullhash}{bd7d92fad271112112ea929b4639e176}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Annals of Operations Research}
+      \field{number}{2}
+      \field{title}{Variable neighborhood search for the stochastic and dynamic vehicle routing problem}
+      \field{volume}{236}
+      \field{year}{2016}
+      \field{pages}{425\bibrangedash 461}
+      \range{pages}{37}
+    \endentry
     \entry{wuerzburg_opendata}{online}{}
       \name{author}{1}{}{%
         {{un=0,uniquepart=base,hash=96fbf2c409ec862e57100a47088ffc9c}{%
@@ -142,6 +696,340 @@
       \verb{url}
       \verb https://wuerzburg.opendatasoft.com/explore/dataset/10001wuerzburg-stadt/information/
       \endverb
+    \endentry
+    \entry{ulmer2017approximate}{book}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=65a8d8c43c0c376d4b3380b4c06c3b07}{%
+           family={Ulmer},
+           familyi={U\bibinitperiod},
+           given={Marlin\bibnamedelima W},
+           giveni={M\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Springer}%
+      }
+      \strng{namehash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \strng{fullhash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \strng{bibnamehash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \strng{authorbibnamehash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \strng{authornamehash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \strng{authorfullhash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \field{extraname}{1}
+      \field{sortinit}{U}
+      \field{sortinithash}{6901a00e45705986ee5e7ca9fd39adca}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Approximate dynamic programming for dynamic vehicle routing}
+      \field{volume}{61}
+      \field{year}{2017}
+    \endentry
+    \entry{ulmer2020horizontal}{article}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=65a8d8c43c0c376d4b3380b4c06c3b07}{%
+           family={Ulmer},
+           familyi={U\bibinitperiod},
+           given={Marlin\bibnamedelima W},
+           giveni={M\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \strng{fullhash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \strng{bibnamehash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \strng{authorbibnamehash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \strng{authornamehash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \strng{authorfullhash}{65a8d8c43c0c376d4b3380b4c06c3b07}
+      \field{extraname}{2}
+      \field{sortinit}{U}
+      \field{sortinithash}{6901a00e45705986ee5e7ca9fd39adca}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Central European Journal of Operations Research}
+      \field{number}{1}
+      \field{title}{Horizontal combinations of online and offline approximate dynamic programming for stochastic dynamic vehicle routing.}
+      \field{volume}{28}
+      \field{year}{2020}
+      \field{pages}{279}
+      \range{pages}{1}
+    \endentry
+    \entry{ulmer2019offline}{article}{}
+      \name{author}{4}{ul=4}{%
+        {{un=0,uniquepart=base,hash=65a8d8c43c0c376d4b3380b4c06c3b07}{%
+           family={Ulmer},
+           familyi={U\bibinitperiod},
+           given={Marlin\bibnamedelima W},
+           giveni={M\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=bbd7d45fb9c777f04c92ea3c97c43012}{%
+           family={Goodson},
+           familyi={G\bibinitperiod},
+           given={Justin\bibnamedelima C},
+           giveni={J\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5333ec9817e09c8a971d5d32f14c507a}{%
+           family={Mattfeld},
+           familyi={M\bibinitperiod},
+           given={Dirk\bibnamedelima C},
+           giveni={D\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1d615763e9890dc866ee9325c4ae641a}{%
+           family={Hennig},
+           familyi={H\bibinitperiod},
+           given={Marco},
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {INFORMS}%
+      }
+      \strng{namehash}{4a1ce26af03a9d15c5a0206308b71591}
+      \strng{fullhash}{4a1ce26af03a9d15c5a0206308b71591}
+      \strng{bibnamehash}{4a1ce26af03a9d15c5a0206308b71591}
+      \strng{authorbibnamehash}{4a1ce26af03a9d15c5a0206308b71591}
+      \strng{authornamehash}{4a1ce26af03a9d15c5a0206308b71591}
+      \strng{authorfullhash}{4a1ce26af03a9d15c5a0206308b71591}
+      \field{sortinit}{U}
+      \field{sortinithash}{6901a00e45705986ee5e7ca9fd39adca}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Transportation Science}
+      \field{number}{1}
+      \field{title}{Offline--online approximate dynamic programming for dynamic vehicle routing with stochastic requests}
+      \field{volume}{53}
+      \field{year}{2019}
+      \field{pages}{185\bibrangedash 202}
+      \range{pages}{18}
+    \endentry
+    \entry{ulmer2020modeling}{article}{}
+      \name{author}{4}{ul=4}{%
+        {{un=0,uniquepart=base,hash=65a8d8c43c0c376d4b3380b4c06c3b07}{%
+           family={Ulmer},
+           familyi={U\bibinitperiod},
+           given={Marlin\bibnamedelima W},
+           giveni={M\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=bbd7d45fb9c777f04c92ea3c97c43012}{%
+           family={Goodson},
+           familyi={G\bibinitperiod},
+           given={Justin\bibnamedelima C},
+           giveni={J\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5333ec9817e09c8a971d5d32f14c507a}{%
+           family={Mattfeld},
+           familyi={M\bibinitperiod},
+           given={Dirk\bibnamedelima C},
+           giveni={D\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=dbdb79d5a22e9e0d0758e0e921dea2fe}{%
+           family={Thomas},
+           familyi={T\bibinitperiod},
+           given={Barrett\bibnamedelima W},
+           giveni={B\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{1847c2d31e2f6418910ef9b221a34be6}
+      \strng{fullhash}{1847c2d31e2f6418910ef9b221a34be6}
+      \strng{bibnamehash}{1847c2d31e2f6418910ef9b221a34be6}
+      \strng{authorbibnamehash}{1847c2d31e2f6418910ef9b221a34be6}
+      \strng{authornamehash}{1847c2d31e2f6418910ef9b221a34be6}
+      \strng{authorfullhash}{1847c2d31e2f6418910ef9b221a34be6}
+      \field{sortinit}{U}
+      \field{sortinithash}{6901a00e45705986ee5e7ca9fd39adca}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{EURO Journal on Transportation and Logistics}
+      \field{number}{2}
+      \field{title}{On Modeling Stochastic Dynamic Vehicle Routing Problems}
+      \field{volume}{9}
+      \field{year}{2020}
+      \field{pages}{100008}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1016/j.ejtl.2020.100008
+      \endverb
+    \endentry
+    \entry{ulmer2018budgeting}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=65a8d8c43c0c376d4b3380b4c06c3b07}{%
+           family={Ulmer},
+           familyi={U\bibinitperiod},
+           given={Marlin\bibnamedelima W},
+           giveni={M\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=5333ec9817e09c8a971d5d32f14c507a}{%
+           family={Mattfeld},
+           familyi={M\bibinitperiod},
+           given={Dirk\bibnamedelima C},
+           giveni={D\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=7869f2202523d869a3baa74bed6ad6c3}{%
+           family={Köster},
+           familyi={K\bibinitperiod},
+           given={Felix},
+           giveni={F\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {INFORMS}%
+      }
+      \strng{namehash}{975f822f0de4f1b657eb6188501932b2}
+      \strng{fullhash}{975f822f0de4f1b657eb6188501932b2}
+      \strng{bibnamehash}{975f822f0de4f1b657eb6188501932b2}
+      \strng{authorbibnamehash}{975f822f0de4f1b657eb6188501932b2}
+      \strng{authornamehash}{975f822f0de4f1b657eb6188501932b2}
+      \strng{authorfullhash}{975f822f0de4f1b657eb6188501932b2}
+      \field{sortinit}{U}
+      \field{sortinithash}{6901a00e45705986ee5e7ca9fd39adca}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Transportation Science}
+      \field{number}{1}
+      \field{title}{Budgeting time for dynamic vehicle routing with stochastic customer requests}
+      \field{volume}{52}
+      \field{year}{2018}
+      \field{pages}{20\bibrangedash 37}
+      \range{pages}{18}
+    \endentry
+    \entry{zhang2024routing}{article}{}
+      \name{author}{4}{}{%
+        {{un=1,uniquepart=given,hash=1276b0c695bd412950c2be5e737aeed5}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Meng},
+           giveni={M\bibinitperiod},
+           givenun=1}}%
+        {{un=0,uniquepart=base,hash=97bd7d668472cec24b32cd38988beebe}{%
+           family={Sun},
+           familyi={S\bibinitperiod},
+           given={Lulu},
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c8b4f5950bc3813214b3a6c185038a03}{%
+           family={Jiang},
+           familyi={J\bibinitperiod},
+           given={Qi},
+           giveni={Q\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3ef36dfa90ae0c552c89062da0ec0a8d}{%
+           family={Cui},
+           familyi={C\bibinitperiod},
+           given={Wei},
+           giveni={W\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{b64bb4aee0be35132233a68e7365b725}
+      \strng{fullhash}{c00048c112d3d0daee551442cfbc4458}
+      \strng{bibnamehash}{c00048c112d3d0daee551442cfbc4458}
+      \strng{authorbibnamehash}{c00048c112d3d0daee551442cfbc4458}
+      \strng{authornamehash}{b64bb4aee0be35132233a68e7365b725}
+      \strng{authorfullhash}{c00048c112d3d0daee551442cfbc4458}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Access}
+      \field{title}{Routing Optimization for Large-Scale Inspection-Maintenance of {EV} Charging Spots With Multiple Types of Personnel and Composite Customer Satisfaction: A Multi-Stage Approach}
+      \field{volume}{12}
+      \field{year}{2024}
+      \field{pages}{158189\bibrangedash 158206}
+      \range{pages}{18}
+      \verb{doi}
+      \verb 10.1109/ACCESS.2024.3486686
+      \endverb
+    \endentry
+    \entry{zhang2018dynamic}{article}{}
+      \name{author}{3}{}{%
+        {{un=1,uniquepart=given,hash=7f23f4345bf7dc68b29e1e9946311a8e}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Shu},
+           giveni={S\bibinitperiod},
+           givenun=1}}%
+        {{un=0,uniquepart=base,hash=604f298e3abf8bc216bfeca9ea8d559a}{%
+           family={Ohlmann},
+           familyi={O\bibinitperiod},
+           given={Jeffrey\bibnamedelima W},
+           giveni={J\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=dbdb79d5a22e9e0d0758e0e921dea2fe}{%
+           family={Thomas},
+           familyi={T\bibinitperiod},
+           given={Barrett\bibnamedelima W},
+           giveni={B\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {INFORMS}%
+      }
+      \strng{namehash}{a3fc0f30e58922396867b407029fadc1}
+      \strng{fullhash}{a3fc0f30e58922396867b407029fadc1}
+      \strng{bibnamehash}{a3fc0f30e58922396867b407029fadc1}
+      \strng{authorbibnamehash}{a3fc0f30e58922396867b407029fadc1}
+      \strng{authornamehash}{a3fc0f30e58922396867b407029fadc1}
+      \strng{authorfullhash}{a3fc0f30e58922396867b407029fadc1}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Transportation Science}
+      \field{number}{3}
+      \field{title}{Dynamic orienteering on a network of queues}
+      \field{volume}{52}
+      \field{year}{2018}
+      \field{pages}{691\bibrangedash 706}
+      \range{pages}{16}
+    \endentry
+    \entry{zou2018look}{article}{}
+      \name{author}{2}{}{%
+        {{un=0,uniquepart=base,hash=b6770a40a9ff8665ab0cd2e6541f3240}{%
+           family={Zou},
+           familyi={Z\bibinitperiod},
+           given={Han},
+           giveni={H\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=be54f1ed99545580886322f1d22bd2dd}{%
+           family={Dessouky},
+           familyi={D\bibinitperiod},
+           given={Maged\bibnamedelima M},
+           giveni={M\bibinitperiod\bibinitdelim M\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {Springer}%
+      }
+      \strng{namehash}{d5004e1e5e48b4979dd495b4d9bd119b}
+      \strng{fullhash}{d5004e1e5e48b4979dd495b4d9bd119b}
+      \strng{bibnamehash}{d5004e1e5e48b4979dd495b4d9bd119b}
+      \strng{authorbibnamehash}{d5004e1e5e48b4979dd495b4d9bd119b}
+      \strng{authornamehash}{d5004e1e5e48b4979dd495b4d9bd119b}
+      \strng{authorfullhash}{d5004e1e5e48b4979dd495b4d9bd119b}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal on Vehicle Routing Algorithms}
+      \field{number}{2}
+      \field{title}{A look-ahead partial routing framework for the stochastic and dynamic vehicle routing problem}
+      \field{volume}{1}
+      \field{year}{2018}
+      \field{pages}{73\bibrangedash 88}
+      \range{pages}{16}
     \endentry
   \enddatalist
 \endrefsection

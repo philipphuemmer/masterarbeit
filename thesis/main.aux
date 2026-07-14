@@ -25,121 +25,763 @@
 \@writefile{toc}{\contentsline {section}{List of Tables}{III}{Doc-Start}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {1}Einleitung}{1}{section.1}\protected@file@percent }
 \newlabel{einleitung}{{1}{1}{Einleitung}{section.1}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {2}Problem Definition}{2}{section.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Operational Setting}{2}{subsection.2.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Spatial distribution of the 397 charging stations across the Würzburg urban service area, with the central depot marked.\relax }}{3}{figure.caption.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Problem Definition}{3}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Operational Setting}{3}{subsection.2.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Spatial distribution of the 397 charging stations across the Würzburg urban service area, with the central depot marked.\relax }}{4}{figure.caption.1}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{fig:stations_map}{{1}{3}{Spatial distribution of the 397 charging stations across the Würzburg urban service area, with the central depot marked.\relax }{figure.caption.1}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Environment and Disturbances}{3}{subsection.2.2}\protected@file@percent }
+\newlabel{fig:stations_map}{{1}{4}{Spatial distribution of the 397 charging stations across the Würzburg urban service area, with the central depot marked.\relax }{figure.caption.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Environment and Disturbances}{4}{subsection.2.2}\protected@file@percent }
 \abx@aux@cite{0}{jobvector2024}
 \abx@aux@segm{0}{0}{jobvector2024}
 \abx@aux@cite{0}{bmf2024}
 \abx@aux@segm{0}{0}{bmf2024}
 \abx@aux@cite{0}{bdew2024}
 \abx@aux@segm{0}{0}{bdew2024}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Assumptions and Cost Model}{4}{subsection.2.3}\protected@file@percent }
-\abx@aux@page{1}{5}
-\abx@aux@page{2}{5}
-\abx@aux@page{3}{5}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Motivating Example}{5}{subsection.2.4}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Two initial plan strategies for the same set of stations. Left: routing-efficiency approach visits A second despite low urgency. Right: maintenance-urgency approach defers A to last, ensuring critical stations are covered first.\relax }}{5}{figure.caption.2}\protected@file@percent }
-\newlabel{fig:initialplan}{{2}{5}{Two initial plan strategies for the same set of stations. Left: routing-efficiency approach visits A second despite low urgency. Right: maintenance-urgency approach defers A to last, ensuring critical stations are covered first.\relax }{figure.caption.2}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Two replanning decisions under the same incoming disruption E. Left: dropping B (largest detour) leaves the most critical station unserviced. Right: dropping A (recently serviced, low power) allows B to be serviced and averts failure risk.\relax }}{7}{figure.caption.3}\protected@file@percent }
-\newlabel{fig:replan}{{3}{7}{Two replanning decisions under the same incoming disruption E. Left: dropping B (largest detour) leaves the most critical station unserviced. Right: dropping A (recently serviced, low power) allows B to be serviced and averts failure risk.\relax }{figure.caption.3}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {3}Literature Review}{7}{section.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Maintenance Optimization in Infrastructure Systems}{7}{subsection.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Concept and Objectives of Maintenance Optimization}{8}{subsubsection.3.1.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}Maintenance Strategies: Preventive, Reactive, Condition-Based}{8}{subsubsection.3.1.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}Uncertainty, Availability, and Cost as Central Decision Variables}{9}{subsubsection.3.1.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.4}Transition to Mobile Maintenance and Service Interventions}{9}{subsubsection.3.1.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.5}EV Charging Infrastructure as a Maintenance Context}{10}{subsubsection.3.1.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Stochastic Vehicle Routing Problems and Dynamic Service Planning}{11}{subsection.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Basic Concepts of VRP and DVRP}{11}{subsubsection.3.2.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.2}Uncertainties in Routing: Requests, Service Times, Travel Times, Capacities}{12}{subsubsection.3.2.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.3}Modeling Approaches: MDP, Multi-Stage Stochastic Programming, Look-ahead}{12}{subsubsection.3.2.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.4}Solution Families: Exact Methods, Heuristics, Metaheuristics}{13}{subsubsection.3.2.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.5}Route-based MDPs and Their Relevance for This Thesis}{13}{subsubsection.3.2.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.6}Limits of Classical SDVRP Models for Maintenance Tasks}{14}{subsubsection.3.2.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.7}Spatial Clustering as a Pre-Structuring Mechanism}{15}{subsubsection.3.2.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Approximate Dynamic Programming for Dynamic Routing Problems}{15}{subsection.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}Motivation: Why Exact Dynamic Programming Does Not Scale}{15}{subsubsection.3.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Basic Idea of ADP: States, Actions, Value Functions}{16}{subsubsection.3.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.3}Important ADP Approaches: Rollout, VFA, and Offline-Online ADP}{16}{subsubsection.3.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.4}Distinction from Reinforcement Learning}{17}{subsubsection.3.3.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.5}Relevance of ADP for Dynamic Maintenance Decisions}{18}{subsubsection.3.3.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4}Theoretical Framework}{18}{section.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Markov Decision Process}{19}{subsection.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.1}Sets, indices, and temporal structure}{19}{subsubsection.4.1.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.2}State representation}{20}{subsubsection.4.1.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.3}Action space}{21}{subsubsection.4.1.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.4}Transition dynamics}{21}{subsubsection.4.1.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.5}Reward function}{22}{subsubsection.4.1.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}State-Action-Value Structure}{23}{subsection.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}ADP Foundations and the Offline-Online Approach}{24}{subsection.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5}Solution Methodology}{25}{section.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Shared Zone Selection Logic}{26}{subsection.5.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Myopic}{27}{subsection.5.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Myopic+}{28}{subsection.5.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Cost Function Approximation}{29}{subsection.5.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Dynamic Balance}{30}{subsection.5.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}Value Function Approximation}{31}{subsection.5.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {6}Experimental Setup}{33}{section.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Simulation Design}{33}{subsection.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Assumptions and Cost Model}{5}{subsection.2.3}\protected@file@percent }
+\abx@aux@page{1}{6}
+\abx@aux@page{2}{6}
+\abx@aux@page{3}{6}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Motivating Example}{6}{subsection.2.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Two initial plan strategies for the same set of stations. Left: routing-efficiency approach visits A second despite low urgency. Right: maintenance-urgency approach defers A to last, ensuring critical stations are covered first.\relax }}{6}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:initialplan}{{2}{6}{Two initial plan strategies for the same set of stations. Left: routing-efficiency approach visits A second despite low urgency. Right: maintenance-urgency approach defers A to last, ensuring critical stations are covered first.\relax }{figure.caption.2}{}}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{dekker1996applications}
+\abx@aux@segm{0}{0}{dekker1996applications}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Two replanning decisions under the same incoming disruption E. Left: dropping B (largest detour) leaves the most critical station unserviced. Right: dropping A (recently serviced, low power) allows B to be serviced and averts failure risk.\relax }}{8}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:replan}{{3}{8}{Two replanning decisions under the same incoming disruption E. Left: dropping B (largest detour) leaves the most critical station unserviced. Right: dropping A (recently serviced, low power) allows B to be serviced and averts failure risk.\relax }{figure.caption.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Literature Review}{8}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Maintenance Optimization in Infrastructure Systems}{8}{subsection.3.1}\protected@file@percent }
+\abx@aux@page{4}{8}
+\abx@aux@page{5}{8}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{dekker1996applications}
+\abx@aux@segm{0}{0}{dekker1996applications}
+\abx@aux@cite{0}{dekker1996applications}
+\abx@aux@segm{0}{0}{dekker1996applications}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{alaswad2017review}
+\abx@aux@segm{0}{0}{alaswad2017review}
+\abx@aux@cite{0}{dekker1996applications}
+\abx@aux@segm{0}{0}{dekker1996applications}
+\abx@aux@cite{0}{molkeda2023corrective}
+\abx@aux@segm{0}{0}{molkeda2023corrective}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{molkeda2023corrective}
+\abx@aux@segm{0}{0}{molkeda2023corrective}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{molkeda2023corrective}
+\abx@aux@segm{0}{0}{molkeda2023corrective}
+\abx@aux@cite{0}{alaswad2017review}
+\abx@aux@segm{0}{0}{alaswad2017review}
+\abx@aux@cite{0}{dekker1996applications}
+\abx@aux@segm{0}{0}{dekker1996applications}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{alaswad2017review}
+\abx@aux@segm{0}{0}{alaswad2017review}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Concept and Objectives of Maintenance Optimization}{9}{subsubsection.3.1.1}\protected@file@percent }
+\abx@aux@page{6}{9}
+\abx@aux@page{7}{9}
+\abx@aux@page{8}{9}
+\abx@aux@page{9}{9}
+\abx@aux@page{10}{9}
+\abx@aux@page{11}{9}
+\abx@aux@page{12}{9}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}Maintenance Strategies: Preventive, Reactive, Condition-Based}{9}{subsubsection.3.1.2}\protected@file@percent }
+\abx@aux@page{13}{9}
+\abx@aux@page{14}{9}
+\abx@aux@page{15}{9}
+\abx@aux@page{16}{9}
+\abx@aux@page{17}{9}
+\abx@aux@page{18}{9}
+\abx@aux@page{19}{9}
+\abx@aux@page{20}{9}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{dekker1996applications}
+\abx@aux@segm{0}{0}{dekker1996applications}
+\abx@aux@cite{0}{alaswad2017review}
+\abx@aux@segm{0}{0}{alaswad2017review}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{dekker1996applications}
+\abx@aux@segm{0}{0}{dekker1996applications}
+\abx@aux@cite{0}{alaswad2017review}
+\abx@aux@segm{0}{0}{alaswad2017review}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{alaswad2017review}
+\abx@aux@segm{0}{0}{alaswad2017review}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{alaswad2017review}
+\abx@aux@segm{0}{0}{alaswad2017review}
+\abx@aux@page{21}{10}
+\abx@aux@page{22}{10}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}Uncertainty, Availability, and Cost as Central Decision Variables}{10}{subsubsection.3.1.3}\protected@file@percent }
+\abx@aux@page{23}{10}
+\abx@aux@page{24}{10}
+\abx@aux@page{25}{10}
+\abx@aux@page{26}{10}
+\abx@aux@page{27}{10}
+\abx@aux@page{28}{10}
+\abx@aux@page{29}{10}
+\abx@aux@page{30}{10}
+\abx@aux@page{31}{10}
+\abx@aux@page{32}{10}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.4}Transition to Mobile Maintenance and Service Interventions}{10}{subsubsection.3.1.4}\protected@file@percent }
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{alaswad2017review}
+\abx@aux@segm{0}{0}{alaswad2017review}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{dekker1996applications}
+\abx@aux@segm{0}{0}{dekker1996applications}
+\abx@aux@cite{0}{dejonge2020review}
+\abx@aux@segm{0}{0}{dejonge2020review}
+\abx@aux@cite{0}{zhang2024routing}
+\abx@aux@segm{0}{0}{zhang2024routing}
+\abx@aux@cite{0}{zhang2024routing}
+\abx@aux@segm{0}{0}{zhang2024routing}
+\abx@aux@cite{0}{zhang2024routing}
+\abx@aux@segm{0}{0}{zhang2024routing}
+\abx@aux@cite{0}{zhang2024routing}
+\abx@aux@segm{0}{0}{zhang2024routing}
+\abx@aux@cite{0}{zhang2024routing}
+\abx@aux@segm{0}{0}{zhang2024routing}
+\abx@aux@page{33}{11}
+\abx@aux@page{34}{11}
+\abx@aux@page{35}{11}
+\abx@aux@page{36}{11}
+\abx@aux@page{37}{11}
+\abx@aux@page{38}{11}
+\abx@aux@page{39}{11}
+\abx@aux@page{40}{11}
+\abx@aux@page{41}{11}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.5}EV Charging Infrastructure as a Maintenance Context}{11}{subsubsection.3.1.5}\protected@file@percent }
+\abx@aux@page{42}{11}
+\abx@aux@page{43}{11}
+\abx@aux@page{44}{11}
+\abx@aux@page{45}{11}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{hildebrandt2023opportunities}
+\abx@aux@segm{0}{0}{hildebrandt2023opportunities}
+\abx@aux@cite{0}{pillac2013review}
+\abx@aux@segm{0}{0}{pillac2013review}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{abbatecola2016review}
+\abx@aux@segm{0}{0}{abbatecola2016review}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{akhmetbek2023stochastic}
+\abx@aux@segm{0}{0}{akhmetbek2023stochastic}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@page{46}{12}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Stochastic Vehicle Routing Problems and Dynamic Service Planning}{12}{subsection.3.2}\protected@file@percent }
+\abx@aux@page{47}{12}
+\abx@aux@page{48}{12}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Basic Concepts of VRP and DVRP}{12}{subsubsection.3.2.1}\protected@file@percent }
+\abx@aux@page{49}{12}
+\abx@aux@page{50}{12}
+\abx@aux@page{51}{12}
+\abx@aux@page{52}{12}
+\abx@aux@page{53}{12}
+\abx@aux@page{54}{12}
+\abx@aux@page{55}{12}
+\abx@aux@cite{0}{zou2018look}
+\abx@aux@segm{0}{0}{zou2018look}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{akhmetbek2023stochastic}
+\abx@aux@segm{0}{0}{akhmetbek2023stochastic}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{basso2022dynamic}
+\abx@aux@segm{0}{0}{basso2022dynamic}
+\abx@aux@cite{0}{akhmetbek2023stochastic}
+\abx@aux@segm{0}{0}{akhmetbek2023stochastic}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{ulmer2018budgeting}
+\abx@aux@segm{0}{0}{ulmer2018budgeting}
+\abx@aux@cite{0}{zou2018look}
+\abx@aux@segm{0}{0}{zou2018look}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{zou2018look}
+\abx@aux@segm{0}{0}{zou2018look}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@page{56}{13}
+\abx@aux@page{57}{13}
+\abx@aux@page{58}{13}
+\abx@aux@page{59}{13}
+\abx@aux@page{60}{13}
+\abx@aux@page{61}{13}
+\abx@aux@page{62}{13}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.2}Uncertainties in Routing: Requests, Service Times, Travel Times, Capacities}{13}{subsubsection.3.2.2}\protected@file@percent }
+\abx@aux@page{63}{13}
+\abx@aux@page{64}{13}
+\abx@aux@page{65}{13}
+\abx@aux@page{66}{13}
+\abx@aux@page{67}{13}
+\abx@aux@page{68}{13}
+\abx@aux@page{69}{13}
+\abx@aux@page{70}{13}
+\abx@aux@page{71}{13}
+\abx@aux@page{72}{13}
+\abx@aux@page{73}{13}
+\abx@aux@page{74}{13}
+\abx@aux@page{75}{13}
+\abx@aux@page{76}{13}
+\abx@aux@page{77}{13}
+\abx@aux@page{78}{13}
+\abx@aux@page{79}{13}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.3}Modeling Approaches: MDP, Multi-Stage Stochastic Programming, Look-ahead}{13}{subsubsection.3.2.3}\protected@file@percent }
+\abx@aux@page{80}{13}
+\abx@aux@page{81}{13}
+\abx@aux@page{82}{13}
+\abx@aux@page{83}{13}
+\abx@aux@page{84}{13}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{pillac2013review}
+\abx@aux@segm{0}{0}{pillac2013review}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{akhmetbek2023stochastic}
+\abx@aux@segm{0}{0}{akhmetbek2023stochastic}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{pillac2013review}
+\abx@aux@segm{0}{0}{pillac2013review}
+\abx@aux@cite{0}{sarasola2016variable}
+\abx@aux@segm{0}{0}{sarasola2016variable}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@page{85}{14}
+\abx@aux@page{86}{14}
+\abx@aux@page{87}{14}
+\abx@aux@page{88}{14}
+\abx@aux@page{89}{14}
+\abx@aux@page{90}{14}
+\abx@aux@page{91}{14}
+\abx@aux@page{92}{14}
+\abx@aux@page{93}{14}
+\abx@aux@page{94}{14}
+\abx@aux@page{95}{14}
+\abx@aux@page{96}{14}
+\abx@aux@page{97}{14}
+\abx@aux@page{98}{14}
+\abx@aux@page{99}{14}
+\abx@aux@page{100}{14}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.4}Solution Families: Exact Methods, Heuristics, Metaheuristics}{14}{subsubsection.3.2.4}\protected@file@percent }
+\abx@aux@page{101}{14}
+\abx@aux@page{102}{14}
+\abx@aux@page{103}{14}
+\abx@aux@page{104}{14}
+\abx@aux@page{105}{14}
+\abx@aux@page{106}{14}
+\abx@aux@page{107}{14}
+\abx@aux@page{108}{14}
+\abx@aux@page{109}{14}
+\abx@aux@page{110}{14}
+\abx@aux@page{111}{14}
+\abx@aux@page{112}{14}
+\abx@aux@cite{0}{ulmer2020modeling}
+\abx@aux@segm{0}{0}{ulmer2020modeling}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{abbatecola2016review}
+\abx@aux@segm{0}{0}{abbatecola2016review}
+\abx@aux@cite{0}{akhmetbek2023stochastic}
+\abx@aux@segm{0}{0}{akhmetbek2023stochastic}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{abbatecola2016review}
+\abx@aux@segm{0}{0}{abbatecola2016review}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{akhmetbek2023stochastic}
+\abx@aux@segm{0}{0}{akhmetbek2023stochastic}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{abbatecola2016review}
+\abx@aux@segm{0}{0}{abbatecola2016review}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{akhmetbek2023stochastic}
+\abx@aux@segm{0}{0}{akhmetbek2023stochastic}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.5}Route-based MDPs and Their Relevance for This Thesis}{15}{subsubsection.3.2.5}\protected@file@percent }
+\abx@aux@page{113}{15}
+\abx@aux@page{114}{15}
+\abx@aux@page{115}{15}
+\abx@aux@page{116}{15}
+\abx@aux@page{117}{15}
+\abx@aux@page{118}{15}
+\abx@aux@page{119}{15}
+\abx@aux@page{120}{15}
+\abx@aux@page{121}{15}
+\abx@aux@page{122}{15}
+\abx@aux@page{123}{15}
+\abx@aux@page{124}{15}
+\abx@aux@page{125}{15}
+\abx@aux@page{126}{15}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.6}Limits of Classical SDVRP Models for Maintenance Tasks}{15}{subsubsection.3.2.6}\protected@file@percent }
+\abx@aux@page{127}{15}
+\abx@aux@page{128}{15}
+\abx@aux@page{129}{15}
+\abx@aux@page{130}{15}
+\abx@aux@page{131}{15}
+\abx@aux@page{132}{15}
+\abx@aux@page{133}{15}
+\abx@aux@page{134}{15}
+\abx@aux@page{135}{15}
+\abx@aux@page{136}{15}
+\abx@aux@page{137}{15}
+\abx@aux@cite{0}{zhang2024routing}
+\abx@aux@segm{0}{0}{zhang2024routing}
+\abx@aux@page{138}{16}
+\abx@aux@page{139}{16}
+\abx@aux@page{140}{16}
+\abx@aux@page{141}{16}
+\abx@aux@page{142}{16}
+\abx@aux@page{143}{16}
+\abx@aux@page{144}{16}
+\abx@aux@page{145}{16}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.7}Spatial Clustering as a Pre-Structuring Mechanism}{16}{subsubsection.3.2.7}\protected@file@percent }
+\abx@aux@page{146}{16}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Approximate Dynamic Programming for Dynamic Routing Problems}{16}{subsection.3.3}\protected@file@percent }
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{ritzinger2016survey}
+\abx@aux@segm{0}{0}{ritzinger2016survey}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{pillac2013review}
+\abx@aux@segm{0}{0}{pillac2013review}
+\abx@aux@cite{0}{ulmer2018budgeting}
+\abx@aux@segm{0}{0}{ulmer2018budgeting}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{hildebrandt2023opportunities}
+\abx@aux@segm{0}{0}{hildebrandt2023opportunities}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}Motivation: Why Exact Dynamic Programming Does Not Scale}{17}{subsubsection.3.3.1}\protected@file@percent }
+\abx@aux@page{147}{17}
+\abx@aux@page{148}{17}
+\abx@aux@page{149}{17}
+\abx@aux@page{150}{17}
+\abx@aux@page{151}{17}
+\abx@aux@page{152}{17}
+\abx@aux@page{153}{17}
+\abx@aux@page{154}{17}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Basic Idea of ADP: States, Actions, Value Functions}{17}{subsubsection.3.3.2}\protected@file@percent }
+\abx@aux@page{155}{17}
+\abx@aux@page{156}{17}
+\abx@aux@page{157}{17}
+\abx@aux@page{158}{17}
+\abx@aux@page{159}{17}
+\abx@aux@page{160}{17}
+\abx@aux@page{161}{17}
+\abx@aux@page{162}{17}
+\abx@aux@page{163}{17}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{zou2018look}
+\abx@aux@segm{0}{0}{zou2018look}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{zhang2018dynamic}
+\abx@aux@segm{0}{0}{zhang2018dynamic}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{hildebrandt2023opportunities}
+\abx@aux@segm{0}{0}{hildebrandt2023opportunities}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{hildebrandt2023opportunities}
+\abx@aux@segm{0}{0}{hildebrandt2023opportunities}
+\abx@aux@cite{0}{joe2020deep}
+\abx@aux@segm{0}{0}{joe2020deep}
+\abx@aux@page{164}{18}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.3}Important ADP Approaches: Rollout, VFA, and Offline-Online ADP}{18}{subsubsection.3.3.3}\protected@file@percent }
+\abx@aux@page{165}{18}
+\abx@aux@page{166}{18}
+\abx@aux@page{167}{18}
+\abx@aux@page{168}{18}
+\abx@aux@page{169}{18}
+\abx@aux@page{170}{18}
+\abx@aux@page{171}{18}
+\abx@aux@page{172}{18}
+\abx@aux@page{173}{18}
+\abx@aux@page{174}{18}
+\abx@aux@page{175}{18}
+\abx@aux@page{176}{18}
+\abx@aux@page{177}{18}
+\abx@aux@page{178}{18}
+\abx@aux@page{179}{18}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2018budgeting}
+\abx@aux@segm{0}{0}{ulmer2018budgeting}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{zou2018look}
+\abx@aux@segm{0}{0}{zou2018look}
+\abx@aux@cite{0}{zhang2018dynamic}
+\abx@aux@segm{0}{0}{zhang2018dynamic}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2020horizontal}
+\abx@aux@segm{0}{0}{ulmer2020horizontal}
+\abx@aux@cite{0}{ulmer2018budgeting}
+\abx@aux@segm{0}{0}{ulmer2018budgeting}
+\abx@aux@cite{0}{mardevsic2023review}
+\abx@aux@segm{0}{0}{mardevsic2023review}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2020modeling}
+\abx@aux@segm{0}{0}{ulmer2020modeling}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.4}Distinction from Reinforcement Learning}{19}{subsubsection.3.3.4}\protected@file@percent }
+\abx@aux@page{180}{19}
+\abx@aux@page{181}{19}
+\abx@aux@page{182}{19}
+\abx@aux@page{183}{19}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.5}Relevance of ADP for Dynamic Maintenance Decisions}{19}{subsubsection.3.3.5}\protected@file@percent }
+\abx@aux@page{184}{19}
+\abx@aux@page{185}{19}
+\abx@aux@page{186}{19}
+\abx@aux@page{187}{19}
+\abx@aux@page{188}{19}
+\abx@aux@page{189}{19}
+\abx@aux@page{190}{19}
+\abx@aux@page{191}{19}
+\abx@aux@page{192}{19}
+\abx@aux@page{193}{19}
+\abx@aux@page{194}{19}
+\abx@aux@page{195}{19}
+\abx@aux@page{196}{19}
+\abx@aux@page{197}{19}
+\abx@aux@page{198}{19}
+\abx@aux@page{199}{19}
+\abx@aux@page{200}{19}
+\abx@aux@page{201}{19}
+\abx@aux@page{202}{19}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Theoretical Framework}{20}{section.4}\protected@file@percent }
+\abx@aux@page{203}{20}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Markov Decision Process}{20}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.1}Sets, indices, and temporal structure}{20}{subsubsection.4.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.2}State representation}{21}{subsubsection.4.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.3}Action space}{22}{subsubsection.4.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.4}Transition dynamics}{23}{subsubsection.4.1.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.5}Reward function}{24}{subsubsection.4.1.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}State-Action-Value Structure}{25}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}ADP Foundations and the Offline-Online Approach}{26}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Solution Methodology}{27}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Shared Zone Selection Logic}{27}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Myopic}{28}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Myopic+}{29}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Cost Function Approximation}{30}{subsection.5.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Dynamic Balance}{31}{subsection.5.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}Value Function Approximation}{33}{subsection.5.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Experimental Setup}{34}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Simulation Design}{34}{subsection.6.1}\protected@file@percent }
 \abx@aux@cite{0}{wuerzburg_opendata}
 \abx@aux@segm{0}{0}{wuerzburg_opendata}
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Routing and Travel Times}{34}{subsection.6.2}\protected@file@percent }
-\newlabel{subsec:routing_travel}{{6.2}{34}{Routing and Travel Times}{subsection.6.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Data Basis}{34}{subsection.6.3}\protected@file@percent }
-\abx@aux@page{4}{34}
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Three-phase benchmark for the number of zones $k$. Top: Silhouette score. Middle: mean CFA total cost. Bottom: mean DB-Simple total cost. Each point represents the average over 100~simulation runs; colours indicate the benchmark phase.\relax }}{35}{figure.caption.4}\protected@file@percent }
-\newlabel{fig:benchmark_k}{{4}{35}{Three-phase benchmark for the number of zones $k$. Top: Silhouette score. Middle: mean CFA total cost. Bottom: mean DB-Simple total cost. Each point represents the average over 100~simulation runs; colours indicate the benchmark phase.\relax }{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Routing and Travel Times}{35}{subsection.6.2}\protected@file@percent }
+\newlabel{subsec:routing_travel}{{6.2}{35}{Routing and Travel Times}{subsection.6.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Data Basis}{35}{subsection.6.3}\protected@file@percent }
+\abx@aux@page{204}{35}
 \@writefile{toc}{\contentsline {section}{\numberline {7}Results and Analysis}{36}{section.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Policy Mechanism Comparison}{36}{subsection.7.1}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }}{37}{table.caption.5}\protected@file@percent }
-\newlabel{tab:policy_centrality}{{1}{37}{Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }{table.caption.5}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Impact of Zone Selection on Cost}{38}{subsection.7.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta $ is computed relative to centrality for each policy.\relax }}{38}{table.caption.6}\protected@file@percent }
-\newlabel{tab:zone_selection}{{2}{38}{Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta $ is computed relative to centrality for each policy.\relax }{table.caption.6}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Mean service day per zone for CFA under centrality-based (left) and value-based (right) zone selection, averaged over 500 runs. Green = serviced early, red = serviced late. Under centrality, the service order is strictly concentric: zones near the depot are always visited first, outer zones last. Value-based selection breaks this pattern -- economically critical zones are pulled forward to early service days regardless of geographic distance from the depot.\relax }}{39}{figure.caption.7}\protected@file@percent }
-\newlabel{fig:zone_maps}{{5}{39}{Mean service day per zone for CFA under centrality-based (left) and value-based (right) zone selection, averaged over 500 runs. Green = serviced early, red = serviced late. Under centrality, the service order is strictly concentric: zones near the depot are always visited first, outer zones last. Value-based selection breaks this pattern -- economically critical zones are pulled forward to early service days regardless of geographic distance from the depot.\relax }{figure.caption.7}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Total cost distributions for all four policies under centrality (light) and value-based (dark) zone selection (500 runs each). Boxes show interquartile range; whiskers extend to 1.5$\times $IQR.\relax }}{40}{figure.caption.8}\protected@file@percent }
-\newlabel{fig:zone_boxplot}{{6}{40}{Total cost distributions for all four policies under centrality (light) and value-based (dark) zone selection (500 runs each). Boxes show interquartile range; whiskers extend to 1.5$\times $IQR.\relax }{figure.caption.8}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Cumulative costs (top) and daily disruption counts (bottom) for Myopic and CFA under value-based zone selection, seed~497 (single run). The dashed vertical line marks day~9, where the gap widens most sharply. Myopic total: €\,52{,}491; CFA total: €\,37{,}191.\relax }}{41}{figure.caption.9}\protected@file@percent }
-\newlabel{fig:seed497}{{7}{41}{Cumulative costs (top) and daily disruption counts (bottom) for Myopic and CFA under value-based zone selection, seed~497 (single run). The dashed vertical line marks day~9, where the gap widens most sharply. Myopic total: €\,52{,}491; CFA total: €\,37{,}191.\relax }{figure.caption.9}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Three-phase benchmark for the number of zones $k$. Top: Silhouette score. Middle: mean CFA total cost. Bottom: mean DB-Simple total cost. Each point represents the average over 100~simulation runs; colours indicate the benchmark phase.\relax }}{37}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:benchmark_k}{{4}{37}{Three-phase benchmark for the number of zones $k$. Top: Silhouette score. Middle: mean CFA total cost. Bottom: mean DB-Simple total cost. Each point represents the average over 100~simulation runs; colours indicate the benchmark phase.\relax }{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Policy Mechanism Comparison}{37}{subsection.7.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }}{38}{table.caption.5}\protected@file@percent }
+\newlabel{tab:policy_centrality}{{1}{38}{Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }{table.caption.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Impact of Zone Selection on Cost}{39}{subsection.7.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta $ is computed relative to centrality for each policy.\relax }}{39}{table.caption.6}\protected@file@percent }
+\newlabel{tab:zone_selection}{{2}{39}{Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta $ is computed relative to centrality for each policy.\relax }{table.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Mean service day per zone for CFA under centrality-based (left) and value-based (right) zone selection, averaged over 500 runs. Green = serviced early, red = serviced late. Under centrality, the service order is strictly concentric: zones near the depot are always visited first, outer zones last. Value-based selection breaks this pattern -- economically critical zones are pulled forward to early service days regardless of geographic distance from the depot.\relax }}{40}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:zone_maps}{{5}{40}{Mean service day per zone for CFA under centrality-based (left) and value-based (right) zone selection, averaged over 500 runs. Green = serviced early, red = serviced late. Under centrality, the service order is strictly concentric: zones near the depot are always visited first, outer zones last. Value-based selection breaks this pattern -- economically critical zones are pulled forward to early service days regardless of geographic distance from the depot.\relax }{figure.caption.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Total cost distributions for all four policies under centrality (light) and value-based (dark) zone selection (500 runs each). Boxes show interquartile range; whiskers extend to 1.5$\times $IQR.\relax }}{41}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:zone_boxplot}{{6}{41}{Total cost distributions for all four policies under centrality (light) and value-based (dark) zone selection (500 runs each). Boxes show interquartile range; whiskers extend to 1.5$\times $IQR.\relax }{figure.caption.8}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {7.3}VFA Rollout: Performance and Limitations}{42}{subsection.7.3}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx $48).\relax }}{42}{table.caption.10}\protected@file@percent }
-\newlabel{tab:rollout}{{3}{42}{Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx $48).\relax }{table.caption.10}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Distribution of paired cost differences (base minus rollout) per run for each policy, shown as histograms with 500\,€ bins. Positive values indicate the rollout lowered cost; negative values indicate the rollout increased cost. The dashed vertical line marks zero. The x-axis is clipped to $\pm $4{,}000\,€; a small number of extreme values (up to $\pm $6{,}260\,€) fall outside the plotted range. All variants use value-based zone selection (500 runs each). The annotation shows the share of runs in which the rollout produced a strictly lower cost.\relax }}{43}{figure.caption.11}\protected@file@percent }
-\newlabel{fig:rollout_delta}{{8}{43}{Distribution of paired cost differences (base minus rollout) per run for each policy, shown as histograms with 500\,€ bins. Positive values indicate the rollout lowered cost; negative values indicate the rollout increased cost. The dashed vertical line marks zero. The x-axis is clipped to $\pm $4{,}000\,€; a small number of extreme values (up to $\pm $6{,}260\,€) fall outside the plotted range. All variants use value-based zone selection (500 runs each). The annotation shows the share of runs in which the rollout produced a strictly lower cost.\relax }{figure.caption.11}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Distribution of replan overrides per run for all four rollout variants (500 runs each). Dashed vertical line shows the mean.\relax }}{44}{figure.caption.12}\protected@file@percent }
-\newlabel{fig:rollout_overrides}{{9}{44}{Distribution of replan overrides per run for all four rollout variants (500 runs each). Dashed vertical line shows the mean.\relax }{figure.caption.12}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.4}Statistical Validation}{45}{subsection.7.4}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance; $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }}{46}{table.caption.13}\protected@file@percent }
-\newlabel{tab:paired_tests}{{4}{46}{Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance; $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }{table.caption.13}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Cohen's $d$ for all key comparisons. Dashed vertical lines mark conventional thresholds (small: 0.20, medium: 0.50, large: 0.80). Zone-selection effects are the only comparisons with a large effect size; all other comparisons fall below the medium threshold ($d = 0.50$).\relax }}{48}{figure.caption.14}\protected@file@percent }
-\newlabel{fig:cohens_d}{{10}{48}{Cohen's $d$ for all key comparisons. Dashed vertical lines mark conventional thresholds (small: 0.20, medium: 0.50, large: 0.80). Zone-selection effects are the only comparisons with a large effect size; all other comparisons fall below the medium threshold ($d = 0.50$).\relax }{figure.caption.14}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {8}Discussion}{48}{section.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Interpretation of Results}{48}{subsection.8.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {8.2}Limitations}{49}{subsection.8.2}\protected@file@percent }
-\newlabel{subsec:limitations}{{8.2}{49}{Limitations}{subsection.8.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Practical Relevance and Transferability}{50}{subsection.8.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {9}Outlook and Future Work}{51}{section.9}\protected@file@percent }
-\abx@aux@page{5}{52}
-\abx@aux@page{6}{52}
-\abx@aux@page{7}{52}
-\abx@aux@page{8}{52}
-\@writefile{toc}{\contentsline {section}{Bibliography}{52}{section.9}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Cumulative costs (top) and daily disruption counts (bottom) for Myopic and CFA under value-based zone selection, seed~497 (single run). The dashed vertical line marks day~9, where the gap widens most sharply. Myopic total: €\,52{,}491; CFA total: €\,37{,}191.\relax }}{43}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:seed497}{{7}{43}{Cumulative costs (top) and daily disruption counts (bottom) for Myopic and CFA under value-based zone selection, seed~497 (single run). The dashed vertical line marks day~9, where the gap widens most sharply. Myopic total: €\,52{,}491; CFA total: €\,37{,}191.\relax }{figure.caption.9}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx $48).\relax }}{44}{table.caption.10}\protected@file@percent }
+\newlabel{tab:rollout}{{3}{44}{Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx $48).\relax }{table.caption.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Distribution of paired cost differences (base minus rollout) per run for each policy, shown as histograms with 500\,€ bins. Positive values indicate the rollout lowered cost; negative values indicate the rollout increased cost. The dashed vertical line marks zero. The x-axis is clipped to $\pm $4{,}000\,€; a small number of extreme values (up to $\pm $6{,}260\,€) fall outside the plotted range. All variants use value-based zone selection (500 runs each). The annotation shows the share of runs in which the rollout produced a strictly lower cost.\relax }}{45}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:rollout_delta}{{8}{45}{Distribution of paired cost differences (base minus rollout) per run for each policy, shown as histograms with 500\,€ bins. Positive values indicate the rollout lowered cost; negative values indicate the rollout increased cost. The dashed vertical line marks zero. The x-axis is clipped to $\pm $4{,}000\,€; a small number of extreme values (up to $\pm $6{,}260\,€) fall outside the plotted range. All variants use value-based zone selection (500 runs each). The annotation shows the share of runs in which the rollout produced a strictly lower cost.\relax }{figure.caption.11}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Distribution of replan overrides per run for all four rollout variants (500 runs each). Dashed vertical line shows the mean.\relax }}{45}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:rollout_overrides}{{9}{45}{Distribution of replan overrides per run for all four rollout variants (500 runs each). Dashed vertical line shows the mean.\relax }{figure.caption.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.4}Statistical Validation}{47}{subsection.7.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance; $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }}{48}{table.caption.13}\protected@file@percent }
+\newlabel{tab:paired_tests}{{4}{48}{Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance; $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }{table.caption.13}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Cohen's $d$ for all key comparisons. Dashed vertical lines mark conventional thresholds (small: 0.20, medium: 0.50, large: 0.80). Zone-selection effects are the only comparisons with a large effect size; all other comparisons fall below the medium threshold ($d = 0.50$).\relax }}{50}{figure.caption.14}\protected@file@percent }
+\newlabel{fig:cohens_d}{{10}{50}{Cohen's $d$ for all key comparisons. Dashed vertical lines mark conventional thresholds (small: 0.20, medium: 0.50, large: 0.80). Zone-selection effects are the only comparisons with a large effect size; all other comparisons fall below the medium threshold ($d = 0.50$).\relax }{figure.caption.14}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Discussion}{50}{section.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Interpretation of Results}{50}{subsection.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.2}Limitations}{51}{subsection.8.2}\protected@file@percent }
+\newlabel{subsec:limitations}{{8.2}{51}{Limitations}{subsection.8.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Practical Relevance and Transferability}{52}{subsection.8.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9}Outlook and Future Work}{53}{section.9}\protected@file@percent }
+\abx@aux@page{205}{54}
+\abx@aux@page{206}{54}
+\abx@aux@page{207}{54}
+\abx@aux@page{208}{54}
+\abx@aux@page{209}{54}
+\abx@aux@page{210}{54}
+\abx@aux@page{211}{54}
+\abx@aux@page{212}{54}
+\abx@aux@page{213}{54}
+\abx@aux@page{214}{54}
+\abx@aux@page{215}{54}
+\abx@aux@page{216}{54}
+\abx@aux@page{217}{54}
+\abx@aux@page{218}{54}
+\abx@aux@page{219}{54}
+\abx@aux@page{220}{55}
+\abx@aux@page{221}{55}
+\abx@aux@page{222}{55}
+\abx@aux@page{223}{55}
+\abx@aux@page{224}{55}
+\abx@aux@page{225}{55}
+\abx@aux@page{226}{55}
+\abx@aux@page{227}{55}
+\abx@aux@page{228}{55}
+\abx@aux@page{229}{55}
+\@writefile{toc}{\contentsline {section}{Bibliography}{55}{section.9}\protected@file@percent }
 \gdef \LT@i {\LT@entry 
     {4}{152.7058pt}\LT@entry 
     {4}{277.85976pt}}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Anhang A}{53}{appendix.A}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Summary of notation used in Chapter~4\relax }}{53}{table.5}\protected@file@percent }
-\newlabel{tab:notation_ch4}{{5}{53}{Summary of notation used in Chapter~4\relax }{table.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Anhang A}{56}{appendix.A}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Summary of notation used in Chapter~4\relax }}{56}{table.5}\protected@file@percent }
+\newlabel{tab:notation_ch4}{{5}{56}{Summary of notation used in Chapter~4\relax }{table.5}{}}
 \babel@aux{ngerman}{}
 \babel@aux{english}{}
-\abx@aux@read@bbl@mdfivesum{8C42F1E1A3D91E4E788399E2755B5761}
+\abx@aux@read@bbl@mdfivesum{55DEF25CA902E1F0BFF50D76BEA39806}
+\abx@aux@defaultrefcontext{0}{abbatecola2016review}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{akhmetbek2023stochastic}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{alaswad2017review}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{basso2022dynamic}{nyt/global//global/global}
 \abx@aux@defaultrefcontext{0}{bmf2024}{nyt/global//global/global}
 \abx@aux@defaultrefcontext{0}{bdew2024}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{dejonge2020review}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{dekker1996applications}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{hildebrandt2023opportunities}{nyt/global//global/global}
 \abx@aux@defaultrefcontext{0}{jobvector2024}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{joe2020deep}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{mardevsic2023review}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{molkeda2023corrective}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{pillac2013review}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{ritzinger2016survey}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{sarasola2016variable}{nyt/global//global/global}
 \abx@aux@defaultrefcontext{0}{wuerzburg_opendata}{nyt/global//global/global}
-\gdef \@abspage@last{61}
+\abx@aux@defaultrefcontext{0}{ulmer2017approximate}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{ulmer2020horizontal}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{ulmer2019offline}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{ulmer2020modeling}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{ulmer2018budgeting}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{zhang2024routing}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{zhang2018dynamic}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{zou2018look}{nyt/global//global/global}
+\gdef \@abspage@last{64}
