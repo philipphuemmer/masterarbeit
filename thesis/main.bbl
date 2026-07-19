@@ -127,6 +127,56 @@
       \field{pages}{54\bibrangedash 63}
       \range{pages}{10}
     \endentry
+    \entry{anuar2022multi}{article}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=df2d57d31df10a9a83c90eba0e473393}{%
+           family={Anuar},
+           familyi={A\bibinitperiod},
+           given={Wadi\bibnamedelima Khalid},
+           giveni={W\bibinitperiod\bibinitdelim K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=1ec490b295d41bc8a704a15ad241f9c5}{%
+           family={Lee},
+           familyi={L\bibinitperiod},
+           given={Lai\bibnamedelima Soon},
+           giveni={L\bibinitperiod\bibinitdelim S\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=f87003d7c9dc0fe61fc9b22662fb1bd1}{%
+           family={Seow},
+           familyi={S\bibinitperiod},
+           given={Hsin-Vonn},
+           giveni={H\bibinithyphendelim V\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=42b9e7deab98ccff439bdd11d2436b92}{%
+           family={Pickl},
+           familyi={P\bibinitperiod},
+           given={Stefan},
+           giveni={S\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {MDPI}%
+      }
+      \strng{namehash}{0551ecf5bf8016324729f27aae7ffafa}
+      \strng{fullhash}{257719c9b707218c758be8e66db85fed}
+      \strng{bibnamehash}{257719c9b707218c758be8e66db85fed}
+      \strng{authorbibnamehash}{257719c9b707218c758be8e66db85fed}
+      \strng{authornamehash}{0551ecf5bf8016324729f27aae7ffafa}
+      \strng{authorfullhash}{257719c9b707218c758be8e66db85fed}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Mathematics}
+      \field{number}{15}
+      \field{title}{A multi-depot dynamic vehicle routing problem with stochastic road capacity: An MDP model and dynamic policy for post-decision state rollout algorithm in reinforcement learning}
+      \field{volume}{10}
+      \field{year}{2022}
+      \field{pages}{2699}
+      \range{pages}{1}
+    \endentry
     \entry{basso2022dynamic}{article}{}
       \name{author}{4}{}{%
         {{un=0,uniquepart=base,hash=e5123230b77174eb647dddd339ef4440}{%
@@ -899,6 +949,43 @@
       \field{year}{2018}
       \field{pages}{20\bibrangedash 37}
       \range{pages}{18}
+    \endentry
+    \entry{yenigun2025smart}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=b00c062f5e814023b2ed4220f4b0af87}{%
+           family={Yenigun},
+           familyi={Y\bibinitperiod},
+           given={Onur},
+           giveni={O\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=e02a82ece10498baf7f0c7a06976c955}{%
+           family={Baydogmus},
+           familyi={B\bibinitperiod},
+           given={Gozde\bibnamedelima Karatas},
+           giveni={G\bibinitperiod\bibinitdelim K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=b6ceec547b9ea6837bc4079c92802ad3}{%
+           family={Yildiz},
+           familyi={Y\bibinitperiod},
+           given={Kazim},
+           giveni={K\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{a5f0dc972d533e4689ed644daa547fda}
+      \strng{fullhash}{a5f0dc972d533e4689ed644daa547fda}
+      \strng{bibnamehash}{a5f0dc972d533e4689ed644daa547fda}
+      \strng{authorbibnamehash}{a5f0dc972d533e4689ed644daa547fda}
+      \strng{authornamehash}{a5f0dc972d533e4689ed644daa547fda}
+      \strng{authorfullhash}{a5f0dc972d533e4689ed644daa547fda}
+      \field{sortinit}{Y}
+      \field{sortinithash}{fd67ad5a9ef0f7456bdd9aab10fe1495}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{arXiv preprint arXiv:2509.21369}
+      \field{title}{Smart Routing for EV Charge Point Operators in Mega Cities: Case Study of Istanbul}
+      \field{year}{2025}
     \endentry
     \entry{zhang2024routing}{article}{}
       \name{author}{4}{}{%

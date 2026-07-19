@@ -82,7 +82,7 @@ station_patch = mpatches.Patch(color="#e63946", label=f"Charging Station (n={len
 ax.legend(
     handles=[depot_patch, station_patch],
     loc="lower left",
-    fontsize=10,
+    fontsize=18,
     framealpha=0.9,
     edgecolor="#cccccc",
     bbox_to_anchor=(0.01, 0.05),

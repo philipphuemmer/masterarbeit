@@ -1,8 +1,8 @@
 \babel@toc {english}{}\relax 
-\contentsline {table}{\numberline {1}{\ignorespaces Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }}{38}{table.caption.5}%
-\contentsline {table}{\numberline {2}{\ignorespaces Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta $ is computed relative to centrality for each policy.\relax }}{39}{table.caption.6}%
-\contentsline {table}{\numberline {3}{\ignorespaces Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx $48).\relax }}{44}{table.caption.10}%
-\contentsline {table}{\numberline {4}{\ignorespaces Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance; $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }}{48}{table.caption.13}%
-\contentsline {table}{\numberline {5}{\ignorespaces Summary of notation used in Chapter~4\relax }}{56}{table.5}%
+\contentsline {table}{\numberline {1}{\ignorespaces Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }}{40}{table.caption.7}%
+\contentsline {table}{\numberline {2}{\ignorespaces Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta $ is computed relative to centrality for each policy.\relax }}{41}{table.caption.8}%
+\contentsline {table}{\numberline {3}{\ignorespaces Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx $48).\relax }}{46}{table.caption.12}%
+\contentsline {table}{\numberline {4}{\ignorespaces Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance, and $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }}{50}{table.caption.15}%
+\contentsline {table}{\numberline {5}{\ignorespaces Summary of notation used in Chapter~4\relax }}{58}{table.5}%
 \babel@toc {ngerman}{}\relax 
 \babel@toc {english}{}\relax 

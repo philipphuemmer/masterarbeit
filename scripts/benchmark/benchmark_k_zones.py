@@ -346,7 +346,7 @@ def _generate_plots(all_results: list[dict]) -> None:
     _scatter(ax, ks, cfa_costs, phases, s=60)
     ax.set_xlabel("Zonenanzahl k")
     ax.set_ylabel("Gesamtkosten (€)")
-    ax.set_title("CFA-Future-Gesamtkosten vs. Zonenanzahl")
+    ax.set_title("CFA-Gesamtkosten vs. Zonenanzahl")
     ax.legend()
     ax.grid(True, alpha=0.3)
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:,.0f}"))
