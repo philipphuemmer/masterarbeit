@@ -2479,3 +2479,69 @@
     <bcf:citekey order="129">ulmer2020modeling</bcf:citekey>
     <bcf:citekey order="130">stein2025learning</bcf:citekey>
     <bcf:citekey order="131">wuerzburg_opendata</bcf:citekey>
+    <bcf:citekey order="132">jobvector2024</bcf:citekey>
+    <bcf:citekey order="133">bmf2024</bcf:citekey>
+    <bcf:citekey order="134">bdew2024</bcf:citekey>
+    <bcf:citekey order="135">dejonge2020review</bcf:citekey>
+    <bcf:citekey order="136">dekker1996applications</bcf:citekey>
+    <bcf:citekey order="137">molkeda2023corrective</bcf:citekey>
+    <bcf:citekey order="138">alaswad2017review</bcf:citekey>
+    <bcf:citekey order="139">zhang2024routing</bcf:citekey>
+    <bcf:citekey order="140">ritzinger2016survey</bcf:citekey>
+    <bcf:citekey order="141">pillac2013review</bcf:citekey>
+    <bcf:citekey order="142">hildebrandt2023opportunities</bcf:citekey>
+    <bcf:citekey order="143">abbatecola2016review</bcf:citekey>
+    <bcf:citekey order="144">akhmetbek2023stochastic</bcf:citekey>
+    <bcf:citekey order="145">mardevsic2023review</bcf:citekey>
+    <bcf:citekey order="146">ulmer2019offline</bcf:citekey>
+    <bcf:citekey order="147">zou2018look</bcf:citekey>
+    <bcf:citekey order="148">basso2022dynamic</bcf:citekey>
+    <bcf:citekey order="149">ulmer2018budgeting</bcf:citekey>
+    <bcf:citekey order="150">ulmer2020modeling</bcf:citekey>
+    <bcf:citekey order="151">ulmer2020horizontal</bcf:citekey>
+    <bcf:citekey order="152">yenigun2025smart</bcf:citekey>
+    <bcf:citekey order="153">ulmer2017approximate</bcf:citekey>
+    <bcf:citekey order="154">anuar2022multi</bcf:citekey>
+    <bcf:citekey order="155">stein2025learning</bcf:citekey>
+    <bcf:citekey order="156">wuerzburg_opendata</bcf:citekey>
+  </bcf:section>
+  <!-- SORTING TEMPLATES -->
+  <bcf:sortingtemplate name="nyt">
+    <bcf:sort order="1">
+      <bcf:sortitem order="1">presort</bcf:sortitem>
+    </bcf:sort>
+    <bcf:sort order="2" final="1">
+      <bcf:sortitem order="1">sortkey</bcf:sortitem>
+    </bcf:sort>
+    <bcf:sort order="3">
+      <bcf:sortitem order="1">sortname</bcf:sortitem>
+      <bcf:sortitem order="2">author</bcf:sortitem>
+      <bcf:sortitem order="3">editor</bcf:sortitem>
+      <bcf:sortitem order="4">translator</bcf:sortitem>
+      <bcf:sortitem order="5">sorttitle</bcf:sortitem>
+      <bcf:sortitem order="6">title</bcf:sortitem>
+    </bcf:sort>
+    <bcf:sort order="4">
+      <bcf:sortitem order="1">sortyear</bcf:sortitem>
+      <bcf:sortitem order="2">year</bcf:sortitem>
+    </bcf:sort>
+    <bcf:sort order="5">
+      <bcf:sortitem order="1">sorttitle</bcf:sortitem>
+      <bcf:sortitem order="2">title</bcf:sortitem>
+    </bcf:sort>
+    <bcf:sort order="6">
+      <bcf:sortitem order="1">volume</bcf:sortitem>
+      <bcf:sortitem literal="1" order="2">0</bcf:sortitem>
+    </bcf:sort>
+  </bcf:sortingtemplate>
+  <!-- DATALISTS -->
+  <bcf:datalist section="0"
+                name="nyt/global//global/global"
+                type="entry"
+                sortingtemplatename="nyt"
+                sortingnamekeytemplatename="global"
+                labelprefix=""
+                uniquenametemplatename="global"
+                labelalphanametemplatename="global">
+  </bcf:datalist>
+</bcf:controlfile>

@@ -20,9 +20,27 @@
 \providecommand\HyField@AuxAddToFields[1]{}
 \providecommand\HyField@AuxAddToCoFields[2]{}
 \abx@aux@refcontext{nyt/global//global/global}
+\AC@reset@newl@bel
 \babel@aux{english}{}
-\@writefile{toc}{\contentsline {section}{List of Figures}{II}{Doc-Start}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{List of Tables}{II}{Doc-Start}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{List of Figures}{III}{Doc-Start}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{List of Tables}{IV}{Doc-Start}\protected@file@percent }
+\newacro{ADP}[ADP]{Approximate Dynamic Programming}
+\newacro{CBM}[CBM]{Condition-Based Maintenance}
+\newacro{CFA}[CFA]{Cost Function Approximation}
+\newacro{DB}[DB]{Dynamic Balance}
+\newacro{DP}[DP]{Dynamic Programming}
+\newacro{DSM}[DSM]{Days Since Maintenance}
+\newacro{EV}[EV]{Electric Vehicle}
+\newacro{MDP}[MDP]{Markov Decision Process}
+\newacro{ML}[ML]{Machine Learning}
+\newacro{OSRM}[OSRM]{Open Source Routing Machine}
+\newacro{RL}[RL]{Reinforcement Learning}
+\newacro{SD}[SD]{Standard Deviation}
+\newacro{SDVRP}[SDVRP]{Stochastic Dynamic Vehicle Routing Problem}
+\newacro{TSP}[TSP]{Travelling Salesman Problem}
+\newacro{VFA}[VFA]{Value Function Approximation}
+\newacro{VRP}[VRP]{Vehicle Routing Problem}
+\newacro{WVV}[WVV]{Würzburger Versorgungs- und Verkehrs-GmbH}
 \@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
 \newlabel{einleitung}{{1}{1}{Introduction}{section.1}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {2}Problem Definition}{3}{section.2}\protected@file@percent }
@@ -66,6 +84,7 @@
 \abx@aux@cite{0}{dejonge2020review}
 \abx@aux@segm{0}{0}{dejonge2020review}
 \@writefile{toc}{\contentsline {section}{\numberline {3}Literature Review}{9}{section.3}\protected@file@percent }
+\newlabel{sec:literature_review}{{3}{9}{Literature Review}{section.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Maintenance Optimization in Infrastructure Systems}{9}{subsection.3.1}\protected@file@percent }
 \abx@aux@page{4}{9}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Concept and Objectives of Maintenance Optimization}{9}{subsubsection.3.1.1}\protected@file@percent }
@@ -272,6 +291,7 @@
 \abx@aux@page{69}{14}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.4}Solution Families: Exact Methods, Heuristics, Metaheuristics}{14}{subsubsection.3.2.4}\protected@file@percent }
 \abx@aux@page{70}{14}
+\abx@aux@page{71}{14}
 \abx@aux@cite{0}{ulmer2020modeling}
 \abx@aux@segm{0}{0}{ulmer2020modeling}
 \abx@aux@cite{0}{ulmer2020horizontal}
@@ -288,7 +308,6 @@
 \abx@aux@segm{0}{0}{ulmer2020horizontal}
 \abx@aux@cite{0}{ulmer2019offline}
 \abx@aux@segm{0}{0}{ulmer2019offline}
-\abx@aux@page{71}{15}
 \abx@aux@page{72}{15}
 \abx@aux@page{73}{15}
 \abx@aux@page{74}{15}
@@ -370,6 +389,8 @@
 \abx@aux@page{99}{17}
 \abx@aux@page{100}{17}
 \abx@aux@page{101}{17}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Basic Idea of ADP: States, Actions, Value Functions}{17}{subsubsection.3.3.2}\protected@file@percent }
+\abx@aux@page{102}{17}
 \abx@aux@cite{0}{ulmer2017approximate}
 \abx@aux@segm{0}{0}{ulmer2017approximate}
 \abx@aux@cite{0}{ulmer2019offline}
@@ -386,8 +407,12 @@
 \abx@aux@segm{0}{0}{ulmer2019offline}
 \abx@aux@cite{0}{ulmer2019offline}
 \abx@aux@segm{0}{0}{ulmer2019offline}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Basic Idea of ADP: States, Actions, Value Functions}{18}{subsubsection.3.3.2}\protected@file@percent }
-\abx@aux@page{102}{18}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@cite{0}{ulmer2019offline}
+\abx@aux@segm{0}{0}{ulmer2019offline}
+\abx@aux@cite{0}{ulmer2017approximate}
+\abx@aux@segm{0}{0}{ulmer2017approximate}
 \abx@aux@page{103}{18}
 \abx@aux@page{104}{18}
 \abx@aux@page{105}{18}
@@ -402,12 +427,7 @@
 \abx@aux@page{113}{18}
 \abx@aux@page{114}{18}
 \abx@aux@page{115}{18}
-\abx@aux@cite{0}{ulmer2017approximate}
-\abx@aux@segm{0}{0}{ulmer2017approximate}
-\abx@aux@cite{0}{ulmer2019offline}
-\abx@aux@segm{0}{0}{ulmer2019offline}
-\abx@aux@cite{0}{ulmer2017approximate}
-\abx@aux@segm{0}{0}{ulmer2017approximate}
+\abx@aux@page{116}{18}
 \abx@aux@cite{0}{mardevsic2023review}
 \abx@aux@segm{0}{0}{mardevsic2023review}
 \abx@aux@cite{0}{hildebrandt2023opportunities}
@@ -434,7 +454,6 @@
 \abx@aux@segm{0}{0}{ulmer2018budgeting}
 \abx@aux@cite{0}{ulmer2019offline}
 \abx@aux@segm{0}{0}{ulmer2019offline}
-\abx@aux@page{116}{19}
 \abx@aux@page{117}{19}
 \abx@aux@page{118}{19}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.4}Distinction from Reinforcement Learning}{19}{subsubsection.3.3.4}\protected@file@percent }
@@ -448,27 +467,28 @@
 \abx@aux@page{125}{19}
 \abx@aux@page{126}{19}
 \abx@aux@page{127}{19}
+\abx@aux@page{128}{19}
+\abx@aux@page{129}{19}
+\abx@aux@page{130}{19}
 \abx@aux@cite{0}{ulmer2020modeling}
 \abx@aux@segm{0}{0}{ulmer2020modeling}
-\abx@aux@page{128}{20}
-\abx@aux@page{129}{20}
-\abx@aux@page{130}{20}
 \abx@aux@page{131}{20}
 \@writefile{toc}{\contentsline {section}{\numberline {4}Theoretical Framework}{20}{section.4}\protected@file@percent }
 \newlabel{sec:theoretical_framework}{{4}{20}{Theoretical Framework}{section.4}{}}
 \abx@aux@page{132}{20}
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Markov Decision Process}{20}{subsection.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.1}Sets, indices, and temporal structure}{21}{subsubsection.4.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.1}Sets, indices, and temporal structure}{20}{subsubsection.4.1.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.2}State representation}{21}{subsubsection.4.1.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.3}Action space}{22}{subsubsection.4.1.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.4}Transition dynamics}{23}{subsubsection.4.1.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.5}Reward function}{24}{subsubsection.4.1.5}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.2}State-Action-Value Structure}{25}{subsection.4.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.3}ADP Foundations and the Offline-Online Approach}{26}{subsection.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5}Solution Methodology}{28}{section.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Shared Zone Selection Logic}{28}{subsection.5.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Hierarchy of decision policies developed in this thesis. All four base policies share the same zone-selection layer (Section~5.1) and differ only in their routing score and drop score, shown in each box. The Value Function Approximation layer (Section~5.6) is not a fifth base policy but an optional rollout wrapper that can be placed on top of any of the four.\relax }}{29}{figure.caption.4}\protected@file@percent }
-\newlabel{fig:policy_hierarchy}{{4}{29}{Hierarchy of decision policies developed in this thesis. All four base policies share the same zone-selection layer (Section~5.1) and differ only in their routing score and drop score, shown in each box. The Value Function Approximation layer (Section~5.6) is not a fifth base policy but an optional rollout wrapper that can be placed on top of any of the four.\relax }{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Solution Methodology}{27}{section.5}\protected@file@percent }
+\newlabel{sec:solution_methodology}{{5}{27}{Solution Methodology}{section.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Hierarchy of decision policies developed in this thesis. All four base policies share the same zone-selection layer (Section~5.1) and differ only in their routing score and drop score, shown in each box. The VFA layer (Section~5.6) is not a fifth base policy but an optional rollout wrapper that can be placed on top of any of the four.\relax }}{28}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:policy_hierarchy}{{4}{28}{Hierarchy of decision policies developed in this thesis. All four base policies share the same zone-selection layer (Section~5.1) and differ only in their routing score and drop score, shown in each box. The VFA layer (Section~5.6) is not a fifth base policy but an optional rollout wrapper that can be placed on top of any of the four.\relax }{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Shared Zone Selection Logic}{29}{subsection.5.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Myopic}{30}{subsection.5.2}\protected@file@percent }
 \newlabel{subsec:myopic}{{5.2}{30}{Myopic}{subsection.5.2}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Myopic+}{31}{subsection.5.3}\protected@file@percent }
@@ -477,57 +497,63 @@
 \abx@aux@segm{0}{0}{stein2025learning}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Dynamic Balance}{33}{subsection.5.5}\protected@file@percent }
 \abx@aux@page{133}{33}
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}Value Function Approximation}{35}{subsection.5.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}Value Function Approximation}{34}{subsection.5.6}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6}Experimental Setup}{36}{section.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Simulation Design}{37}{subsection.6.1}\protected@file@percent }
+\newlabel{sec:experimental_setup}{{6}{36}{Experimental Setup}{section.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Simulation Design}{36}{subsection.6.1}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Execution timeline of a single simulated day for both teams (CFA, value-based zone selection, seed~1, day~1), reconstructed from the actual simulation log. Both teams start their routine route at 8:00; disruptions (Type~1 and Type~2) are inserted mid-route via cheapest insertion, and the shared 60-minute lunch break is fixed at 12:00--13:00 and interrupts the active service stop if one is ongoing. Of the 20 routine tasks planned for the day, 10 could not be completed and were carried over to day~2.\relax }}{37}{figure.caption.5}\protected@file@percent }
 \newlabel{fig:example_day_gantt}{{5}{37}{Execution timeline of a single simulated day for both teams (CFA, value-based zone selection, seed~1, day~1), reconstructed from the actual simulation log. Both teams start their routine route at 8:00; disruptions (Type~1 and Type~2) are inserted mid-route via cheapest insertion, and the shared 60-minute lunch break is fixed at 12:00--13:00 and interrupts the active service stop if one is ongoing. Of the 20 routine tasks planned for the day, 10 could not be completed and were carried over to day~2.\relax }{figure.caption.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Routing and Travel Times}{37}{subsection.6.2}\protected@file@percent }
+\newlabel{subsec:routing_travel}{{6.2}{37}{Routing and Travel Times}{subsection.6.2}{}}
 \abx@aux@cite{0}{wuerzburg_opendata}
 \abx@aux@segm{0}{0}{wuerzburg_opendata}
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Routing and Travel Times}{38}{subsection.6.2}\protected@file@percent }
-\newlabel{subsec:routing_travel}{{6.2}{38}{Routing and Travel Times}{subsection.6.2}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Data Basis}{38}{subsection.6.3}\protected@file@percent }
 \abx@aux@page{134}{38}
 \@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Three-phase benchmark for the number of zones $k$: mean CFA total cost by zone count. Each point represents the average over 100~simulation runs; colours indicate the benchmark phase.\relax }}{39}{figure.caption.6}\protected@file@percent }
 \newlabel{fig:benchmark_k}{{6}{39}{Three-phase benchmark for the number of zones $k$: mean CFA total cost by zone count. Each point represents the average over 100~simulation runs; colours indicate the benchmark phase.\relax }{figure.caption.6}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {7}Results and Analysis}{40}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Results and Analysis}{39}{section.7}\protected@file@percent }
+\newlabel{sec:results_analysis}{{7}{39}{Results and Analysis}{section.7}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Policy Mechanism Comparison}{40}{subsection.7.1}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }}{41}{table.caption.7}\protected@file@percent }
-\newlabel{tab:policy_centrality}{{1}{41}{Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }{table.caption.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }}{40}{table.caption.7}\protected@file@percent }
+\newlabel{tab:policy_centrality}{{1}{40}{Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }{table.caption.7}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Impact of Zone Selection on Cost}{41}{subsection.7.2}\protected@file@percent }
 \@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta $ is computed relative to centrality for each policy.\relax }}{42}{table.caption.8}\protected@file@percent }
 \newlabel{tab:zone_selection}{{2}{42}{Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta $ is computed relative to centrality for each policy.\relax }{table.caption.8}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Mean service day per zone for CFA under centrality-based (left) and value-based (right) zone selection, averaged over 500 runs. Green = serviced early, red = serviced late. Under centrality, the service order is strictly concentric, with zones near the depot always visited first and outer zones last. Value-based selection breaks this pattern, pulling economically critical zones forward to early service days regardless of geographic distance from the depot.\relax }}{43}{figure.caption.9}\protected@file@percent }
-\newlabel{fig:zone_maps}{{7}{43}{Mean service day per zone for CFA under centrality-based (left) and value-based (right) zone selection, averaged over 500 runs. Green = serviced early, red = serviced late. Under centrality, the service order is strictly concentric, with zones near the depot always visited first and outer zones last. Value-based selection breaks this pattern, pulling economically critical zones forward to early service days regardless of geographic distance from the depot.\relax }{figure.caption.9}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Total cost distributions for all four policies under centrality (light) and value-based (dark) zone selection (500 runs each). Boxes show interquartile range, and whiskers extend to 1.5$\times $IQR.\relax }}{44}{figure.caption.10}\protected@file@percent }
-\newlabel{fig:zone_boxplot}{{8}{44}{Total cost distributions for all four policies under centrality (light) and value-based (dark) zone selection (500 runs each). Boxes show interquartile range, and whiskers extend to 1.5$\times $IQR.\relax }{figure.caption.10}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Cumulative costs (top) and daily disruption counts (bottom) for Myopic and CFA under value-based zone selection, seed~497 (single run). The dashed vertical line marks day~9, where the gap widens most sharply. Myopic total: 52{,}~€491; CFA total: 37{,}~€191.\relax }}{45}{figure.caption.11}\protected@file@percent }
-\newlabel{fig:seed497}{{9}{45}{Cumulative costs (top) and daily disruption counts (bottom) for Myopic and CFA under value-based zone selection, seed~497 (single run). The dashed vertical line marks day~9, where the gap widens most sharply. Myopic total: 52{,}~€491; CFA total: 37{,}~€191.\relax }{figure.caption.11}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}VFA Rollout: Performance and Limitations}{46}{subsection.7.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Mean service day per zone for CFA under centrality-based (left) and value-based (right) zone selection, averaged over 500 runs. Green = serviced early, red = serviced late. Under centrality, the service order is strictly concentric, with zones near the depot always visited first and outer zones last. Value-based selection breaks this pattern, pulling economically critical zones forward to early service days regardless of geographic distance from the depot.\relax }}{42}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:zone_maps}{{7}{42}{Mean service day per zone for CFA under centrality-based (left) and value-based (right) zone selection, averaged over 500 runs. Green = serviced early, red = serviced late. Under centrality, the service order is strictly concentric, with zones near the depot always visited first and outer zones last. Value-based selection breaks this pattern, pulling economically critical zones forward to early service days regardless of geographic distance from the depot.\relax }{figure.caption.9}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Total cost distributions for all four policies under centrality (light) and value-based (dark) zone selection (500 runs each). Boxes show interquartile range, and whiskers extend to 1.5$\times $IQR.\relax }}{43}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:zone_boxplot}{{8}{43}{Total cost distributions for all four policies under centrality (light) and value-based (dark) zone selection (500 runs each). Boxes show interquartile range, and whiskers extend to 1.5$\times $IQR.\relax }{figure.caption.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Cumulative costs (top) and daily disruption counts (bottom) for Myopic and CFA under value-based zone selection, seed~497 (single run). The dashed vertical line marks day~9, where the gap widens most sharply. Myopic total: 52{,}~€491; CFA total: 37{,}~€191.\relax }}{44}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:seed497}{{9}{44}{Cumulative costs (top) and daily disruption counts (bottom) for Myopic and CFA under value-based zone selection, seed~497 (single run). The dashed vertical line marks day~9, where the gap widens most sharply. Myopic total: 52{,}~€491; CFA total: 37{,}~€191.\relax }{figure.caption.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}VFA Rollout: Performance and Limitations}{45}{subsection.7.3}\protected@file@percent }
 \@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx $48).\relax }}{46}{table.caption.12}\protected@file@percent }
 \newlabel{tab:rollout}{{3}{46}{Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx $48).\relax }{table.caption.12}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Distribution of paired cost differences (base minus rollout) per run for each policy, shown as histograms with 250\,€ bins. Positive values indicate the rollout lowered cost, and negative values indicate the rollout increased cost. The dashed vertical line marks zero. Runs with $\Delta = 0$ (no override was triggered) are excluded from the histogram and reported separately in the annotation. The x-axis is clipped to $\pm $4{,}000\,€, and a small number of extreme values fall outside the plotted range. All variants use value-based zone selection (500 runs each).\relax }}{47}{figure.caption.13}\protected@file@percent }
 \newlabel{fig:rollout_delta}{{10}{47}{Distribution of paired cost differences (base minus rollout) per run for each policy, shown as histograms with 250\,€ bins. Positive values indicate the rollout lowered cost, and negative values indicate the rollout increased cost. The dashed vertical line marks zero. Runs with $\Delta = 0$ (no override was triggered) are excluded from the histogram and reported separately in the annotation. The x-axis is clipped to $\pm $4{,}000\,€, and a small number of extreme values fall outside the plotted range. All variants use value-based zone selection (500 runs each).\relax }{figure.caption.13}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Distribution of replan overrides per run for all four rollout variants (500 runs each). Dashed vertical line shows the mean.\relax }}{48}{figure.caption.14}\protected@file@percent }
 \newlabel{fig:rollout_overrides}{{11}{48}{Distribution of replan overrides per run for all four rollout variants (500 runs each). Dashed vertical line shows the mean.\relax }{figure.caption.14}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.4}Statistical Validation}{49}{subsection.7.4}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance, and $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }}{50}{table.caption.15}\protected@file@percent }
-\newlabel{tab:paired_tests}{{4}{50}{Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance, and $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }{table.caption.15}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Cohen's $d$ for all key comparisons. Dashed vertical lines mark conventional thresholds (small: 0.20, medium: 0.50, large: 0.80). Zone-selection effects are the only comparisons with a large effect size, and all other comparisons fall below the medium threshold ($d = 0.50$).\relax }}{52}{figure.caption.16}\protected@file@percent }
-\newlabel{fig:cohens_d}{{12}{52}{Cohen's $d$ for all key comparisons. Dashed vertical lines mark conventional thresholds (small: 0.20, medium: 0.50, large: 0.80). Zone-selection effects are the only comparisons with a large effect size, and all other comparisons fall below the medium threshold ($d = 0.50$).\relax }{figure.caption.16}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Seed 6 cascade: How a single day~11 override creates day~12--13 cost divergence.\relax }}{49}{table.caption.15}\protected@file@percent }
+\newlabel{tab:seed6_cascade}{{4}{49}{Seed 6 cascade: How a single day~11 override creates day~12--13 cost divergence.\relax }{table.caption.15}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.4}Statistical Validation}{50}{subsection.7.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance, and $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }}{51}{table.caption.16}\protected@file@percent }
+\newlabel{tab:paired_tests}{{5}{51}{Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance, and $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }{table.caption.16}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Cohen's $d$ for all key comparisons. Dashed vertical lines mark conventional thresholds (small: 0.20, medium: 0.50, large: 0.80). Zone-selection effects are the only comparisons with a large effect size, and all other comparisons fall below the medium threshold ($d = 0.50$).\relax }}{52}{figure.caption.17}\protected@file@percent }
+\newlabel{fig:cohens_d}{{12}{52}{Cohen's $d$ for all key comparisons. Dashed vertical lines mark conventional thresholds (small: 0.20, medium: 0.50, large: 0.80). Zone-selection effects are the only comparisons with a large effect size, and all other comparisons fall below the medium threshold ($d = 0.50$).\relax }{figure.caption.17}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {8}Discussion}{53}{section.8}\protected@file@percent }
+\newlabel{sec:discussion}{{8}{53}{Discussion}{section.8}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Interpretation of Results}{53}{subsection.8.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {8.2}Limitations}{53}{subsection.8.2}\protected@file@percent }
 \newlabel{subsec:limitations}{{8.2}{53}{Limitations}{subsection.8.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Practical Relevance and Transferability}{54}{subsection.8.3}\protected@file@percent }
-\newlabel{subsec:practical_relevance}{{8.3}{54}{Practical Relevance and Transferability}{subsection.8.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Practical Relevance and Transferability}{55}{subsection.8.3}\protected@file@percent }
+\newlabel{subsec:practical_relevance}{{8.3}{55}{Practical Relevance and Transferability}{subsection.8.3}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {9}Outlook and Future Work}{56}{section.9}\protected@file@percent }
+\newlabel{sec:outlook}{{9}{56}{Outlook and Future Work}{section.9}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {9.1}Summary of Key Findings}{56}{subsection.9.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {9.2}Contributions of This Thesis}{57}{subsection.9.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {9.3}Fundamental Limitations}{58}{subsection.9.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {9.4}Generalizability and Transferability}{58}{subsection.9.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {9.5}Open Research Questions and Future Directions}{59}{subsection.9.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {9.6}Concluding Remarks}{59}{subsection.9.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.6}Concluding Remarks}{60}{subsection.9.6}\protected@file@percent }
 \abx@aux@page{135}{61}
 \abx@aux@page{136}{61}
 \abx@aux@page{137}{61}
@@ -554,16 +580,63 @@
 \abx@aux@page{158}{62}
 \abx@aux@page{159}{62}
 \@writefile{toc}{\contentsline {section}{Bibliography}{62}{subsection.9.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{List of Acronyms}{63}{subsection.9.6}\protected@file@percent }
+\newacro{ADP}[\AC@hyperlink{ADP}{ADP}]{Approximate Dynamic Programming}
+\newacro{CBM}[\AC@hyperlink{CBM}{CBM}]{Condition-Based Maintenance}
+\newacro{CFA}[\AC@hyperlink{CFA}{CFA}]{Cost Function Approximation}
+\newacro{DB}[\AC@hyperlink{DB}{DB}]{Dynamic Balance}
+\newacro{DP}[\AC@hyperlink{DP}{DP}]{Dynamic Programming}
+\newacro{DSM}[\AC@hyperlink{DSM}{DSM}]{Days Since Maintenance}
+\newacro{EV}[\AC@hyperlink{EV}{EV}]{Electric Vehicle}
+\newacro{MDP}[\AC@hyperlink{MDP}{MDP}]{Markov Decision Process}
+\newacro{OSRM}[\AC@hyperlink{OSRM}{OSRM}]{Open Source Routing Machine}
+\newacro{RL}[\AC@hyperlink{RL}{RL}]{Reinforcement Learning}
+\newacro{SD}[\AC@hyperlink{SD}{SD}]{Standard Deviation}
+\newacro{SDVRP}[\AC@hyperlink{SDVRP}{SDVRP}]{Stochastic Dynamic Vehicle Routing Problem}
+\newacro{TSP}[\AC@hyperlink{TSP}{TSP}]{Travelling Salesman Problem}
+\newacro{VFA}[\AC@hyperlink{VFA}{VFA}]{Value Function Approximation}
+\newacro{VRP}[\AC@hyperlink{VRP}{VRP}]{Vehicle Routing Problem}
+\newacro{WVV}[\AC@hyperlink{WVV}{WVV}]{Würzburger Versorgungs- und Verkehrs-GmbH}
 \gdef \LT@i {\LT@entry 
     {4}{152.7058pt}\LT@entry 
     {4}{277.85976pt}}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Anhang A}{63}{appendix.A}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Summary of notation used in Chapter~4\relax }}{63}{table.5}\protected@file@percent }
-\newlabel{tab:notation_ch4}{{5}{63}{Summary of notation used in Chapter~4\relax }{table.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Appendix A}{64}{appendix.A}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Summary of notation used in Chapter~\ref  {sec:theoretical_framework}\relax }}{64}{table.6}\protected@file@percent }
+\newlabel{tab:notation_ch4}{{6}{64}{Summary of notation used in Chapter~\ref {sec:theoretical_framework}\relax }{table.6}{}}
 \gdef \LT@ii {\LT@entry 
     {1}{91.6678pt}\LT@entry 
     {1}{74.59596pt}\LT@entry 
     {1}{74.59596pt}\LT@entry 
     {1}{154.26378pt}\LT@entry 
     {1}{91.6678pt}}
-\gdef \LT@ii {}
+\babel@aux{ngerman}{}
+\babel@aux{english}{}
+\babel@aux{ngerman}{}
+\babel@aux{english}{}
+\abx@aux@read@bbl@mdfivesum{E50723A236CA2040CD25F9183D6BA714}
+\abx@aux@defaultrefcontext{0}{abbatecola2016review}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{akhmetbek2023stochastic}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{alaswad2017review}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{anuar2022multi}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{basso2022dynamic}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{bmf2024}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{bdew2024}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{dejonge2020review}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{dekker1996applications}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{hildebrandt2023opportunities}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{jobvector2024}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{mardevsic2023review}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{molkeda2023corrective}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{pillac2013review}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{ritzinger2016survey}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{wuerzburg_opendata}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{stein2025learning}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{ulmer2017approximate}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{ulmer2020horizontal}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{ulmer2019offline}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{ulmer2020modeling}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{ulmer2018budgeting}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{yenigun2025smart}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{zhang2024routing}{nyt/global//global/global}
+\abx@aux@defaultrefcontext{0}{zou2018look}{nyt/global//global/global}
+\gdef \@abspage@last{73}

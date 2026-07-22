@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seed 6 Cascade Effect</title>
+    <style>
+        :root {
+            --surface-1:      #fcfcfb;
+            --surface-dark:   #1a1a19;
+            --text-primary:   #0b0b0b;
+            --text-secondary: #52514e;
+            --series-1:       #2a78d6;   /* blue */
+            --series-2:       #eb6834;   /* orange */
+            --series-3:       #1baf7a;   /* aqua */
+            --muted:          #898781;
+            --border:         #e1e0d9;
+            --gridline:       #e1e0d9;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:where(:not([data-theme="light"])) {
+                --surface-1:      #1a1a19;
+                --text-primary:   #ffffff;
+                --text-secondary: #c3c2b7;
+                --series-1:       #3987e5;
+                --series-2:       #d95926;
+                --series-3:       #199e70;
+                --muted:          #898781;
+                --border:         #2c2c2a;
+                --gridline:       #2c2c2a;
+            }
+        }
+        :root[data-theme="dark"] {
+            --surface-1:      #1a1a19;
+            --text-primary:   #ffffff;
+            --text-secondary: #c3c2b7;
+            --series-1:       #3987e5;
+            --series-2:       #d95926;
+            --series-3:       #199e70;
+            --muted:          #898781;
+            --border:         #2c2c2a;
+            --gridline:       #2c2c2a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            background: var(--surface-1);
+            color: var(--text-primary);
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: var(--text-primary);
+        }
+
+        .panels {
+            display: grid;
+            grid-template-rows: auto auto auto;
+            gap: 40px;
+        }
+
+        .panel {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+        }
+
+        /* Panel A: Bar chart */
+        svg {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .bar-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .bar-value {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .annotation {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 16px;
+            padding: 12px;
+            background: rgba(235, 104, 52, 0.05);
+            border-left: 2px solid var(--series-2);
+            border-radius: 4px;
+        }
+
+        /* Panel B: Flow */
+        .flow {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .flow-item {
+            padding: 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .flow-base {
+            background: rgba(42, 120, 214, 0.05);
+            border-color: var(--series-1);
+        }
+
+        .flow-rollout {
+            background: rgba(235, 104, 52, 0.05);
+            border-color: var(--series-2);
+        }
+
+        .flow-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        .flow-base .flow-label {
+            color: var(--series-1);
+        }
+
+        .flow-rollout .flow-label {
+            color: var(--series-2);
+        }
+
+        .flow-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .flow-step {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .flow-base .flow-step {
+            background: rgba(42, 120, 214, 0.1);
+            color: var(--series-1);
+        }
+
+        .flow-rollout .flow-step {
+            background: rgba(235, 104, 52, 0.1);
+            color: var(--series-2);
+        }
+
+        .arrow {
+            font-size: 16px;
+            color: var(--muted);
+        }
+
+        .consequence {
+            grid-column: 1 / -1;
+            padding: 16px;
+            background: rgba(235, 104, 52, 0.08);
+            border: 2px dashed var(--series-2);
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--series-2);
+            font-size: 13px;
+        }
+
+        /* Panel C: Line chart */
+        .chart-c {
+            position: relative;
+            height: 240px;
+        }
+
+        .line-legend {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.base {
+            background: var(--series-1);
+        }
+
+        .legend-dot.rollout {
+            background: var(--series-2);
+        }
+
+        .insight {
+            margin-top: 20px;
+            padding: 16px;
+            background: rgba(27, 175, 122, 0.05);
+            border-left: 2px solid var(--series-3);
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-primary);
+        }
+
+        .insight-title {
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .cost-highlight {
+            font-weight: 600;
+            color: var(--series-2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Seed 6 Cascade Effect: €5,139 Excess from One Override</h1>
+
+        <div class="panels">
+            <!-- Panel A -->
+            <div class="panel">
+                <div class="panel-title">Panel A: Day 11 — Drop Score Ranking</div>
+                <svg viewBox="0 0 600 200" style="background: transparent;">
+                    <!-- Axis -->
+                    <line x1="80" y1="160" x2="560" y2="160" stroke="var(--gridline)" stroke-width="1"/>
+
+                    <!-- Bars -->
+                    <!-- Station A (base choice) -->
+                    <rect x="100" y="120" width="180" height="32" fill="var(--series-1)" rx="4"/>
+                    <text x="290" y="142" class="bar-label" font-size="13" font-weight="500">0.45</text>
+                    <text x="80" y="143" text-anchor="end" class="bar-label">Station A</text>
+                    <circle cx="290" cy="136" r="12" fill="none" stroke="var(--text-secondary)" stroke-width="2"/>
+                    <text x="305" y="142" font-size="11" fill="var(--text-secondary)" font-weight="600">← BASE CHOICE</text>
+
+                    <!-- Station B (rollout override) -->
+                    <rect x="100" y="80" width="208" height="32" fill="var(--series-2)" rx="4"/>
+                    <text x="318" y="102" class="bar-label" font-size="13" font-weight="500">0.52</text>
+                    <text x="80" y="103" text-anchor="end" class="bar-label">Station B</text>
+                    <circle cx="318" cy="96" r="12" fill="none" stroke="var(--series-2)" stroke-width="2" stroke-dasharray="3,3"/>
+                    <text x="333" y="102" font-size="11" fill="var(--series-2)" font-weight="600">OVERRIDE →</text>
+
+                    <!-- Station C -->
+                    <rect x="100" y="40" width="152" height="32" fill="var(--series-3)" rx="4"/>
+                    <text x="262" y="62" class="bar-label" font-size="13" font-weight="500">0.38</text>
+                    <text x="80" y="63" text-anchor="end" class="bar-label">Station C</text>
+
+                    <!-- Axis label -->
+                    <text x="330" y="185" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Drop Score</text>
+                </svg>
+
+                <div class="annotation">
+                    <strong>Rollout evaluates 25 scenarios:</strong> 76% (19/25) favor Station B → appears correct, but actual outcome falls in 24% minority.
+                </div>
+            </div>
+
+            <!-- Panel B -->
+            <div class="panel">
+                <div class="panel-title">Panel B: Day 12 — Carryover Consequence</div>
+
+                <div class="flow">
+                    <div class="flow-item flow-base">
+                        <div class="flow-label">Base Run Day 12</div>
+                        <div class="flow-content">
+                            <span class="flow-step">Station A<br/>served ✓</span>
+                            <span class="arrow">→</span>
+                            <span class="flow-step">Disruption D₁<br/>insertable</span>
+                        </div>
+                    </div>
+
+                    <div class="flow-item flow-rollout">
+                        <div class="flow-label">Rollout Run Day 12</div>
+                        <div class="flow-content">
+                            <span class="flow-step">Station B<br/>DROPPED</span>
+                            <span class="arrow">→</span>
+                            <span class="flow-step">Disruption D₂<br/>WRONG! High cost</span>
+                        </div>
+                    </div>
+
+                    <div class="consequence">
+                        ⚠ Different drop → different carryover → different route → wrong disruption hits reduced capacity
+                    </div>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-title">Key insight:</div>
+                    Same seed (identical disruptions), but Day 11 override changes which team/disruption is assigned → Day 12 hits different route configuration with less capacity → cascading extra drops and insertion costs.
+                </div>
+            </div>
+
+            <!-- Panel C -->
+            <div class="panel">
+                <div class="panel-title">Panel C: Days 10–15 — Cumulative Cost Divergence</div>
+
+                <div class="line-legend">
+                    <div class="legend-item">
+                        <div class="legend-dot base"></div>
+                        <span>Base Policy</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot rollout"></div>
+                        <span>Rollout Override</span>
+                    </div>
+                </div>
+
+                <svg viewBox="0 0 600 240" style="background: transparent;">
+                    <!-- Grid -->
+                    <defs>
+                        <pattern id="grid" width="100" height="30" patternUnits="userSpaceOnUse">
+                            <path d="M 100 0 L 0 0 0 30" fill="none" stroke="var(--gridline)" stroke-width="1" opacity="0.3"/>
+                        </pattern>
+                    </defs>
+                    <rect width="600" height="240" fill="url(#grid)"/>
+
+                    <!-- Day 11 override marker -->
+                    <line x1="260" y1="20" x2="260" y2="200" stroke="var(--series-2)" stroke-width="2" stroke-dasharray="4,4" opacity="0.5"/>
+                    <text x="260" y="15" text-anchor="middle" font-size="11" fill="var(--text-secondary)" font-weight="600">Day 11: Override</text>
+
+                    <!-- Base curve -->
+                    <polyline points="60,180 120,180 180,180 240,180 300,140 360,110 420,80 480,60"
+                              fill="none" stroke="var(--series-1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="60" cy="180" r="4" fill="var(--series-1)"/>
+                    <circle cx="120" cy="180" r="4" fill="var(--series-1)"/>
+                    <circle cx="180" cy="180" r="4" fill="var(--series-1)"/>
+                    <circle cx="240" cy="180" r="4" fill="var(--series-1)"/>
+                    <circle cx="300" cy="140" r="4" fill="var(--series-1)"/>
+                    <circle cx="360" cy="110" r="4" fill="var(--series-1)"/>
+                    <circle cx="420" cy="80" r="4" fill="var(--series-1)"/>
+                    <circle cx="480" cy="60" r="4" fill="var(--series-1)"/>
+
+                    <!-- Rollout curve (diverges from day 12) -->
+                    <polyline points="60,180 120,180 180,180 240,180 300,120 360,80 420,50 480,30"
+                              fill="none" stroke="var(--series-2)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="60" cy="180" r="4" fill="var(--series-2)"/>
+                    <circle cx="120" cy="180" r="4" fill="var(--series-2)"/>
+                    <circle cx="180" cy="180" r="4" fill="var(--series-2)"/>
+                    <circle cx="240" cy="180" r="4" fill="var(--series-2)"/>
+                    <circle cx="300" cy="120" r="4" fill="var(--series-2)"/>
+                    <circle cx="360" cy="80" r="4" fill="var(--series-2)"/>
+                    <circle cx="420" cy="50" r="4" fill="var(--series-2)"/>
+                    <circle cx="480" cy="30" r="4" fill="var(--series-2)"/>
+
+                    <!-- Cost annotations -->
+                    <text x="290" y="130" font-size="11" fill="var(--series-2)" font-weight="600">+€907</text>
+                    <text x="370" y="95" font-size="11" fill="var(--series-2)" font-weight="600">+€983</text>
+
+                    <!-- Divergence shading -->
+                    <polygon points="240,180 300,140 300,120 240,180" fill="var(--series-2)" opacity="0.08"/>
+
+                    <!-- Axes -->
+                    <line x1="40" y1="200" x2="520" y2="200" stroke="var(--text-secondary)" stroke-width="1"/>
+                    <line x1="40" y1="20" x2="40" y2="200" stroke="var(--text-secondary)" stroke-width="1"/>
+
+                    <!-- Axis labels -->
+                    <text x="280" y="225" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Simulation Day</text>
+                    <text x="15" y="110" text-anchor="middle" font-size="12" fill="var(--text-secondary)" transform="rotate(-90 15 110)">Cumulative Cost</text>
+
+                    <!-- Day labels -->
+                    <text x="60" y="220" text-anchor="middle" font-size="10" fill="var(--muted)">10</text>
+                    <text x="120" y="220" text-anchor="middle" font-size="10" fill="var(--muted)">11</text>
+                    <text x="180" y="220" text-anchor="middle" font-size="10" fill="var(--muted)">12</text>
+                    <text x="240" y="220" text-anchor="middle" font-size="10" fill="var(--muted)">13</text>
+                    <text x="300" y="220" text-anchor="middle" font-size="10" fill="var(--muted)">14</text>
+                    <text x="360" y="220" text-anchor="middle" font-size="10" fill="var(--muted)">15</text>
+                </svg>
+
+                <div class="insight">
+                    <div class="insight-title">Result:</div>
+                    Identical disruptions (same seed), but <span class="cost-highlight">one override creates €5,139 total excess</span> — demonstrating finite-sample noise: 76% win-rate appears decisive, but actual outcome fell in the 24% minority. This is structural, not a fluke.
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
