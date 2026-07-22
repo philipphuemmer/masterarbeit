@@ -32,3 +32,19 @@ runs/
 # OS
 .DS_Store
 Thumbs.db
+
+# LaTeX artifacts
+*.aux
+*.bcf
+*.lof
+*.lot
+*.out
+*.toc
+*.blg
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.run.xml
+
+# Generated PDFs (use compiled version locally, don't track in repo)
+thesis/main.pdf
