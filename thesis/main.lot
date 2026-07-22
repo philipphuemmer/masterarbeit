@@ -1,8 +1,8 @@
 \babel@toc {english}{}\relax 
-\contentsline {table}{\numberline {1}{\ignorespaces Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }}{40}{table.caption.7}%
+\contentsline {table}{\numberline {1}{\ignorespaces Policy comparison under centrality-based zone selection (500 runs each). SD refers to the standard deviation of total costs across runs.\relax }}{41}{table.caption.7}%
 \contentsline {table}{\numberline {2}{\ignorespaces Cost comparison across zone-selection modes for all four policies (500 runs each). $\Delta $ is computed relative to centrality for each policy.\relax }}{42}{table.caption.8}%
 \contentsline {table}{\numberline {3}{\ignorespaces Rollout effect per policy. All variants use value-based zone selection (500 runs each). Override rate = mean replan overrides / mean total carryover ($\approx $48).\relax }}{46}{table.caption.12}%
-\contentsline {table}{\numberline {4}{\ignorespaces Seed 6 cascade: How a single day~11 override creates day~12--13 cost divergence.\relax }}{49}{table.caption.15}%
+\contentsline {table}{\numberline {4}{\ignorespaces Seed~6 cascade: cumulative total costs around the single day-11 override (Myopic with value-based zone selection, base vs.\ rollout run).\relax }}{49}{table.caption.15}%
 \contentsline {table}{\numberline {5}{\ignorespaces Paired statistical tests for key comparisons (500 matched seeds each). Cohen's $d$ is the primary criterion for practical relevance, and $p$-values are from the paired $t$-test and Wilcoxon signed-rank test.\relax }}{51}{table.caption.16}%
 \contentsline {table}{\numberline {6}{\ignorespaces Summary of notation used in Chapter~\ref {sec:theoretical_framework}\relax }}{64}{table.6}%
 \babel@toc {ngerman}{}\relax 
