@@ -81,7 +81,7 @@ df_overrides = pd.DataFrame(override_rows)
 # ---------------------------------------------------------------------------
 
 X_LIM = 4000
-bins = np.arange(-X_LIM, X_LIM + 500, 500)
+bins = np.arange(-X_LIM, X_LIM + 250, 250)
 
 fig, axes = plt.subplots(2, 2, figsize=(10, 6), sharex=True, sharey=True)
 axes_flat = axes.flatten()
@@ -89,14 +89,16 @@ axes_flat = axes.flatten()
 for ax, model in zip(axes_flat, MODEL_ORDER):
     vals = df_delta[df_delta["model"] == model]["delta"].values
     pct_better = (vals > 0).mean() * 100
-    ax.hist(vals, bins=bins, color=MODEL_COLORS[model], edgecolor="white", linewidth=0.5, zorder=2)
+    pct_equal  = (vals == 0).mean() * 100
+    vals_nonzero = vals[vals != 0]
+    ax.hist(vals_nonzero, bins=bins, color=MODEL_COLORS[model], edgecolor="white", linewidth=0.5, zorder=2)
     ax.axvline(0, color="black", linewidth=1.1, linestyle="--", alpha=0.85, zorder=3)
     ax.set_xlim(-X_LIM, X_LIM)
     ax.set_title(model, fontsize=11, fontweight="bold")
     ax.annotate(
-        f"{pct_better:.0f}% of runs: rollout better",
-        xy=(0.97, 0.95), xycoords="axes fraction",
-        ha="right", va="top", fontsize=8.5,
+        f"{pct_better:.0f}% rollout better\n{pct_equal:.0f}% no change (Δ=0, excluded)",
+        xy=(0.03, 0.97), xycoords="axes fraction",
+        ha="left", va="top", fontsize=8.5,
         color="#333333",
     )
     ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x/1000:.1f}k"))

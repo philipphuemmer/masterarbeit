@@ -3,7 +3,7 @@ Generates thesis figure for Chapter 6.1 (Simulation Design).
 
 Figure saved to thesis/figures/:
   - fig61_example_day_gantt.pdf — Real executed daily timeline for both teams
-    (CFA-Future, value-based zone selection, seed 1, day 1), showing routine
+    (CFA, value-based zone selection, seed 1, day 1), showing routine
     stops, inserted disruptions, travel, and the lunch break, drawn from the
     actual simulation log.
 
@@ -75,25 +75,45 @@ def main() -> None:
             color = TASK_COLORS.get(stop["task_type"], "#999999")
             service_min = stop["service_min"]
             gap = dep - arr
-            # The simulator folds the 60-min lunch break into whichever stop's
-            # dwell time spans 12:00-13:00, without emitting a separate lunch
-            # record. Detect and draw it as its own segment for readability.
+            LUNCH_START = 4 * 60   # 12:00 = 240 min after 08:00
+            LUNCH_END   = 5 * 60   # 13:00 = 300 min after 08:00
             has_lunch = (gap - service_min) >= 50
-            service_end = (arr + service_min) if has_lunch else dep
 
-            ax.broken_barh([(arr, service_end - arr)], (row - row_h / 2, row_h),
-                            facecolors=color, edgecolors="white", linewidth=0.6, zorder=3)
             if has_lunch:
-                ax.broken_barh([(service_end, dep - service_end)], (row - row_h / 2, row_h),
+                # Service is split around the fixed 12:00–13:00 lunch break.
+                # Draw: [service before lunch] [lunch 12:00–13:00] [service after lunch]
+                before = LUNCH_START - arr          # minutes of service before lunch
+                ax.broken_barh([(arr, before)], (row - row_h / 2, row_h),
+                                facecolors=color, edgecolors="white", linewidth=0.6, zorder=3)
+                ax.broken_barh([(LUNCH_START, LUNCH_END - LUNCH_START)], (row - row_h / 2, row_h),
                                 facecolors=LUNCH_COLOR, edgecolors="white", linewidth=0.6, zorder=3)
-                if (dep - service_end) >= 35:
-                    ax.text((service_end + dep) / 2, row, "Lunch", ha="center", va="center",
-                            fontsize=6.3, color="#3a3a3a", zorder=4)
+                ax.text((LUNCH_START + LUNCH_END) / 2, row, "Lunch", ha="center", va="center",
+                        fontsize=6.3, color="#3a3a3a", zorder=4)
+                after = service_min - before        # remaining service after lunch
+                ax.broken_barh([(LUNCH_END, after)], (row - row_h / 2, row_h),
+                                facecolors=color, edgecolors="white", linewidth=0.6, zorder=3)
+                service_end = LUNCH_END + after
+            else:
+                service_end = dep
+                ax.broken_barh([(arr, dep - arr)], (row - row_h / 2, row_h),
+                                facecolors=color, edgecolors="white", linewidth=0.6, zorder=3)
 
             label = f"St. {stop['node_idx']}"
-            if (service_end - arr) >= 35:
-                ax.text((arr + service_end) / 2, row, label, ha="center", va="center",
-                        fontsize=6.6, color="white", zorder=4)
+            if has_lunch:
+                # Place label in whichever service block is wider.
+                if before >= after:
+                    lx = arr + before / 2
+                    lw = before
+                else:
+                    lx = LUNCH_END + after / 2
+                    lw = after
+                if lw >= 20:
+                    ax.text(lx, row, label, ha="center", va="center",
+                            fontsize=6.6, color="white", zorder=4)
+            else:
+                if (dep - arr) >= 35:
+                    ax.text((arr + dep) / 2, row, label, ha="center", va="center",
+                            fontsize=6.6, color="white", zorder=4)
             cursor = dep
 
         depot_return = to_min(team["depot_return_time"])
@@ -112,9 +132,9 @@ def main() -> None:
     x_max = 9 * 60 + 15
     xticks = list(range(0, x_max, 60))
     ax.set_xticks(xticks)
-    ax.set_xticklabels([f"{8 + t // 60:02d}:00" for t in xticks], fontsize=9)
+    ax.set_xticklabels([f"{8 + t // 60:02d}:00" for t in xticks], fontsize=10.5)
     ax.set_xlim(-8, x_max)
-    ax.set_xlabel("Time of day", fontsize=10)
+    ax.set_xlabel("Time of day", fontsize=11.5)
 
     ax.grid(axis="x", linewidth=0.4, alpha=0.5, zorder=0)
     ax.set_axisbelow(True)
@@ -123,20 +143,20 @@ def main() -> None:
 
     legend_elems = [
         Patch(facecolor=TASK_COLORS["routine"], label="Routine maintenance"),
-        Patch(facecolor=TASK_COLORS["Typ 1"], label="Disruption (Typ 1)"),
-        Patch(facecolor=TASK_COLORS["Typ 2"], label="Disruption (Typ 2)"),
+        Patch(facecolor=TASK_COLORS["Typ 1"], label="Disruption (Type 1)"),
+        Patch(facecolor=TASK_COLORS["Typ 2"], label="Disruption (Type 2)"),
         Patch(facecolor=LUNCH_COLOR, label="Lunch break"),
         Patch(facecolor=TRAVEL_COLOR, label="Travel"),
         plt.Line2D([0], [0], marker="s", color="none", markerfacecolor=DEPOT_COLOR,
                    markersize=6, label="Depot"),
     ]
     ax.legend(handles=legend_elems, loc="upper center", bbox_to_anchor=(0.5, -0.28),
-              ncol=6, fontsize=8.0, frameon=False)
+              ncol=6, fontsize=9.5, frameon=False)
 
     ax.set_title(
-        f"Example Simulated Day (CFA-Future, value-based, seed 1, day 1) — "
+        f"Example Simulated Day (CFA, value-based, seed 1, day 1) — "
         f"{n_disruptions} disruptions inserted, {n_carryover_routine} routine stops carried over",
-        fontsize=9.8,
+        fontsize=11.5,
     )
 
     fig.tight_layout()

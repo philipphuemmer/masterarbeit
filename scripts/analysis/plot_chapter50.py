@@ -13,8 +13,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+
+# Use Computer Modern fonts (same as LaTeX) for math rendering
+mpl.rcParams['mathtext.fontset'] = 'cm'
+mpl.rcParams['font.family'] = 'serif'
+mpl.rcParams['font.serif'] = ['Computer Modern Roman', 'DejaVu Serif']
 
 OUT_DIR = Path("thesis/figures")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,36 +38,47 @@ MODEL_COLORS = {
 ZONE_COLOR = "#c9c2ab"
 VFA_COLOR  = "#3B3B58"
 
+# Each entry: (display_name, score_formula, drop_formula, note)
 BOXES = [
     ("Myopic",
-     r"score $= 1\,/\,d_{\mathrm{cur},i}$" "\n" r"drop $= 1\,/\,\Delta t_i$",
-     "greedy, no economic weighting"),
+     r"$\mathrm{score} = \dfrac{1}{d_{\mathrm{cur},i}}$",
+     r"$\mathrm{drop} = \dfrac{1}{\Delta t_i}$",
+     "greedy, no\neconomic weighting"),
     ("Myopic+",
-     r"score $= p_i\,/\,d_{\mathrm{cur},i}$" "\n" r"drop $= p_i\,/\,\Delta t_i$",
-     "+ power-weighted urgency"),
+     r"$\mathrm{score} = \dfrac{p_i}{d_{\mathrm{cur},i}}$",
+     r"$\mathrm{drop} = \dfrac{p_i}{\Delta t_i}$",
+     "+ power-weighted\nurgency"),
     ("CFA",
-     r"score $= (\tilde{C}_i+s)/d_{\mathrm{cur},i}$" "\n" r"drop $= \tilde{C}_i - \frac{c_L}{60}\Delta t_i$",
-     "+ learned station value " r"$\tilde{C}$"),
+     r"$\mathrm{score} = \dfrac{\tilde{C}_i + s}{d_{\mathrm{cur},i}}$",
+     r"$\mathrm{drop} = \tilde{C}_i - \dfrac{c_L}{60}\,\Delta t_i$",
+     "+ learned station\n" r"value $\tilde{C}$"),
     ("Dynamic Balance",
-     r"score $= (\tilde{C}_i+s)/d_{\mathrm{cur},i}^{2\delta}$" "\n" r"drop $= \tilde{C}_i - 2\delta\frac{c_L}{60}\Delta t_i$",
-     "+ state-dependent balance " r"$\delta$"),
+     r"$\mathrm{score} = \dfrac{\tilde{C}_i + s}{d_{\mathrm{cur},i}^{2\delta}}$",
+     r"$\mathrm{drop} = \tilde{C}_i - \dfrac{2\delta\, c_L}{60}\,\Delta t_i$",
+     "+ state-dependent\n" r"balance $\delta$"),
 ]
 
 # ---------------------------------------------------------------------------
 # Figure
 # ---------------------------------------------------------------------------
 
-fig, ax = plt.subplots(figsize=(11, 6.4))
-ax.set_xlim(0, 11)
-ax.set_ylim(0, 7.4)
+fig, ax = plt.subplots(figsize=(7.5, 5.1))
+ax.set_xlim(0.25, 11.15)
+ax.set_ylim(0.35, 6.95)
 ax.axis("off")
 
-BOX_W, BOX_H = 2.35, 2.05
+BOX_W, BOX_H = 2.35, 2.60
 X0, GAP = 0.55, 0.30
-Y_MID = 2.55
+Y_MID = 2.30
+
+# Fixed y-positions for formula rows (absolute, same for all boxes)
+Y_NAME  = Y_MID + BOX_H - 0.22   # policy name
+Y_SCORE = Y_MID + BOX_H - 0.62   # score formula
+Y_DROP  = Y_MID + BOX_H - 1.37   # drop formula
+Y_NOTE  = Y_MID + 0.34           # italic note (va="bottom")
 
 box_centers = []
-for i, (name, formula, note) in enumerate(BOXES):
+for i, (name, score_str, drop_str, note) in enumerate(BOXES):
     x = X0 + i * (BOX_W + GAP)
     color = MODEL_COLORS[name if name != "Dynamic Balance" else "DB"]
     box = FancyBboxPatch(
@@ -73,12 +90,16 @@ for i, (name, formula, note) in enumerate(BOXES):
     ax.add_patch(box)
     cx = x + BOX_W / 2
     box_centers.append(cx)
-    ax.text(cx, Y_MID + BOX_H - 0.30, name, ha="center", va="top",
-             fontsize=11.5, fontweight="bold", color=color, zorder=3)
-    ax.text(cx, Y_MID + BOX_H - 0.72, formula, ha="center", va="top",
-             fontsize=8.3, color="#2a2a2a", zorder=3, linespacing=1.6)
-    ax.text(cx, Y_MID + 0.22, note, ha="center", va="bottom",
-             fontsize=8.3, style="italic", color="#444444", zorder=3, wrap=True)
+
+    ax.text(cx, Y_NAME, name, ha="center", va="top",
+            fontsize=11.0, fontweight="bold", color=color, zorder=3)
+    ax.text(cx, Y_SCORE, score_str, ha="center", va="top",
+            fontsize=9.5, color="#2a2a2a", zorder=3)
+    ax.text(cx, Y_DROP, drop_str, ha="center", va="top",
+            fontsize=9.5, color="#2a2a2a", zorder=3)
+    ax.text(cx, Y_NOTE, note, ha="center", va="bottom",
+            fontsize=8.5, style="italic", color="#444444", zorder=3,
+            linespacing=1.45, multialignment="center")
 
 # Arrows "extends" between the four base-policy boxes
 for i in range(len(BOXES) - 1):
@@ -87,7 +108,7 @@ for i in range(len(BOXES) - 1):
     arr = FancyArrowPatch(
         (x_from + 0.03, Y_MID + BOX_H / 2), (x_to - 0.03, Y_MID + BOX_H / 2),
         arrowstyle="-|>", mutation_scale=14, linewidth=1.4,
-        color="#555555", zorder=1,
+        color="#555555", zorder=4,
     )
     ax.add_patch(arr)
 
@@ -95,23 +116,21 @@ for i in range(len(BOXES) - 1):
 # Bottom layer — shared zone selection
 # ---------------------------------------------------------------------------
 
-zone_y, zone_h = 0.35, 1.35
+zone_y, zone_h = 0.50, 1.10
+zone_x0 = X0
+zone_x1 = X0 + 3 * (BOX_W + GAP) + BOX_W
 zone_box = FancyBboxPatch(
-    (X0, zone_y), box_centers[-1] - box_centers[0] + BOX_W - 0.0 + (X0 - X0), zone_h,
+    (zone_x0, zone_y), zone_x1 - zone_x0, zone_h,
     boxstyle="round,pad=0.02,rounding_size=0.08",
     linewidth=1.3, edgecolor=ZONE_COLOR, facecolor=ZONE_COLOR, alpha=0.35, zorder=1,
 )
-# recompute width precisely: from left edge of box0 to right edge of box3
-zone_x0 = X0
-zone_x1 = X0 + 3 * (BOX_W + GAP) + BOX_W
-zone_box.set_bounds(zone_x0, zone_y, zone_x1 - zone_x0, zone_h)
 ax.add_patch(zone_box)
-ax.text((zone_x0 + zone_x1) / 2, zone_y + zone_h / 2 + 0.16,
-         "Shared Zone Selection Layer",
-         ha="center", va="center", fontsize=10.5, fontweight="bold", color="#4a4530")
-ax.text((zone_x0 + zone_x1) / 2, zone_y + zone_h / 2 - 0.32,
-         "K-Means zones, scored centrality-based or value-based (policy-specific station value)",
-         ha="center", va="center", fontsize=8.2, color="#5a5540")
+ax.text((zone_x0 + zone_x1) / 2, zone_y + zone_h / 2 + 0.18,
+        "Shared Zone Selection Layer",
+        ha="center", va="center", fontsize=10.5, fontweight="bold", color="#4a4530")
+ax.text((zone_x0 + zone_x1) / 2, zone_y + zone_h / 2 - 0.26,
+        "provides each team's daily station pool via K-Means zone clustering and zone scoring",
+        ha="center", va="center", fontsize=9.0, color="#5a5540")
 
 for cx in box_centers:
     arr = FancyArrowPatch(
@@ -125,27 +144,27 @@ for cx in box_centers:
 # Top layer — VFA rollout
 # ---------------------------------------------------------------------------
 
-vfa_y, vfa_h = 5.65, 1.35
+vfa_y, vfa_h = 5.60, 1.20
 vfa_box = FancyBboxPatch(
     (zone_x0, vfa_y), zone_x1 - zone_x0, vfa_h,
     boxstyle="round,pad=0.02,rounding_size=0.08",
     linewidth=1.6, edgecolor=VFA_COLOR, facecolor=VFA_COLOR, alpha=0.90,
-    linestyle="--", zorder=2,
+    zorder=2,
 )
 ax.add_patch(vfa_box)
-ax.text((zone_x0 + zone_x1) / 2, vfa_y + vfa_h / 2 + 0.20,
-         "Value Function Approximation — Rollout Layer",
-         ha="center", va="center", fontsize=10.8, fontweight="bold", color="white")
+ax.text((zone_x0 + zone_x1) / 2, vfa_y + vfa_h / 2 + 0.22,
+        "Value Function Approximation — Rollout Layer",
+        ha="center", va="center", fontsize=11.0, fontweight="bold", color="white")
 ax.text((zone_x0 + zone_x1) / 2, vfa_y + vfa_h / 2 - 0.28,
-         "wraps any base policy above; overrides its greedy drop decision via short-horizon\n"
-         "Monte-Carlo rollout when a candidate wins ≥70% of scenarios",
-         ha="center", va="center", fontsize=8.0, color="#e8e8ee", linespacing=1.4)
+        "improves drop decisions by replacing greedy selection\n"
+        "with forward-looking Monte-Carlo rollout evaluation",
+        ha="center", va="center", fontsize=9.0, color="#e8e8ee", linespacing=1.5)
 
 for cx in box_centers:
     arr = FancyArrowPatch(
         (cx, vfa_y - 0.03), (cx, Y_MID + BOX_H + 0.03),
         arrowstyle="-|>", mutation_scale=12, linewidth=1.1,
-        color=VFA_COLOR, linestyle=":", zorder=1,
+        color=VFA_COLOR, zorder=1,
     )
     ax.add_patch(arr)
 

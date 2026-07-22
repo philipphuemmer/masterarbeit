@@ -77,7 +77,7 @@ ctx.add_basemap(
 )
 
 # Legende
-depot_patch = mpatches.Patch(color="#1a1a2e", label="Depot (WVV Betriebshof)")
+depot_patch = mpatches.Patch(color="#1a1a2e", label="Depot")
 station_patch = mpatches.Patch(color="#e63946", label=f"Charging Station (n={len(df)})")
 ax.legend(
     handles=[depot_patch, station_patch],

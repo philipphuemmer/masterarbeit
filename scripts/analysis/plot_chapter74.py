@@ -97,7 +97,7 @@ group_patches = [mpatches.Patch(color=c, label=l) for g, (c, l) in
 ref_handles, ref_labels = ax.get_legend_handles_labels()
 ax.legend(handles=group_patches + ref_handles,
           labels=[p.get_label() for p in group_patches] + ref_labels,
-          fontsize=8, loc="lower right", ncol=1)
+          fontsize=8, loc="upper right", ncol=1)
 
 import matplotlib.ticker as ticker
 ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))

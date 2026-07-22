@@ -62,28 +62,34 @@
       \range{pages}{6}
     \endentry
     \entry{akhmetbek2023stochastic}{article}{}
-      \name{author}{1}{}{%
+      \name{author}{2}{}{%
         {{un=0,uniquepart=base,hash=4dabcef0221e4fcce71e26c8ab09518d}{%
            family={Akhmetbek},
            familyi={A\bibinitperiod},
            given={Yernar},
            giveni={Y\bibinitperiod},
            givenun=0}}%
+        {{un=0,uniquepart=base,hash=0976e48fb8bee6ed78433654fc754b53}{%
+           family={Mustakhov},
+           familyi={M\bibinitperiod},
+           given={Taukekhan},
+           giveni={T\bibinitperiod},
+           givenun=0}}%
       }
-      \strng{namehash}{4dabcef0221e4fcce71e26c8ab09518d}
-      \strng{fullhash}{4dabcef0221e4fcce71e26c8ab09518d}
-      \strng{bibnamehash}{4dabcef0221e4fcce71e26c8ab09518d}
-      \strng{authorbibnamehash}{4dabcef0221e4fcce71e26c8ab09518d}
-      \strng{authornamehash}{4dabcef0221e4fcce71e26c8ab09518d}
-      \strng{authorfullhash}{4dabcef0221e4fcce71e26c8ab09518d}
+      \strng{namehash}{108b10d0f5c83d0b280eb64ced77c94c}
+      \strng{fullhash}{108b10d0f5c83d0b280eb64ced77c94c}
+      \strng{bibnamehash}{108b10d0f5c83d0b280eb64ced77c94c}
+      \strng{authorbibnamehash}{108b10d0f5c83d0b280eb64ced77c94c}
+      \strng{authornamehash}{108b10d0f5c83d0b280eb64ced77c94c}
+      \strng{authorfullhash}{108b10d0f5c83d0b280eb64ced77c94c}
       \field{sortinit}{A}
       \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Journal of Emerging Technologies and Computing}
-      \field{number}{1}
+      \field{journaltitle}{SDU Bulletin: Natural and Technical Sciences}
+      \field{number}{2}
       \field{title}{Stochastic dynamic vehicle routing problem survey}
       \field{volume}{62}
       \field{year}{2023}
@@ -432,40 +438,6 @@
       \verb https://www.jobvector.de/gehalt/elektroinstallateur/bayern/
       \endverb
     \endentry
-    \entry{joe2020deep}{inproceedings}{}
-      \name{author}{2}{}{%
-        {{un=0,uniquepart=base,hash=8ad7797ae911d9b126911b014f86b06d}{%
-           family={Joe},
-           familyi={J\bibinitperiod},
-           given={Waldy},
-           giveni={W\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=cdf926d65c1891ac087aaa99f1411fe3}{%
-           family={Lau},
-           familyi={L\bibinitperiod},
-           given={Hoong\bibnamedelima Chuin},
-           giveni={H\bibinitperiod\bibinitdelim C\bibinitperiod},
-           givenun=0}}%
-      }
-      \strng{namehash}{3a28495efa915aa0657bad9cb3f6bbec}
-      \strng{fullhash}{3a28495efa915aa0657bad9cb3f6bbec}
-      \strng{bibnamehash}{3a28495efa915aa0657bad9cb3f6bbec}
-      \strng{authorbibnamehash}{3a28495efa915aa0657bad9cb3f6bbec}
-      \strng{authornamehash}{3a28495efa915aa0657bad9cb3f6bbec}
-      \strng{authorfullhash}{3a28495efa915aa0657bad9cb3f6bbec}
-      \field{sortinit}{J}
-      \field{sortinithash}{b2f54a9081ace9966a7cb9413811edb4}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{year}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{booktitle}{Proceedings of the international conference on automated planning and scheduling}
-      \field{title}{Deep reinforcement learning approach to solve dynamic vehicle routing problem with stochastic customers}
-      \field{volume}{30}
-      \field{year}{2020}
-      \field{pages}{394\bibrangedash 402}
-      \range{pages}{9}
-    \endentry
     \entry{mardevsic2023review}{article}{}
       \name{author}{4}{}{%
         {{un=0,uniquepart=base,hash=35c90198beb81b224ee061261dfd79be}{%
@@ -666,56 +638,6 @@
       \field{pages}{215\bibrangedash 231}
       \range{pages}{17}
     \endentry
-    \entry{sarasola2016variable}{article}{}
-      \name{author}{4}{}{%
-        {{un=0,uniquepart=base,hash=df69534c3bace761cb96ace93ae26bd0}{%
-           family={Sarasola},
-           familyi={S\bibinitperiod},
-           given={Briseida},
-           giveni={B\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=0ac9c5b7601eeca5a8ee1f0c2e55f121}{%
-           family={Doerner},
-           familyi={D\bibinitperiod},
-           given={Karl\bibnamedelima F},
-           giveni={K\bibinitperiod\bibinitdelim F\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=ed15b04ed0e40d22c19fa5aa8b419967}{%
-           family={Schmid},
-           familyi={S\bibinitperiod},
-           given={Verena},
-           giveni={V\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=3bba57c9b13d5773e34ff8bf341727f7}{%
-           family={Alba},
-           familyi={A\bibinitperiod},
-           given={Enrique},
-           giveni={E\bibinitperiod},
-           givenun=0}}%
-      }
-      \list{publisher}{1}{%
-        {Springer}%
-      }
-      \strng{namehash}{52957baeeba34b751537d0171797d646}
-      \strng{fullhash}{bd7d92fad271112112ea929b4639e176}
-      \strng{bibnamehash}{bd7d92fad271112112ea929b4639e176}
-      \strng{authorbibnamehash}{bd7d92fad271112112ea929b4639e176}
-      \strng{authornamehash}{52957baeeba34b751537d0171797d646}
-      \strng{authorfullhash}{bd7d92fad271112112ea929b4639e176}
-      \field{sortinit}{S}
-      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{year}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{journaltitle}{Annals of Operations Research}
-      \field{number}{2}
-      \field{title}{Variable neighborhood search for the stochastic and dynamic vehicle routing problem}
-      \field{volume}{236}
-      \field{year}{2016}
-      \field{pages}{425\bibrangedash 461}
-      \range{pages}{37}
-    \endentry
     \entry{wuerzburg_opendata}{online}{}
       \name{author}{1}{}{%
         {{un=0,uniquepart=base,hash=96fbf2c409ec862e57100a47088ffc9c}{%
@@ -746,6 +668,56 @@
       \verb{url}
       \verb https://wuerzburg.opendatasoft.com/explore/dataset/10001wuerzburg-stadt/information/
       \endverb
+    \endentry
+    \entry{stein2025learning}{article}{}
+      \name{author}{4}{}{%
+        {{un=0,uniquepart=base,hash=6ddac580c5309752c9edda60e2c2925d}{%
+           family={Stein},
+           familyi={S\bibinitperiod},
+           given={Jonas},
+           giveni={J\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3f8c8d4fa6caeb3c5b94244f5e7fa287}{%
+           family={Hildebrandt},
+           familyi={H\bibinitperiod},
+           given={Florentin\bibnamedelima D},
+           giveni={F\bibinitperiod\bibinitdelim D\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=65a8d8c43c0c376d4b3380b4c06c3b07}{%
+           family={Ulmer},
+           familyi={U\bibinitperiod},
+           given={Marlin\bibnamedelima W},
+           giveni={M\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=dbdb79d5a22e9e0d0758e0e921dea2fe}{%
+           family={Thomas},
+           familyi={T\bibinitperiod},
+           given={Barrett\bibnamedelima W},
+           giveni={B\bibinitperiod\bibinitdelim W\bibinitperiod},
+           givenun=0}}%
+      }
+      \list{publisher}{1}{%
+        {INFORMS}%
+      }
+      \strng{namehash}{d857865723348e9a19910f5338f1a50d}
+      \strng{fullhash}{ab52d6d464785ccd0a3e983f237b9fca}
+      \strng{bibnamehash}{ab52d6d464785ccd0a3e983f237b9fca}
+      \strng{authorbibnamehash}{ab52d6d464785ccd0a3e983f237b9fca}
+      \strng{authornamehash}{d857865723348e9a19910f5338f1a50d}
+      \strng{authorfullhash}{ab52d6d464785ccd0a3e983f237b9fca}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{year}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Transportation science}
+      \field{number}{5}
+      \field{title}{Learning state-dependent policy parametrizations for dynamic technician routing with rework}
+      \field{volume}{59}
+      \field{year}{2025}
+      \field{pages}{1153\bibrangedash 1171}
+      \range{pages}{19}
     \endentry
     \entry{ulmer2017approximate}{book}{}
       \name{author}{1}{}{%
@@ -989,42 +961,52 @@
     \endentry
     \entry{zhang2024routing}{article}{}
       \name{author}{4}{}{%
-        {{un=1,uniquepart=given,hash=1276b0c695bd412950c2be5e737aeed5}{%
+        {{hash=1276b0c695bd412950c2be5e737aeed5}{%
            family={Zhang},
            familyi={Z\bibinitperiod},
            given={Meng},
-           giveni={M\bibinitperiod},
-           givenun=1}}%
-        {{un=0,uniquepart=base,hash=97bd7d668472cec24b32cd38988beebe}{%
+           giveni={M\bibinitperiod}}}%
+        {{hash=97bd7d668472cec24b32cd38988beebe}{%
            family={Sun},
            familyi={S\bibinitperiod},
            given={Lulu},
-           giveni={L\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=c8b4f5950bc3813214b3a6c185038a03}{%
+           giveni={L\bibinitperiod}}}%
+        {{hash=c8b4f5950bc3813214b3a6c185038a03}{%
            family={Jiang},
            familyi={J\bibinitperiod},
            given={Qi},
-           giveni={Q\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=3ef36dfa90ae0c552c89062da0ec0a8d}{%
+           giveni={Q\bibinitperiod}}}%
+        {{hash=3ef36dfa90ae0c552c89062da0ec0a8d}{%
            family={Cui},
            familyi={C\bibinitperiod},
            given={Wei},
-           giveni={W\bibinitperiod},
-           givenun=0}}%
+           giveni={W\bibinitperiod}}}%
       }
-      \strng{namehash}{b64bb4aee0be35132233a68e7365b725}
+      \name{shortauthor}{1}{}{%
+        {{un=0,uniquepart=base,hash=1893583f024d74ac6bf866c1c10648c9}{%
+           family={al.},
+           familyi={a\bibinitperiod},
+           given={Zhang},
+           giveni={Z\bibinitperiod},
+           givenun=0,
+           prefix={et},
+           prefixi={e\bibinitperiod},
+           prefixun=0}}%
+      }
+      \strng{namehash}{1893583f024d74ac6bf866c1c10648c9}
       \strng{fullhash}{c00048c112d3d0daee551442cfbc4458}
-      \strng{bibnamehash}{c00048c112d3d0daee551442cfbc4458}
+      \strng{bibnamehash}{1893583f024d74ac6bf866c1c10648c9}
       \strng{authorbibnamehash}{c00048c112d3d0daee551442cfbc4458}
       \strng{authornamehash}{b64bb4aee0be35132233a68e7365b725}
       \strng{authorfullhash}{c00048c112d3d0daee551442cfbc4458}
+      \strng{shortauthorbibnamehash}{1893583f024d74ac6bf866c1c10648c9}
+      \strng{shortauthornamehash}{1893583f024d74ac6bf866c1c10648c9}
+      \strng{shortauthorfullhash}{1893583f024d74ac6bf866c1c10648c9}
       \field{sortinit}{Z}
       \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
-      \field{labelnamesource}{author}
+      \field{labelnamesource}{shortauthor}
       \field{labeltitlesource}{title}
       \field{journaltitle}{IEEE Access}
       \field{title}{Routing Optimization for Large-Scale Inspection-Maintenance of {EV} Charging Spots With Multiple Types of Personnel and Composite Customer Satisfaction: A Multi-Stage Approach}
@@ -1035,50 +1017,6 @@
       \verb{doi}
       \verb 10.1109/ACCESS.2024.3486686
       \endverb
-    \endentry
-    \entry{zhang2018dynamic}{article}{}
-      \name{author}{3}{}{%
-        {{un=1,uniquepart=given,hash=7f23f4345bf7dc68b29e1e9946311a8e}{%
-           family={Zhang},
-           familyi={Z\bibinitperiod},
-           given={Shu},
-           giveni={S\bibinitperiod},
-           givenun=1}}%
-        {{un=0,uniquepart=base,hash=604f298e3abf8bc216bfeca9ea8d559a}{%
-           family={Ohlmann},
-           familyi={O\bibinitperiod},
-           given={Jeffrey\bibnamedelima W},
-           giveni={J\bibinitperiod\bibinitdelim W\bibinitperiod},
-           givenun=0}}%
-        {{un=0,uniquepart=base,hash=dbdb79d5a22e9e0d0758e0e921dea2fe}{%
-           family={Thomas},
-           familyi={T\bibinitperiod},
-           given={Barrett\bibnamedelima W},
-           giveni={B\bibinitperiod\bibinitdelim W\bibinitperiod},
-           givenun=0}}%
-      }
-      \list{publisher}{1}{%
-        {INFORMS}%
-      }
-      \strng{namehash}{a3fc0f30e58922396867b407029fadc1}
-      \strng{fullhash}{a3fc0f30e58922396867b407029fadc1}
-      \strng{bibnamehash}{a3fc0f30e58922396867b407029fadc1}
-      \strng{authorbibnamehash}{a3fc0f30e58922396867b407029fadc1}
-      \strng{authornamehash}{a3fc0f30e58922396867b407029fadc1}
-      \strng{authorfullhash}{a3fc0f30e58922396867b407029fadc1}
-      \field{sortinit}{Z}
-      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
-      \field{extradatescope}{labelyear}
-      \field{labeldatesource}{year}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{journaltitle}{Transportation Science}
-      \field{number}{3}
-      \field{title}{Dynamic orienteering on a network of queues}
-      \field{volume}{52}
-      \field{year}{2018}
-      \field{pages}{691\bibrangedash 706}
-      \range{pages}{16}
     \endentry
     \entry{zou2018look}{article}{}
       \name{author}{2}{}{%
