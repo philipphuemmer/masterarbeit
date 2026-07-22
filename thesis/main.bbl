@@ -961,52 +961,42 @@
     \endentry
     \entry{zhang2024routing}{article}{}
       \name{author}{4}{}{%
-        {{hash=1276b0c695bd412950c2be5e737aeed5}{%
+        {{un=0,uniquepart=base,hash=1276b0c695bd412950c2be5e737aeed5}{%
            family={Zhang},
            familyi={Z\bibinitperiod},
            given={Meng},
-           giveni={M\bibinitperiod}}}%
-        {{hash=97bd7d668472cec24b32cd38988beebe}{%
+           giveni={M\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=97bd7d668472cec24b32cd38988beebe}{%
            family={Sun},
            familyi={S\bibinitperiod},
            given={Lulu},
-           giveni={L\bibinitperiod}}}%
-        {{hash=c8b4f5950bc3813214b3a6c185038a03}{%
+           giveni={L\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=c8b4f5950bc3813214b3a6c185038a03}{%
            family={Jiang},
            familyi={J\bibinitperiod},
            given={Qi},
-           giveni={Q\bibinitperiod}}}%
-        {{hash=3ef36dfa90ae0c552c89062da0ec0a8d}{%
+           giveni={Q\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=3ef36dfa90ae0c552c89062da0ec0a8d}{%
            family={Cui},
            familyi={C\bibinitperiod},
            given={Wei},
-           giveni={W\bibinitperiod}}}%
+           giveni={W\bibinitperiod},
+           givenun=0}}%
       }
-      \name{shortauthor}{1}{}{%
-        {{un=0,uniquepart=base,hash=1893583f024d74ac6bf866c1c10648c9}{%
-           family={al.},
-           familyi={a\bibinitperiod},
-           given={Zhang},
-           giveni={Z\bibinitperiod},
-           givenun=0,
-           prefix={et},
-           prefixi={e\bibinitperiod},
-           prefixun=0}}%
-      }
-      \strng{namehash}{1893583f024d74ac6bf866c1c10648c9}
+      \strng{namehash}{b64bb4aee0be35132233a68e7365b725}
       \strng{fullhash}{c00048c112d3d0daee551442cfbc4458}
-      \strng{bibnamehash}{1893583f024d74ac6bf866c1c10648c9}
+      \strng{bibnamehash}{c00048c112d3d0daee551442cfbc4458}
       \strng{authorbibnamehash}{c00048c112d3d0daee551442cfbc4458}
       \strng{authornamehash}{b64bb4aee0be35132233a68e7365b725}
       \strng{authorfullhash}{c00048c112d3d0daee551442cfbc4458}
-      \strng{shortauthorbibnamehash}{1893583f024d74ac6bf866c1c10648c9}
-      \strng{shortauthornamehash}{1893583f024d74ac6bf866c1c10648c9}
-      \strng{shortauthorfullhash}{1893583f024d74ac6bf866c1c10648c9}
       \field{sortinit}{Z}
       \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
       \field{extradatescope}{labelyear}
       \field{labeldatesource}{year}
-      \field{labelnamesource}{shortauthor}
+      \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{journaltitle}{IEEE Access}
       \field{title}{Routing Optimization for Large-Scale Inspection-Maintenance of {EV} Charging Spots With Multiple Types of Personnel and Composite Customer Satisfaction: A Multi-Stage Approach}

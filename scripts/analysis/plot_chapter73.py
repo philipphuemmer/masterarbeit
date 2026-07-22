@@ -2,7 +2,7 @@
 Generates thesis figures for Chapter 7.3 (VFA Rollout: Performance and Limitations).
 
 Figures saved to thesis/figures/:
-  - fig73_delta_boxplot.pdf   — Paired delta cost: base vs. base+rollout per policy
+  - fig73_delta_hist.pdf   — Paired delta cost: base vs. base+rollout per policy
   - fig73_overrides_hist.pdf  — Histogram of replan overrides per run (all 4 rollout variants)
 
 Run from repo root:
@@ -113,10 +113,10 @@ for ax in axes[:, 0]:
     ax.set_ylabel("Number of Runs", fontsize=9)
 
 fig.tight_layout(h_pad=2.5, w_pad=2.0)
-fig.savefig(OUT_DIR / "fig73_delta_boxplot.pdf", dpi=300, bbox_inches="tight")
-fig.savefig(OUT_DIR / "fig73_delta_boxplot.png", dpi=200, bbox_inches="tight")
+fig.savefig(OUT_DIR / "fig73_delta_hist.pdf", dpi=300, bbox_inches="tight")
+fig.savefig(OUT_DIR / "fig73_delta_hist.png", dpi=200, bbox_inches="tight")
 plt.close(fig)
-print("Saved fig73_delta_boxplot")
+print("Saved fig73_delta_hist")
 
 # ---------------------------------------------------------------------------
 # Figure 2 — Histogram Replan-Overrides
